@@ -19,6 +19,16 @@ export type StudyRecommendation = {
   rationale: string;
   suggestedPrompt: string;
   targetSection: string;
+  targetSectionId:
+    | "why"
+    | "intuition"
+    | "formal"
+    | "worked"
+    | "guided"
+    | "trap"
+    | "reflection"
+    | "application"
+    | "takeaways";
   targetConceptId: string;
   applicationGate: {
     status: ApplicationGateStatus;
@@ -105,6 +115,7 @@ export function getStudyRecommendation({
         "This concept depends on prerequisite understanding that is not ready yet.",
       suggestedPrompt: `Help me review ${weakPrerequisite.prerequisite.title} before I continue with ${concept.title}.`,
       targetSection: "Prerequisite connection",
+      targetSectionId: "intuition",
       targetConceptId: weakPrerequisite.prerequisite.id,
       applicationGate,
       ctaLabel: "Open prerequisite lesson",
@@ -120,9 +131,29 @@ export function getStudyRecommendation({
         "There is no local learning evidence yet for this concept.",
       suggestedPrompt: `Help me start ${concept.title} with intuition before formal notation.`,
       targetSection: "Why this matters",
+      targetSectionId: "why",
       targetConceptId: concept.id,
       applicationGate,
       ctaLabel: "Start lesson",
+    };
+  }
+
+  const latestMemorySignal = conceptMemory.memorySignalHistory?.[0];
+  if (
+    latestMemorySignal?.suggestedStudyAction === "review_confusing_section" ||
+    latestMemorySignal?.confusionLevel === "high"
+  ) {
+    return {
+      action: "review_confusing_section",
+      actionLabel: "Review section",
+      title: "Respond to the latest confusion signal",
+      rationale: latestMemorySignal.evidenceNote,
+      suggestedPrompt: `Can you explain the ${concept.title} idea another way and check my understanding?`,
+      targetSection: "Intuition",
+      targetSectionId: "intuition",
+      targetConceptId: concept.id,
+      applicationGate,
+      ctaLabel: "Review with AI Teacher",
     };
   }
 
@@ -135,6 +166,7 @@ export function getStudyRecommendation({
       rationale: `Memory has tracked this misconception ${topMisconception.count} time(s): ${topMisconception.text}`,
       suggestedPrompt: `Can you help me correct this misconception: ${topMisconception.text}`,
       targetSection: "Common trap",
+      targetSectionId: "trap",
       targetConceptId: concept.id,
       applicationGate,
       ctaLabel: "Repair with lesson",
@@ -152,6 +184,7 @@ export function getStudyRecommendation({
       rationale: `You asked about ${repeatedConfusion.section} ${repeatedConfusion.count} time(s).`,
       suggestedPrompt: `Can you explain the ${repeatedConfusion.section} section another way?`,
       targetSection: repeatedConfusion.section,
+      targetSectionId: "intuition",
       targetConceptId: concept.id,
       applicationGate,
       ctaLabel: "Review section",
@@ -167,6 +200,7 @@ export function getStudyRecommendation({
         "Readiness is strong and no active misconception is currently tracked.",
       suggestedPrompt: `Give me an application prompt for ${concept.title} that still focuses on learning, not just the answer.`,
       targetSection: "Try applying it",
+      targetSectionId: "application",
       targetConceptId: concept.id,
       applicationGate,
       ctaLabel: "Open application section",
@@ -174,14 +208,18 @@ export function getStudyRecommendation({
   }
 
   if (conceptMemory.readiness >= 55) {
+    const latestMemorySignal = conceptMemory.memorySignalHistory?.[0];
+
     return {
       action: "needs_reflection",
       actionLabel: "Add reflection",
       title: "Make the learning explicit",
       rationale:
+        latestMemorySignal?.evidenceNote ??
         "You have some learning evidence, but reflection can make the concept more durable.",
       suggestedPrompt: `Ask me a reflection question that checks whether I understand ${concept.title}.`,
       targetSection: "Reflection",
+      targetSectionId: "reflection",
       targetConceptId: concept.id,
       applicationGate,
       ctaLabel: "Reflect in lesson",
@@ -196,6 +234,7 @@ export function getStudyRecommendation({
       "Readiness is still developing, so the best next action is another guided explanation or example.",
     suggestedPrompt: `Explain ${concept.title} with a fresh example and one guiding question.`,
     targetSection: "Intuition",
+    targetSectionId: "intuition",
     targetConceptId: concept.id,
     applicationGate,
     ctaLabel: "Continue lesson",

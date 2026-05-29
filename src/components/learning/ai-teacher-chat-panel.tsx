@@ -25,6 +25,7 @@ import { recordTeacherInteraction } from "@/features/memory/memory-store";
 import type {
   TeacherChatMessage,
   TeacherChatResponse,
+  TeacherMemorySignals,
   TeachingMove,
 } from "@/features/ai-teacher/types";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,11 @@ type SendMessageOptions = {
   section?: string;
   selectedText?: string;
   selectionAction?: SelectionAction;
+  source?:
+    | "direct_chat"
+    | "section_action"
+    | "text_selection"
+    | "memory_recommendation";
 };
 
 const CHAT_TIMEOUT_MS = 180_000;
@@ -164,6 +170,9 @@ export function AiTeacherChatPanel({
     string | undefined
   >();
   const [teachingMove, setTeachingMove] = useState<TeachingMove>("explain");
+  const [memorySignals, setMemorySignals] = useState<
+    TeacherMemorySignals | undefined
+  >();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
   const [error, setError] = useState<string | undefined>();
@@ -253,6 +262,7 @@ export function AiTeacherChatPanel({
     setIsLoading(true);
     setError(undefined);
     setDetectedMisconception(undefined);
+    setMemorySignals(undefined);
     setLoadingSeconds(0);
 
     let timeoutId: number | undefined;
@@ -310,14 +320,17 @@ export function AiTeacherChatPanel({
       setSuggestedFollowUps(data.suggestedFollowUps);
       setDetectedMisconception(data.detectedMisconception);
       setTeachingMove(data.teachingMove);
+      setMemorySignals(data.memorySignals);
       recordTeacherInteraction({
         conceptId: concept.id,
         conceptTitle: concept.title,
         section: sectionForRequest,
         userMessage,
         selectedText: options?.selectedText,
+        source: options?.source ?? "direct_chat",
         teachingMove: data.teachingMove,
         detectedMisconception: data.detectedMisconception,
+        memorySignals: data.memorySignals,
         locale: language,
       });
     } catch (requestError) {
@@ -354,6 +367,7 @@ export function AiTeacherChatPanel({
         selectedText?: string;
         selectionAction?: SelectionAction;
         prompt?: string;
+        source?: SendMessageOptions["source"];
       }>;
       const section = customEvent.detail?.section ?? currentSection;
       const selectedText = customEvent.detail?.selectedText;
@@ -375,6 +389,9 @@ export function AiTeacherChatPanel({
         section,
         selectedText,
         selectionAction: customEvent.detail?.selectionAction,
+        source:
+          customEvent.detail?.source ??
+          (selectedText ? "text_selection" : "section_action"),
       });
     }
 
@@ -467,6 +484,13 @@ export function AiTeacherChatPanel({
             <div className="rounded-lg border border-border bg-muted p-3 text-sm leading-6">
               <span className="font-semibold">{copy.misconception}</span>{" "}
               {detectedMisconception}
+            </div>
+          )}
+
+          {memorySignals && (
+            <div className="rounded-lg border border-learning-mint/30 bg-learning-mint/10 p-3 text-sm leading-6">
+              <span className="font-semibold">Learning signal:</span>{" "}
+              {memorySignals.evidenceNote}
             </div>
           )}
 

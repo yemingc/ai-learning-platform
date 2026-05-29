@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getConceptById } from "@/features/knowledge/get-concepts";
 import { getLessonByConceptId } from "@/features/lessons/get-lessons";
-import { runTeacherRuntime } from "@/features/ai-teacher/teacher-runtime";
 import { TeacherChatServiceError } from "@/features/ai-teacher/teacher-service";
+import { runTeacherWorkflow } from "@/features/ai-teacher/workflow/run-teacher-workflow";
 import {
   type TeacherChatErrorCode,
   teacherChatRequestSchema,
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const teacherRuntimeResult = await runTeacherRuntime({
+    const teacherWorkflowResult = await runTeacherWorkflow({
       concept,
       lesson,
       locale,
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      teacherChatResponseSchema.parse(teacherRuntimeResult.response),
+      teacherChatResponseSchema.parse(teacherWorkflowResult.teacherResponse),
     );
   } catch (error) {
     if (error instanceof TeacherChatServiceError) {

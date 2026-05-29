@@ -1,8 +1,10 @@
 import type { Concept } from "@/features/knowledge/types";
 import type { LessonContent } from "@/features/lessons/types";
 import type { TeacherIntent } from "@/features/ai-teacher/teacher-runtime-types";
-import type { TeacherChatMessage } from "@/features/ai-teacher/types";
-import type { TeachingMove } from "@/features/ai-teacher/types";
+import type {
+  TeacherChatMessage,
+  TeachingMove,
+} from "@/features/ai-teacher/types";
 
 type TeacherPromptInput = {
   concept: Concept;
@@ -23,18 +25,19 @@ export function buildTeacherSystemPrompt(locale: "en" | "zh") {
       ? [
           "Respond in Chinese.",
           "For AP Calculus terminology, write the Chinese term followed by the original English term in full-width parentheses, for example: 极限（limit）, 函数值（function value）, 左极限（left-hand limit）, 右极限（right-hand limit）, 无穷极限（infinite limit）, 垂直渐近线（vertical asymptote）.",
-          "Use the same bilingual term style in assistantMessage, suggestedFollowUps, and detectedMisconception.",
+          "Use the same bilingual term style in assistantMessage, suggestedFollowUps, detectedMisconception, and memorySignals.evidenceNote.",
         ]
       : ["Respond in English."];
 
   return [
     "You are an AI Teacher for AP Calculus AB.",
-    "You are helping a student understand one static lesson that is maintained by the product team.",
+    "You help a student understand one static lesson maintained by the product team.",
     "Do not regenerate, replace, or summarize the whole lesson.",
     "Do not become a generic chatbot.",
     "Do not grade quizzes or turn the exchange into a question bank.",
     "Use the current lesson context to explain confusing parts, ask Socratic guiding questions, offer alternate examples, identify misconceptions, and encourage reflection.",
     "Keep responses concise, student-friendly, and focused on the current concept.",
+    "Also act as an educational observer: produce structured memorySignals that describe what this interaction suggests about the learner's state.",
     ...languageRules,
     "Return one valid JSON object only. Do not wrap it in markdown. Do not include extra top-level keys.",
   ].join("\n");
@@ -61,13 +64,30 @@ export function buildTeacherUserPrompt({
         detectedMisconception: "optional string",
         teachingMove:
           "explain | ask_guiding_question | give_example | correct_misconception | reflect",
+        memorySignals: {
+          confusionLevel: "low | medium | high",
+          misconceptionType: "optional string",
+          needsReview: "boolean",
+          suggestedStudyAction:
+            "continue_learning | repair_misconception | review_confusing_section | needs_reflection | ready_for_application",
+          confidenceDelta: "number from -20 to 20",
+          evidenceNote: "short string explaining the observation",
+        },
       },
+      memorySignalGuidance: [
+        "confusionLevel should reflect how much support the learner appears to need right now.",
+        "needsReview should be true when the learner shows confusion, a misconception, or weak prerequisite language.",
+        "confidenceDelta should be positive for clear understanding/reflection and negative for confusion or misconception.",
+        "suggestedStudyAction should be educationally useful, not just a next concept recommendation.",
+        "evidenceNote should cite the learning signal from this interaction in one concise sentence.",
+      ],
       jsonRules: [
         "Return a single JSON object only.",
         "Do not wrap the JSON in markdown.",
         "Do not include extra top-level keys.",
         "suggestedFollowUps must be an array with 1 to 4 strings.",
         "teachingMove must be exactly one of: explain, ask_guiding_question, give_example, correct_misconception, reflect.",
+        "memorySignals must be present and must match the required shape.",
       ],
       rules: [
         "Base the response on the static lesson content below.",
@@ -75,7 +95,7 @@ export function buildTeacherUserPrompt({
         "If selectedText is provided, respond directly to that selected lesson text.",
         "If selectionAction is provided, honor that action first.",
         "Use recent chat history only to maintain continuity.",
-        "Assume learner memory is not implemented yet; use the placeholder only as product context.",
+        "Assume learner memory is local-demo only for now; do not claim long-term persistence.",
         "If the student asks for an answer, guide the reasoning instead of just giving a final answer.",
         "Keep assistantMessage under 170 words.",
         locale === "zh"
@@ -101,9 +121,9 @@ export function buildTeacherUserPrompt({
           "These are deterministic runtime hints for future LangGraph orchestration. Use them as guidance, not as content to reveal to the learner.",
       },
       learnerMemoryPlaceholder: {
-        status: "not_connected_yet",
+        status: "local_demo_memory_enabled",
         intendedUse:
-          "Later, learner memory will personalize explanations based on mastery, misconceptions, and review signals.",
+          "This response's memorySignals will update local learner memory and adaptive study recommendations.",
       },
       recentChatHistory: chatHistory,
       userMessage,

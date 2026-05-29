@@ -42,6 +42,20 @@ const statusLabels: Record<ConceptMemory["status"], string> = {
   not_started: "Not started",
 };
 
+function getRecommendationHref(
+  recommendation: ReturnType<typeof getStudyRecommendation>,
+) {
+  const params = new URLSearchParams({
+    action: recommendation.action,
+    prompt: recommendation.suggestedPrompt,
+    section: recommendation.targetSection,
+    sectionId: recommendation.targetSectionId,
+    source: "memory_recommendation",
+  });
+
+  return `/learn/${recommendation.targetConceptId}?${params.toString()}`;
+}
+
 function formatDate(value?: string) {
   if (!value) {
     return "Not studied yet";
@@ -85,6 +99,14 @@ export function MemoryPageClient({ concepts }: MemoryPageClientProps) {
   );
   const totalMisconceptions = conceptMemories.reduce(
     (sum, item) => sum + (item.memory?.misconceptions.length ?? 0),
+    0,
+  );
+  const reviewSignals = conceptMemories.reduce(
+    (sum, item) =>
+      sum +
+      (item.memory?.memorySignalHistory ?? []).filter(
+        (signal) => signal.needsReview,
+      ).length,
     0,
   );
   const averageReadiness =
@@ -158,8 +180,10 @@ export function MemoryPageClient({ concepts }: MemoryPageClientProps) {
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Misconceptions tracked</CardDescription>
-            <CardTitle>{totalMisconceptions}</CardTitle>
+            <CardDescription>Review signals / traps</CardDescription>
+            <CardTitle>
+              {reviewSignals} / {totalMisconceptions}
+            </CardTitle>
           </CardHeader>
         </Card>
       </section>
@@ -218,6 +242,30 @@ export function MemoryPageClient({ concepts }: MemoryPageClientProps) {
                 </div>
               </div>
 
+              {conceptMemory?.memorySignalHistory?.[0] ? (
+                <div className="rounded-lg border border-border bg-background/70 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">
+                      Confusion:{" "}
+                      {conceptMemory.memorySignalHistory[0].confusionLevel}
+                    </Badge>
+                    <Badge variant="outline">
+                      Confidence{" "}
+                      {conceptMemory.memorySignalHistory[0].confidenceDelta > 0
+                        ? "+"
+                        : ""}
+                      {conceptMemory.memorySignalHistory[0].confidenceDelta}
+                    </Badge>
+                    {conceptMemory.memorySignalHistory[0].needsReview && (
+                      <Badge variant="secondary">Needs review</Badge>
+                    )}
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {conceptMemory.memorySignalHistory[0].evidenceNote}
+                  </p>
+                </div>
+              ) : null}
+
               <div className="rounded-lg border border-learning-mint/30 bg-learning-mint/10 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">
@@ -254,7 +302,7 @@ export function MemoryPageClient({ concepts }: MemoryPageClientProps) {
                       buttonVariants({ variant: "outline", size: "sm" }),
                       "w-full lg:w-auto",
                     )}
-                    href={`/learn/${recommendation.targetConceptId}`}
+                    href={getRecommendationHref(recommendation)}
                   >
                     {recommendation.ctaLabel}
                   </Link>

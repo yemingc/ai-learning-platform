@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -39,6 +40,26 @@ type LessonPageClientProps = {
   previousLesson?: LessonContent;
   nextLesson?: LessonContent;
 };
+
+type ExecutableStudyAction =
+  | "start_lesson"
+  | "continue_learning"
+  | "repair_misconception"
+  | "review_prerequisite"
+  | "review_confusing_section"
+  | "ready_for_application"
+  | "needs_reflection";
+
+type LessonSectionId =
+  | "why"
+  | "intuition"
+  | "formal"
+  | "worked"
+  | "guided"
+  | "trap"
+  | "reflection"
+  | "application"
+  | "takeaways";
 
 const copy = {
   en: {
@@ -142,12 +163,14 @@ const copy = {
 function LessonSection({
   eyebrow,
   title,
+  sectionId,
   icon,
   lessonFlowLabel,
   children,
 }: {
   eyebrow: string;
   title: string;
+  sectionId: LessonSectionId;
   icon: React.ReactNode;
   lessonFlowLabel: string;
   children: React.ReactNode;
@@ -158,6 +181,7 @@ function LessonSection({
     <section
       className="grid gap-4 border-t border-border py-8 md:grid-cols-[13rem_1fr]"
       data-lesson-section={section}
+      id={`lesson-section-${sectionId}`}
     >
       <div>
         <Badge variant="outline">{eyebrow}</Badge>
@@ -175,6 +199,28 @@ function LessonSection({
   );
 }
 
+function getSelectionActionForStudyAction(action: string | null) {
+  const actionMap: Partial<
+    Record<
+      ExecutableStudyAction,
+      | "explain_this"
+      | "give_example"
+      | "check_misconception"
+      | "ask_guiding_question"
+    >
+  > = {
+    continue_learning: "give_example",
+    needs_reflection: "ask_guiding_question",
+    ready_for_application: "ask_guiding_question",
+    repair_misconception: "check_misconception",
+    review_confusing_section: "explain_this",
+    review_prerequisite: "explain_this",
+    start_lesson: "explain_this",
+  };
+
+  return actionMap[action as ExecutableStudyAction] ?? "explain_this";
+}
+
 export function LessonPageClient({
   concept,
   lesson,
@@ -182,6 +228,7 @@ export function LessonPageClient({
   nextLesson,
 }: LessonPageClientProps) {
   const { language } = useLanguage();
+  const handledStudyActionRef = useRef(false);
   const pageCopy = copy[language];
   const displayLesson = getLocalizedLessonContent(lesson, language);
   const displayPreviousLesson = previousLesson
@@ -191,6 +238,50 @@ export function LessonPageClient({
     ? getLocalizedLessonContent(nextLesson, language)
     : undefined;
   const primaryExample = displayLesson.workedExamples[0];
+
+  useEffect(() => {
+    if (handledStudyActionRef.current) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("source") !== "memory_recommendation") {
+      return;
+    }
+
+    const prompt = params.get("prompt");
+
+    if (!prompt) {
+      return;
+    }
+
+    handledStudyActionRef.current = true;
+
+    const sectionId = params.get("sectionId") ?? "why";
+    const section = params.get("section") ?? pageCopy.fullContext;
+    const target = document.getElementById(`lesson-section-${sectionId}`);
+
+    target?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("ai-teacher:send-selection", {
+          detail: {
+            prompt,
+            section,
+            selectionAction: getSelectionActionForStudyAction(
+              params.get("action"),
+            ),
+            source: "memory_recommendation",
+          },
+        }),
+      );
+    }, 450);
+  }, [pageCopy.fullContext]);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
@@ -249,6 +340,7 @@ export function LessonPageClient({
               eyebrow={pageCopy.sections.why.eyebrow}
               icon={<Sparkles className="size-4 text-primary" />}
               lessonFlowLabel={pageCopy.lessonFlow}
+              sectionId="why"
               title={pageCopy.sections.why.title}
             >
               <p className="text-base leading-8 text-muted-foreground">
@@ -260,6 +352,7 @@ export function LessonPageClient({
               eyebrow={pageCopy.sections.intuition.eyebrow}
               icon={<Lightbulb className="size-4 text-primary" />}
               lessonFlowLabel={pageCopy.lessonFlow}
+              sectionId="intuition"
               title={pageCopy.sections.intuition.title}
             >
               <p className="text-base leading-8 text-muted-foreground">
@@ -288,6 +381,7 @@ export function LessonPageClient({
               eyebrow={pageCopy.sections.formal.eyebrow}
               icon={<Target className="size-4 text-primary" />}
               lessonFlowLabel={pageCopy.lessonFlow}
+              sectionId="formal"
               title={pageCopy.sections.formal.title}
             >
               <p className="text-base leading-8 text-muted-foreground">
@@ -299,6 +393,7 @@ export function LessonPageClient({
               eyebrow={pageCopy.sections.worked.eyebrow}
               icon={<Compass className="size-4 text-primary" />}
               lessonFlowLabel={pageCopy.lessonFlow}
+              sectionId="worked"
               title={primaryExample.title}
             >
               <Card className="bg-background/70">
@@ -327,6 +422,7 @@ export function LessonPageClient({
               eyebrow={pageCopy.sections.guided.eyebrow}
               icon={<MessageSquare className="size-4 text-primary" />}
               lessonFlowLabel={pageCopy.lessonFlow}
+              sectionId="guided"
               title={pageCopy.sections.guided.title}
             >
               <div className="grid gap-4">
@@ -352,6 +448,7 @@ export function LessonPageClient({
               eyebrow={pageCopy.sections.trap.eyebrow}
               icon={<TriangleAlert className="size-4 text-primary" />}
               lessonFlowLabel={pageCopy.lessonFlow}
+              sectionId="trap"
               title={pageCopy.sections.trap.title}
             >
               <div className="grid gap-4">
@@ -375,6 +472,7 @@ export function LessonPageClient({
               eyebrow={pageCopy.sections.reflection.eyebrow}
               icon={<PenLine className="size-4 text-primary" />}
               lessonFlowLabel={pageCopy.lessonFlow}
+              sectionId="reflection"
               title={pageCopy.sections.reflection.title}
             >
               <Card className="bg-background/70">
@@ -392,6 +490,7 @@ export function LessonPageClient({
               eyebrow={pageCopy.sections.application.eyebrow}
               icon={<Brain className="size-4 text-primary" />}
               lessonFlowLabel={pageCopy.lessonFlow}
+              sectionId="application"
               title={displayLesson.applicationPrompt.title}
             >
               <p className="text-base leading-8 text-muted-foreground">
@@ -406,6 +505,7 @@ export function LessonPageClient({
               eyebrow={pageCopy.sections.takeaways.eyebrow}
               icon={<BookOpen className="size-4 text-primary" />}
               lessonFlowLabel={pageCopy.lessonFlow}
+              sectionId="takeaways"
               title={pageCopy.sections.takeaways.title}
             >
               <ul className="grid gap-3 sm:grid-cols-3">

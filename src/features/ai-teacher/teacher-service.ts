@@ -18,6 +18,7 @@ import {
   type TeacherChatErrorCode,
   type TeacherChatMessage,
   type TeacherChatResponse,
+  type TeacherMemorySignals,
   type TeachingMove,
 } from "@/features/ai-teacher/types";
 
@@ -127,6 +128,190 @@ function normalizeFollowUps(value: unknown, locale: "en" | "zh") {
   return followUps.length > 0 ? followUps : fallback;
 }
 
+function normalizeBoolean(value: unknown, fallback: boolean) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (["true", "yes", "needs_review"].includes(normalized)) {
+      return true;
+    }
+
+    if (["false", "no"].includes(normalized)) {
+      return false;
+    }
+  }
+
+  return fallback;
+}
+
+function normalizeNumber(value: unknown, fallback: number) {
+  const numberValue =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+
+  if (!Number.isFinite(numberValue)) {
+    return fallback;
+  }
+
+  return Math.max(-20, Math.min(20, numberValue));
+}
+
+function normalizeConfusionLevel(
+  value: unknown,
+): TeacherMemorySignals["confusionLevel"] {
+  if (typeof value !== "string") {
+    return "medium";
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "low" || normalized === "medium" || normalized === "high") {
+    return normalized;
+  }
+
+  return "medium";
+}
+
+function normalizeSuggestedStudyAction(
+  value: unknown,
+  fallback: TeacherMemorySignals["suggestedStudyAction"],
+): TeacherMemorySignals["suggestedStudyAction"] {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase().replaceAll("-", "_");
+  const actionAliases: Record<
+    string,
+    TeacherMemorySignals["suggestedStudyAction"]
+  > = {
+    application: "ready_for_application",
+    continue: "continue_learning",
+    continue_learning: "continue_learning",
+    example: "continue_learning",
+    needs_reflection: "needs_reflection",
+    ready: "ready_for_application",
+    ready_for_application: "ready_for_application",
+    reflect: "needs_reflection",
+    reflection: "needs_reflection",
+    repair: "repair_misconception",
+    repair_misconception: "repair_misconception",
+    review: "review_confusing_section",
+    review_confusing_section: "review_confusing_section",
+  };
+
+  return actionAliases[normalized] ?? fallback;
+}
+
+function inferMemorySignalFallback({
+  detectedMisconception,
+  locale,
+  teachingMove,
+}: {
+  detectedMisconception?: string;
+  locale: "en" | "zh";
+  teachingMove: TeachingMove;
+}): TeacherMemorySignals {
+  if (detectedMisconception) {
+    return {
+      confusionLevel: "high",
+      misconceptionType: detectedMisconception,
+      needsReview: true,
+      suggestedStudyAction: "repair_misconception",
+      confidenceDelta: -8,
+      evidenceNote:
+        locale === "zh"
+          ? "检测到需要修复的误区（misconception）。"
+          : "A misconception signal was detected and should be repaired.",
+    };
+  }
+
+  if (teachingMove === "reflect") {
+    return {
+      confusionLevel: "low",
+      needsReview: false,
+      suggestedStudyAction: "ready_for_application",
+      confidenceDelta: 8,
+      evidenceNote:
+        locale === "zh"
+          ? "学习者正在进行反思（reflection），这是较强的理解信号。"
+          : "The learner is reflecting, which is a stronger understanding signal.",
+    };
+  }
+
+  return {
+    confusionLevel: "medium",
+    needsReview: teachingMove !== "give_example",
+    suggestedStudyAction:
+      teachingMove === "ask_guiding_question"
+        ? "needs_reflection"
+        : "continue_learning",
+    confidenceDelta: teachingMove === "give_example" ? 2 : -2,
+    evidenceNote:
+      locale === "zh"
+        ? "这次互动显示仍需要更多概念证据（concept evidence）。"
+        : "This interaction suggests more concept evidence is still useful.",
+  };
+}
+
+function normalizeMemorySignals({
+  detectedMisconception,
+  locale,
+  rawSignals,
+  teachingMove,
+}: {
+  detectedMisconception?: string;
+  locale: "en" | "zh";
+  rawSignals: unknown;
+  teachingMove: TeachingMove;
+}): TeacherMemorySignals {
+  const fallback = inferMemorySignalFallback({
+    detectedMisconception,
+    locale,
+    teachingMove,
+  });
+
+  if (!isRecord(rawSignals)) {
+    return fallback;
+  }
+
+  return {
+    confusionLevel: normalizeConfusionLevel(
+      rawSignals.confusionLevel ?? rawSignals.confusion_level,
+    ),
+    misconceptionType: firstString(
+      rawSignals.misconceptionType,
+      rawSignals.misconception_type,
+      rawSignals.misconception,
+    ),
+    needsReview: normalizeBoolean(
+      rawSignals.needsReview ?? rawSignals.needs_review,
+      fallback.needsReview,
+    ),
+    suggestedStudyAction: normalizeSuggestedStudyAction(
+      rawSignals.suggestedStudyAction ?? rawSignals.suggested_study_action,
+      fallback.suggestedStudyAction,
+    ),
+    confidenceDelta: normalizeNumber(
+      rawSignals.confidenceDelta ?? rawSignals.confidence_delta,
+      fallback.confidenceDelta,
+    ),
+    evidenceNote:
+      firstString(
+        rawSignals.evidenceNote,
+        rawSignals.evidence_note,
+        rawSignals.note,
+      ) ?? fallback.evidenceNote,
+  };
+}
+
 function normalizeTeacherResponse(
   value: unknown,
   locale: "en" | "zh",
@@ -143,14 +328,28 @@ function normalizeTeacherResponse(
     value.answer,
     value.content,
   );
+  const detectedMisconception = firstString(
+    value.detectedMisconception,
+    value.detected_misconception,
+    value.misconception,
+  );
+  const teachingMove = normalizeTeachingMove(
+    value.teachingMove ?? value.teaching_move,
+  );
 
   return {
     assistantMessage,
-    detectedMisconception: firstString(
-      value.detectedMisconception,
-      value.detected_misconception,
-      value.misconception,
-    ),
+    detectedMisconception,
+    memorySignals: normalizeMemorySignals({
+      detectedMisconception,
+      locale,
+      rawSignals:
+        value.memorySignals ??
+        value.memory_signals ??
+        value.learnerMemorySignals ??
+        value.learner_memory_signals,
+      teachingMove,
+    }),
     suggestedFollowUps: normalizeFollowUps(
       value.suggestedFollowUps ??
         value.suggested_follow_ups ??
@@ -158,9 +357,7 @@ function normalizeTeacherResponse(
         value.follow_ups,
       locale,
     ),
-    teachingMove: normalizeTeachingMove(
-      value.teachingMove ?? value.teaching_move,
-    ),
+    teachingMove,
   };
 }
 

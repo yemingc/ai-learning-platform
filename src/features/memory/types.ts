@@ -1,5 +1,8 @@
 import type { ConceptId, CourseId } from "@/features/knowledge/types";
-import type { TeachingMove } from "@/features/ai-teacher/types";
+import type {
+  TeacherMemorySignals,
+  TeachingMove,
+} from "@/features/ai-teacher/types";
 
 export const LOCAL_DEMO_LEARNER_ID = "local-demo";
 export const LOCAL_DEMO_MEMORY_SOURCE = "local_demo";
@@ -36,11 +39,17 @@ export type TeacherInteractionMemory = {
   id: string;
   conceptId: ConceptId;
   conceptTitle: string;
+  source:
+    | "direct_chat"
+    | "section_action"
+    | "text_selection"
+    | "memory_recommendation";
   section: string;
   userMessage: string;
   selectedText?: string;
   teachingMove: TeachingMove;
   detectedMisconception?: string;
+  memorySignals: TeacherMemorySignals;
   locale: "en" | "zh";
   createdAt: string;
 };
@@ -54,6 +63,7 @@ export type ConceptMemory = {
   lastStudiedAt?: string;
   misconceptions: MisconceptionMemory[];
   confusionSignals: ConfusionSignal[];
+  memorySignalHistory: TeacherMemorySignals[];
   recentInteractions: TeacherInteractionMemory[];
 };
 
@@ -69,10 +79,12 @@ export type LearnerMemory = {
 export type RecordTeacherInteractionInput = {
   conceptId: ConceptId;
   conceptTitle: string;
+  source?: TeacherInteractionMemory["source"];
   section: string;
   userMessage: string;
   selectedText?: string;
   teachingMove: TeachingMove;
   detectedMisconception?: string;
+  memorySignals: TeacherMemorySignals;
   locale: "en" | "zh";
 };

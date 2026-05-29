@@ -43,6 +43,7 @@ function createConceptMemory(
     interactionCount: 0,
     misconceptions: [],
     confusionSignals: [],
+    memorySignalHistory: [],
     recentInteractions: [],
   };
 }
@@ -88,11 +89,13 @@ export function recordTeacherInteraction(input: RecordTeacherInteractionInput) {
     id: createId("interaction"),
     conceptId: input.conceptId,
     conceptTitle: input.conceptTitle,
+    source: input.source ?? "direct_chat",
     section: input.section,
     userMessage: input.userMessage,
     selectedText: input.selectedText,
     teachingMove: input.teachingMove,
     detectedMisconception: input.detectedMisconception,
+    memorySignals: input.memorySignals,
     locale: input.locale,
     createdAt: now,
   };
@@ -165,6 +168,10 @@ export function recordTeacherInteraction(input: RecordTeacherInteractionInput) {
     lastStudiedAt: now,
     confusionSignals,
     misconceptions,
+    memorySignalHistory: [
+      input.memorySignals,
+      ...(existingConceptMemory.memorySignalHistory ?? []),
+    ].slice(0, 12),
     recentInteractions: [
       interaction,
       ...existingConceptMemory.recentInteractions,
