@@ -1,0 +1,247 @@
+import "server-only";
+
+import { ZodError } from "zod";
+import {
+  DEEPSEEK_MODEL,
+  DEEPSEEK_TIMEOUT_MS,
+  getDeepSeekClient,
+} from "@/lib/deepseek";
+import type { Concept } from "@/features/knowledge/types";
+import type { LessonContent } from "@/features/lessons/types";
+import type { TeacherIntent } from "@/features/ai-teacher/teacher-runtime-types";
+import {
+  buildTeacherSystemPrompt,
+  buildTeacherUserPrompt,
+} from "@/features/ai-teacher/teacher-prompts";
+import {
+  teacherChatResponseSchema,
+  type TeacherChatErrorCode,
+  type TeacherChatMessage,
+  type TeacherChatResponse,
+  type TeachingMove,
+} from "@/features/ai-teacher/types";
+
+type GenerateTeacherResponseInput = {
+  concept: Concept;
+  lesson: LessonContent;
+  locale: "en" | "zh";
+  currentSection: string;
+  userMessage: string;
+  selectedText?: string;
+  selectionAction?: string;
+  chatHistory: TeacherChatMessage[];
+  intent?: TeacherIntent;
+  teachingMoveHint?: TeachingMove;
+};
+
+const errorMessages: Record<TeacherChatErrorCode, string> = {
+  missing_api_key:
+    "DeepSeek API key is missing. Please set DEEPSEEK_API_KEY and try again.",
+  api_timeout:
+    "DeepSeek response timed out after 3 minutes. Please try again with a shorter question.",
+  api_error:
+    "DeepSeek API request failed. Please check the API configuration or try again later.",
+  empty_response: "DeepSeek returned an empty response. Please try again.",
+  invalid_json: "DeepSeek returned invalid JSON. Please try again.",
+  schema_validation_failed:
+    "DeepSeek returned JSON that did not match the AI Teacher response schema.",
+};
+
+export class TeacherChatServiceError extends Error {
+  code: TeacherChatErrorCode;
+
+  constructor(code: TeacherChatErrorCode, message = errorMessages[code]) {
+    super(message);
+    this.name = "TeacherChatServiceError";
+    this.code = code;
+  }
+}
+
+function parseJsonObject(content: string) {
+  const trimmed = content.trim();
+  const withoutFence = trimmed
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  try {
+    return JSON.parse(withoutFence);
+  } catch {
+    throw new TeacherChatServiceError("invalid_json");
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function firstString(...values: unknown[]) {
+  return values.find((value): value is string => {
+    return typeof value === "string" && value.trim().length > 0;
+  });
+}
+
+function normalizeTeachingMove(value: unknown): TeachingMove {
+  if (typeof value !== "string") {
+    return "explain";
+  }
+
+  const normalized = value.trim().toLowerCase().replaceAll("-", "_");
+  const moveAliases: Record<string, TeachingMove> = {
+    ask_guiding_question: "ask_guiding_question",
+    correct_misconception: "correct_misconception",
+    example: "give_example",
+    explain: "explain",
+    explanation: "explain",
+    give_example: "give_example",
+    guiding_question: "ask_guiding_question",
+    misconception: "correct_misconception",
+    misconception_check: "correct_misconception",
+    question: "ask_guiding_question",
+    reflect: "reflect",
+    reflection: "reflect",
+  };
+
+  return moveAliases[normalized] ?? "explain";
+}
+
+function normalizeFollowUps(value: unknown, locale: "en" | "zh") {
+  const fallback =
+    locale === "zh"
+      ? [
+          "请用更简单的话解释这个概念（concept）",
+          "再给我一个例子（example）",
+        ]
+      : ["Explain this more simply", "Give me another example"];
+
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const followUps = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+
+  return followUps.length > 0 ? followUps : fallback;
+}
+
+function normalizeTeacherResponse(
+  value: unknown,
+  locale: "en" | "zh",
+): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const assistantMessage = firstString(
+    value.assistantMessage,
+    value.assistant_message,
+    value.message,
+    value.response,
+    value.answer,
+    value.content,
+  );
+
+  return {
+    assistantMessage,
+    detectedMisconception: firstString(
+      value.detectedMisconception,
+      value.detected_misconception,
+      value.misconception,
+    ),
+    suggestedFollowUps: normalizeFollowUps(
+      value.suggestedFollowUps ??
+        value.suggested_follow_ups ??
+        value.followUps ??
+        value.follow_ups,
+      locale,
+    ),
+    teachingMove: normalizeTeachingMove(
+      value.teachingMove ?? value.teaching_move,
+    ),
+  };
+}
+
+export function getTeacherChatErrorMessage(code: TeacherChatErrorCode) {
+  return errorMessages[code];
+}
+
+export async function generateTeacherResponse(
+  input: GenerateTeacherResponseInput,
+): Promise<TeacherChatResponse> {
+  const client = getDeepSeekClient();
+
+  if (!client) {
+    throw new TeacherChatServiceError("missing_api_key");
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
+
+  try {
+    const completion = await client.chat.completions.create(
+      {
+        model: DEEPSEEK_MODEL,
+        response_format: { type: "json_object" },
+        temperature: 0.35,
+        messages: [
+          {
+            role: "system",
+            content: buildTeacherSystemPrompt(input.locale),
+          },
+          {
+            role: "user",
+            content: buildTeacherUserPrompt(input),
+          },
+        ],
+      },
+      {
+        signal: controller.signal,
+        timeout: DEEPSEEK_TIMEOUT_MS,
+        maxRetries: 0,
+      },
+    );
+
+    const content = completion.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new TeacherChatServiceError("empty_response");
+    }
+
+    try {
+      return teacherChatResponseSchema.parse(
+        normalizeTeacherResponse(parseJsonObject(content), input.locale),
+      );
+    } catch (error) {
+      if (error instanceof TeacherChatServiceError) {
+        throw error;
+      }
+
+      if (error instanceof ZodError) {
+        throw new TeacherChatServiceError("schema_validation_failed");
+      }
+
+      throw error;
+    }
+  } catch (error) {
+    if (error instanceof TeacherChatServiceError) {
+      throw error;
+    }
+
+    if (controller.signal.aborted) {
+      throw new TeacherChatServiceError("api_timeout");
+    }
+
+    console.warn("AI Teacher response failed.", {
+      conceptId: input.concept.id,
+      currentSection: input.currentSection,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+
+    throw new TeacherChatServiceError("api_error");
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
