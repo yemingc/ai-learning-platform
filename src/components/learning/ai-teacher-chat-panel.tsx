@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Bot, Loader2, Send, Sparkles, X } from "lucide-react";
+import { Bot, ChevronDown, Loader2, Send, Sparkles, X } from "lucide-react";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -28,6 +28,12 @@ import type {
   TeacherMemorySignals,
   TeachingMove,
 } from "@/features/ai-teacher/types";
+import type {
+  LearnerMemoryPatch,
+  NextStudyActionHint,
+  TeacherWorkflowTraceEvent,
+} from "@/features/ai-teacher/workflow/types";
+import { saveWorkflowInspectorRun } from "@/features/ai-teacher/workflow/inspector-store";
 import { cn } from "@/lib/utils";
 
 type AiTeacherChatPanelProps = {
@@ -45,6 +51,13 @@ type TeacherChatErrorResponse = {
     code?: string;
     message?: string;
   };
+};
+
+type TeacherChatDebugResponse = TeacherChatResponse & {
+  memoryPatch?: LearnerMemoryPatch;
+  nextStudyAction?: NextStudyActionHint;
+  workflowEngine?: string;
+  workflowTrace?: TeacherWorkflowTraceEvent[];
 };
 
 type SelectionAction =
@@ -173,6 +186,15 @@ export function AiTeacherChatPanel({
   const [memorySignals, setMemorySignals] = useState<
     TeacherMemorySignals | undefined
   >();
+  const [workflowEngine, setWorkflowEngine] = useState<string | undefined>();
+  const [workflowTrace, setWorkflowTrace] = useState<
+    TeacherWorkflowTraceEvent[]
+  >([]);
+  const [isWorkflowTraceExpanded, setIsWorkflowTraceExpanded] =
+    useState(false);
+  const [nextStudyAction, setNextStudyAction] = useState<
+    NextStudyActionHint | undefined
+  >();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
   const [error, setError] = useState<string | undefined>();
@@ -263,12 +285,16 @@ export function AiTeacherChatPanel({
     setError(undefined);
     setDetectedMisconception(undefined);
     setMemorySignals(undefined);
+    setWorkflowTrace([]);
+    setIsWorkflowTraceExpanded(false);
+    setNextStudyAction(undefined);
     setLoadingSeconds(0);
 
     let timeoutId: number | undefined;
 
     try {
       const controller = new AbortController();
+      const requestStartedAt = Date.now();
       timeoutId = window.setTimeout(
         () => controller.abort(),
         CHAT_TIMEOUT_MS,
@@ -307,7 +333,9 @@ export function AiTeacherChatPanel({
         );
       }
 
-      const data = (await response.json()) as TeacherChatResponse;
+      const responseWorkflowEngine =
+        response.headers.get("X-Teacher-Workflow-Engine") ?? undefined;
+      const data = (await response.json()) as TeacherChatDebugResponse;
 
       setMessages([
         ...nextMessages,
@@ -321,6 +349,33 @@ export function AiTeacherChatPanel({
       setDetectedMisconception(data.detectedMisconception);
       setTeachingMove(data.teachingMove);
       setMemorySignals(data.memorySignals);
+      setWorkflowEngine(responseWorkflowEngine ?? data.workflowEngine);
+      setWorkflowTrace(data.workflowTrace ?? []);
+      setIsWorkflowTraceExpanded(false);
+      setNextStudyAction(data.nextStudyAction);
+
+      if (data.workflowTrace?.length) {
+        saveWorkflowInspectorRun({
+          id: createId(),
+          assistantMessage: data.assistantMessage,
+          conceptId: concept.id,
+          conceptTitle: concept.title,
+          createdAt: new Date().toISOString(),
+          detectedMisconception: data.detectedMisconception,
+          durationMs: Date.now() - requestStartedAt,
+          locale: language,
+          memoryPatch: data.memoryPatch,
+          memorySignals: data.memorySignals,
+          nextStudyAction: data.nextStudyAction,
+          section: sectionForRequest,
+          selectedText: options?.selectedText,
+          teachingMove: data.teachingMove,
+          trace: data.workflowTrace,
+          userMessage,
+          workflowEngine: responseWorkflowEngine ?? data.workflowEngine ?? "unknown",
+        });
+      }
+
       recordTeacherInteraction({
         conceptId: concept.id,
         conceptTitle: concept.title,
@@ -443,91 +498,161 @@ export function AiTeacherChatPanel({
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
-          <div className="space-y-2 rounded-lg border border-border bg-background/70 p-3">
-            <p className="text-xs font-semibold uppercase text-muted-foreground">
-              {copy.context}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{contextLabel}</Badge>
-              <Badge variant="outline">{copy.memory}</Badge>
-            </div>
-          </div>
-
+        <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
           <div
-            className="min-h-56 flex-1 space-y-3 overflow-y-auto rounded-lg border border-border bg-background/70 p-3"
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-4"
             ref={scrollRef}
           >
-            {messages.map((message) => (
-              <div
-                className={cn(
-                  "rounded-lg p-3 text-sm leading-6",
-                  message.role === "assistant"
-                    ? "bg-card text-card-foreground"
-                    : "bg-primary text-primary-foreground",
-                )}
-                key={message.id}
-              >
-                {message.content}
+            <div className="space-y-2 rounded-lg border border-border bg-background/70 p-3">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
+                {copy.context}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">{contextLabel}</Badge>
+                <Badge variant="outline">{copy.memory}</Badge>
               </div>
-            ))}
-            {isLoading && (
-              <div className="flex items-center gap-2 rounded-lg bg-card p-3 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                {copy.thinking}
-                {loadingSeconds > 0 ? ` ${loadingSeconds}s` : ""}
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border bg-background/70 p-3">
+              {messages.map((message) => (
+                <div
+                  className={cn(
+                    "rounded-lg p-3 text-sm leading-6",
+                    message.role === "assistant"
+                      ? "bg-card text-card-foreground"
+                      : "bg-primary text-primary-foreground",
+                  )}
+                  key={message.id}
+                >
+                  {message.content}
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex items-center gap-2 rounded-lg bg-card p-3 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  {copy.thinking}
+                  {loadingSeconds > 0 ? ` ${loadingSeconds}s` : ""}
+                </div>
+              )}
+            </div>
+
+            {detectedMisconception && (
+              <div className="rounded-lg border border-border bg-muted p-3 text-sm leading-6">
+                <span className="font-semibold">{copy.misconception}</span>{" "}
+                {detectedMisconception}
               </div>
             )}
-          </div>
 
-          {detectedMisconception && (
-            <div className="rounded-lg border border-border bg-muted p-3 text-sm leading-6">
-              <span className="font-semibold">{copy.misconception}</span>{" "}
-              {detectedMisconception}
-            </div>
-          )}
+            {memorySignals && (
+              <div className="rounded-lg border border-learning-mint/30 bg-learning-mint/10 p-3 text-sm leading-6">
+                <span className="font-semibold">Learning signal:</span>{" "}
+                {memorySignals.evidenceNote}
+              </div>
+            )}
 
-          {memorySignals && (
-            <div className="rounded-lg border border-learning-mint/30 bg-learning-mint/10 p-3 text-sm leading-6">
-              <span className="font-semibold">Learning signal:</span>{" "}
-              {memorySignals.evidenceNote}
-            </div>
-          )}
-
-          {error && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm leading-6 text-destructive">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                {copy.followUps}
-              </p>
-              <Badge variant="outline">
-                {copy.teachingMoveLabels[teachingMove]}
-              </Badge>
-            </div>
-            <div className="grid gap-2">
-              {suggestedFollowUps.map((followUp) => (
+            {workflowTrace.length > 0 && (
+              <div className="rounded-lg border border-border bg-background/70 p-3 text-xs leading-5">
                 <button
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "h-auto w-full min-w-0 max-w-full justify-start whitespace-normal break-words px-3 py-2 text-left leading-5",
-                  )}
-                  disabled={isLoading}
-                  key={followUp}
-                  onClick={() => void sendMessage(followUp)}
+                  aria-controls={`${idPrefix}-workflow-trace`}
+                  aria-expanded={isWorkflowTraceExpanded}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                  onClick={() =>
+                    setIsWorkflowTraceExpanded((isExpanded) => !isExpanded)
+                  }
                   type="button"
                 >
-                  {followUp}
+                  <span>
+                    <span className="font-semibold">
+                      {language === "zh"
+                        ? "AI 工作流轨迹（workflow trace）"
+                        : "AI workflow trace"}
+                    </span>
+                    <span className="ml-2 text-muted-foreground">
+                      {workflowTrace.length} nodes
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {workflowEngine && (
+                      <Badge variant="outline">{workflowEngine}</Badge>
+                    )}
+                    <ChevronDown
+                      className={cn(
+                        "size-4 text-muted-foreground transition-transform",
+                        isWorkflowTraceExpanded && "rotate-180",
+                      )}
+                    />
+                  </span>
                 </button>
-              ))}
+
+                {isWorkflowTraceExpanded && (
+                  <div id={`${idPrefix}-workflow-trace`}>
+                    <ol className="mt-3 space-y-1">
+                      {workflowTrace.map((event, index) => (
+                        <li
+                          className="rounded-md bg-muted/50 px-2 py-1"
+                          key={`${event.node}-${event.createdAt}-${index}`}
+                        >
+                          <span className="font-medium">{event.node}</span>
+                          {event.detail && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              - {event.detail}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                    {nextStudyAction && (
+                      <p className="mt-2 text-muted-foreground">
+                        {language === "zh"
+                          ? "下一步建议（next study action）"
+                          : "Next study action"}
+                        : {nextStudyAction.action} - {nextStudyAction.reason}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm leading-6 text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  {copy.followUps}
+                </p>
+                <Badge variant="outline">
+                  {copy.teachingMoveLabels[teachingMove]}
+                </Badge>
+              </div>
+              <div className="grid gap-2">
+                {suggestedFollowUps.map((followUp) => (
+                  <button
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "h-auto w-full min-w-0 max-w-full justify-start whitespace-normal break-words px-3 py-2 text-left leading-5",
+                    )}
+                    disabled={isLoading}
+                    key={followUp}
+                    onClick={() => void sendMessage(followUp)}
+                    type="button"
+                  >
+                    {followUp}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <form className="space-y-2" onSubmit={handleSubmit}>
+          <form
+            className="shrink-0 space-y-2 border-t border-border bg-card/95 p-4 shadow-[0_-10px_24px_rgba(15,23,42,0.05)]"
+            onSubmit={handleSubmit}
+          >
             <label
               className="text-xs font-semibold uppercase text-muted-foreground"
               htmlFor={`${idPrefix}-teacher-message`}

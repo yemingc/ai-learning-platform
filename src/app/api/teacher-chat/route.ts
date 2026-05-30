@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getConceptById } from "@/features/knowledge/get-concepts";
 import { getLessonByConceptId } from "@/features/lessons/get-lessons";
 import { TeacherChatServiceError } from "@/features/ai-teacher/teacher-service";
-import { runTeacherWorkflow } from "@/features/ai-teacher/workflow/run-teacher-workflow";
+import {
+  getTeacherWorkflowEngine,
+  runTeacherWorkflow,
+} from "@/features/ai-teacher/workflow/run-teacher-workflow";
 import {
   type TeacherChatErrorCode,
   teacherChatRequestSchema,
@@ -53,6 +56,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const workflowEngine = getTeacherWorkflowEngine();
+  const workflowHeaders = {
+    "X-Teacher-Workflow-Engine": workflowEngine,
+  };
+
   try {
     const teacherWorkflowResult = await runTeacherWorkflow({
       concept,
@@ -64,10 +72,25 @@ export async function POST(request: Request) {
       selectionAction,
       chatHistory,
     });
-
-    return NextResponse.json(
-      teacherChatResponseSchema.parse(teacherWorkflowResult.teacherResponse),
+    const teacherResponse = teacherChatResponseSchema.parse(
+      teacherWorkflowResult.teacherResponse,
     );
+    const shouldIncludeWorkflowTrace =
+      process.env.NODE_ENV !== "production" ||
+      process.env.NEXT_PUBLIC_SHOW_AI_TRACE === "true";
+    const responseBody = shouldIncludeWorkflowTrace
+      ? {
+          ...teacherResponse,
+          memoryPatch: teacherWorkflowResult.memoryPatch,
+          nextStudyAction: teacherWorkflowResult.nextStudyAction,
+          workflowEngine,
+          workflowTrace: teacherWorkflowResult.trace,
+        }
+      : teacherResponse;
+
+    return NextResponse.json(responseBody, {
+      headers: workflowHeaders,
+    });
   } catch (error) {
     if (error instanceof TeacherChatServiceError) {
       return NextResponse.json(
@@ -77,7 +100,10 @@ export async function POST(request: Request) {
             message: error.message,
           },
         },
-        { status: errorStatus[error.code] },
+        {
+          headers: workflowHeaders,
+          status: errorStatus[error.code],
+        },
       );
     }
 
@@ -88,7 +114,10 @@ export async function POST(request: Request) {
           message: "Unexpected AI Teacher server error.",
         },
       },
-      { status: 500 },
+      {
+        headers: workflowHeaders,
+        status: 500,
+      },
     );
   }
 }
