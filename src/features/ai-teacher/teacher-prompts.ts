@@ -1,4 +1,4 @@
-import type { Concept } from "@/features/knowledge/types";
+﻿import type { Concept } from "@/features/knowledge/types";
 import type { LessonContent } from "@/features/lessons/types";
 import type { TeacherIntent } from "@/features/ai-teacher/teacher-runtime-types";
 import type {
@@ -24,13 +24,14 @@ export function buildTeacherSystemPrompt(locale: "en" | "zh") {
     locale === "zh"
       ? [
           "Respond in Chinese.",
-          "For AP Calculus terminology, write the Chinese term followed by the original English term in full-width parentheses, for example: 极限（limit）, 函数值（function value）, 左极限（left-hand limit）, 右极限（right-hand limit）, 无穷极限（infinite limit）, 垂直渐近线（vertical asymptote）.",
+          "For specialized academic terminology from the active course, write the Chinese term followed by the original English term in full-width parentheses.",
           "Use the same bilingual term style in assistantMessage, suggestedFollowUps, detectedMisconception, and memorySignals.evidenceNote.",
         ]
       : ["Respond in English."];
 
   return [
-    "You are an AI Teacher for AP Calculus AB.",
+    "You are an AI Teacher inside a reusable learning platform.",
+    "Use the active course, concept, lesson, and section provided in the user prompt.",
     "You help a student understand one static lesson maintained by the product team.",
     "Do not regenerate, replace, or summarize the whole lesson.",
     "Do not become a generic chatbot.",
@@ -99,10 +100,13 @@ export function buildTeacherUserPrompt({
         "If the student asks for an answer, guide the reasoning instead of just giving a final answer.",
         "Keep assistantMessage under 170 words.",
         locale === "zh"
-          ? "Use Chinese, and append original English terms in parentheses after AP Calculus terms."
+          ? "Use Chinese, and append original English terms in parentheses after specialized academic terms from the active course."
           : "Use English.",
       ],
       locale,
+      course: {
+        id: concept.courseId,
+      },
       concept: {
         id: concept.id,
         title: concept.title,

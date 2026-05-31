@@ -51,6 +51,7 @@ export type ConceptExample = {
 
 export type Concept = {
   id: ConceptId;
+  courseId: CourseId;
   unitId: UnitId;
   topicId: TopicId;
   title: string;

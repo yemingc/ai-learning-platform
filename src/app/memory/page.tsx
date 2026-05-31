@@ -1,11 +1,14 @@
-import { MemoryPageClient } from "@/components/memory/memory-page-client";
-import {
-  AP_CALCULUS_AB_UNIT_1_ID,
-} from "@/features/knowledge/ap-calculus-ab";
-import { getConceptsByUnit } from "@/features/knowledge/get-concepts";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { MemoryCourseListPage } from "@/components/memory/memory-course-list-page";
+import { getCurriculumPacks } from "@/curricula";
 
-export default function MemoryPage() {
-  return (
-    <MemoryPageClient concepts={getConceptsByUnit(AP_CALCULUS_AB_UNIT_1_ID)} />
-  );
+export default async function MemoryPage() {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login?callbackUrl=/memory");
+  }
+
+  return <MemoryCourseListPage curricula={getCurriculumPacks()} />;
 }

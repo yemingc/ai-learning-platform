@@ -22,9 +22,9 @@ import { cn } from "@/lib/utils";
 const learningLoop = [
   {
     step: "01",
-    title: "Concept-level knowledge graph",
+    title: "Course-pack knowledge graph",
     description:
-      "Model limits, derivatives, applications, and integrals as connected learning targets with prerequisite awareness.",
+      "Model any subject as connected learning targets with prerequisite awareness. AP Calculus AB is the first course pack.",
   },
   {
     step: "02",
@@ -133,7 +133,7 @@ function HeroWorkspace() {
             </div>
             <div className="rounded-lg border border-border bg-card p-3 text-right">
               <p className="text-xs font-semibold uppercase text-muted-foreground">
-                AP Calculus AB
+                Demo course pack
               </p>
               <p className="mt-1 text-sm font-semibold">Unit 1 - Limits</p>
             </div>
@@ -187,15 +187,15 @@ export default function Home() {
       <section className="relative isolate border-b border-border">
         <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
           <div className="relative z-10 max-w-2xl">
-            <Badge variant="outline">AP Calculus AB adaptive learning</Badge>
+            <Badge variant="outline">Reusable AI learning platform</Badge>
             <h1 className="mt-6 max-w-xl text-5xl font-semibold leading-none sm:text-6xl">
               AI Learning Platform
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
               A learning-centric system that helps students build concept
-              mastery through a knowledge graph, AI-guided learning sessions,
-              learner memory, adaptive study actions, and practice after
-              readiness.
+              mastery through swappable course packs, knowledge graphs,
+              AI-guided learning sessions, learner memory, adaptive study
+              actions, and practice after readiness.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -245,10 +245,10 @@ export default function Home() {
       <section className="border-b border-border bg-card/70 py-16 sm:py-20">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-            <Badge variant="secondary">Learning loop</Badge>
-            <h2 className="mt-4 text-3xl font-semibold leading-tight sm:text-4xl">
-              Concepts drive the journey from first explanation to AP
-              application.
+              <Badge variant="secondary">Learning loop</Badge>
+              <h2 className="mt-4 text-3xl font-semibold leading-tight sm:text-4xl">
+              Concepts drive the journey from first explanation to application,
+              no matter the course.
             </h2>
             <p className="mt-4 text-base leading-7 text-muted-foreground">
               The app skeleton is organized around durable learning state. Each

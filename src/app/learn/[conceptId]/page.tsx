@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { LessonPageClient } from "@/components/learning/lesson-page-client";
-import { getConceptById } from "@/features/knowledge/get-concepts";
+import { getConceptById, getCourseById } from "@/features/knowledge/get-concepts";
 import {
   getAllLessons,
   getLessonByConceptId,
@@ -25,18 +25,20 @@ export default async function ConceptLearningPage({
 }: ConceptLearningPageProps) {
   const { conceptId } = await params;
   const concept = getConceptById(conceptId);
-  const lesson = getLessonByConceptId(conceptId);
+  const lesson = getLessonByConceptId(conceptId, concept?.courseId);
+  const course = concept ? getCourseById(concept.courseId) : undefined;
 
-  if (!concept || !lesson) {
+  if (!concept || !lesson || !course) {
     notFound();
   }
 
   return (
     <LessonPageClient
       concept={concept}
+      course={course}
       lesson={lesson}
-      nextLesson={getNextLesson(conceptId)}
-      previousLesson={getPreviousLesson(conceptId)}
+      nextLesson={getNextLesson(conceptId, course.id)}
+      previousLesson={getPreviousLesson(conceptId, course.id)}
     />
   );
 }

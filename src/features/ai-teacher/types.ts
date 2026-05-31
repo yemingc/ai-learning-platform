@@ -9,6 +9,7 @@ export const teacherChatMessageSchema = z
 
 export const teacherChatRequestSchema = z
   .object({
+    courseId: z.string().min(1).optional(),
     conceptId: z.string().min(1),
     locale: z.enum(["en", "zh"]).default("en"),
     currentSection: z.string().min(1).max(120),
@@ -22,6 +23,14 @@ export const teacherChatRequestSchema = z
         "ask_guiding_question",
       ])
       .optional(),
+    source: z
+      .enum([
+        "direct_chat",
+        "section_action",
+        "text_selection",
+        "memory_recommendation",
+      ])
+      .default("direct_chat"),
     chatHistory: z.array(teacherChatMessageSchema).max(8).default([]),
   })
   .strict();

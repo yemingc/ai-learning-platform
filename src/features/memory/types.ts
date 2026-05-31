@@ -77,6 +77,8 @@ export type LearnerMemory = {
 };
 
 export type RecordTeacherInteractionInput = {
+  learnerId?: string;
+  courseId?: CourseId;
   conceptId: ConceptId;
   conceptTitle: string;
   source?: TeacherInteractionMemory["source"];

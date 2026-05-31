@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { getConceptById } from "@/features/knowledge/get-concepts";
 import { getLessonByConceptId } from "@/features/lessons/get-lessons";
 import { TeacherChatServiceError } from "@/features/ai-teacher/teacher-service";
@@ -11,6 +12,7 @@ import {
   teacherChatRequestSchema,
   teacherChatResponseSchema,
 } from "@/features/ai-teacher/types";
+import { recordTeacherInteractionInDb } from "@/lib/learner-memory-db";
 
 const errorStatus: Record<TeacherChatErrorCode, number> = {
   missing_api_key: 503,
@@ -22,6 +24,20 @@ const errorStatus: Record<TeacherChatErrorCode, number> = {
 };
 
 export async function POST(request: Request) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "unauthorized",
+          message: "Please log in to chat with the AI Teacher.",
+        },
+      },
+      { status: 401 },
+    );
+  }
+
   const body = await request.json().catch(() => undefined);
   const parsedRequest = teacherChatRequestSchema.safeParse(body);
 
@@ -35,17 +51,19 @@ export async function POST(request: Request) {
   }
 
   const {
+    courseId,
     conceptId,
     locale,
     currentSection,
     userMessage,
     selectedText,
     selectionAction,
+    source,
     chatHistory,
   } =
     parsedRequest.data;
-  const concept = getConceptById(conceptId);
-  const lesson = getLessonByConceptId(conceptId);
+  const concept = getConceptById(conceptId, courseId);
+  const lesson = getLessonByConceptId(conceptId, courseId);
 
   if (!concept || !lesson) {
     return NextResponse.json(
@@ -75,6 +93,20 @@ export async function POST(request: Request) {
     const teacherResponse = teacherChatResponseSchema.parse(
       teacherWorkflowResult.teacherResponse,
     );
+    const conceptMemory = recordTeacherInteractionInDb({
+      conceptId: concept.id,
+      conceptTitle: concept.title,
+      courseId: concept.courseId,
+      learnerId: session.user.id,
+      section: currentSection,
+      userMessage,
+      selectedText,
+      source,
+      teachingMove: teacherResponse.teachingMove,
+      detectedMisconception: teacherResponse.detectedMisconception,
+      memorySignals: teacherResponse.memorySignals,
+      locale,
+    });
     const shouldIncludeWorkflowTrace =
       process.env.NODE_ENV !== "production" ||
       process.env.NEXT_PUBLIC_SHOW_AI_TRACE === "true";
@@ -82,6 +114,7 @@ export async function POST(request: Request) {
       ? {
           ...teacherResponse,
           memoryPatch: teacherWorkflowResult.memoryPatch,
+          conceptMemory,
           nextStudyAction: teacherWorkflowResult.nextStudyAction,
           workflowEngine,
           workflowTrace: teacherWorkflowResult.trace,

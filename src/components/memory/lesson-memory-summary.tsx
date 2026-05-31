@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Brain, Clock, Sparkles, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,9 +13,9 @@ import {
 } from "@/components/ui/card";
 import type { Concept } from "@/features/knowledge/types";
 import {
-  getLocalLearnerMemory,
+  fetchLearnerMemory,
   MEMORY_UPDATED_EVENT,
-} from "@/features/memory/memory-store";
+} from "@/features/memory/memory-api-client";
 import type { ConceptMemory } from "@/features/memory/types";
 
 type LessonMemorySummaryProps = {
@@ -29,39 +30,58 @@ const statusLabels: Record<ConceptMemory["status"], string> = {
 };
 
 export function LessonMemorySummary({ concept }: LessonMemorySummaryProps) {
+  const { data: session } = useSession();
   const [conceptMemory, setConceptMemory] = useState<
     ConceptMemory | undefined
   >();
+  const [memoryError, setMemoryError] = useState<string | undefined>();
 
   useEffect(() => {
-    function syncMemory() {
-      setConceptMemory(getLocalLearnerMemory().conceptMemories[concept.id]);
+    async function syncMemory() {
+      if (!session?.user?.id) {
+        setConceptMemory(undefined);
+        return;
+      }
+
+      try {
+        const memory = await fetchLearnerMemory(concept.courseId);
+
+        setConceptMemory(memory.conceptMemories[concept.id]);
+        setMemoryError(undefined);
+      } catch (error) {
+        setMemoryError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load learner memory.",
+        );
+      }
     }
 
-    syncMemory();
+    void syncMemory();
     window.addEventListener(MEMORY_UPDATED_EVENT, syncMemory);
-    window.addEventListener("storage", syncMemory);
 
     return () => {
       window.removeEventListener(MEMORY_UPDATED_EVENT, syncMemory);
-      window.removeEventListener("storage", syncMemory);
     };
-  }, [concept.id]);
+  }, [concept.courseId, concept.id, session?.user?.id]);
 
   if (!conceptMemory) {
     return (
       <Card className="mt-6 border-dashed">
         <CardHeader>
           <Badge className="w-fit" variant="outline">
-            Demo learner memory
+            Learner memory
           </Badge>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Brain className="size-5 text-primary" />
             No memory yet for this concept
           </CardTitle>
           <CardDescription>
-            Ask the AI Teacher once and this browser will start tracking local
-            learning signals for {concept.title}.
+            {memoryError
+              ? memoryError
+              : session?.user?.id
+                ? `Ask the AI Teacher once and this account will start tracking learning signals for ${concept.title}.`
+                : "Log in to save learner memory for this concept."}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -73,7 +93,7 @@ export function LessonMemorySummary({ concept }: LessonMemorySummaryProps) {
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">
           <Badge className="w-fit" variant="secondary">
-            Demo learner memory
+            Account learner memory
           </Badge>
           <Badge variant="outline">{statusLabels[conceptMemory.status]}</Badge>
         </div>
@@ -82,7 +102,7 @@ export function LessonMemorySummary({ concept }: LessonMemorySummaryProps) {
           {conceptMemory.readiness}% readiness estimate
         </CardTitle>
         <CardDescription>
-          Stored locally in this browser for learnerId: local-demo.
+          Stored securely for the current signed-in account.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-3">

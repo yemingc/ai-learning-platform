@@ -29,13 +29,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { Concept } from "@/features/knowledge/types";
+import type { Concept, Course } from "@/features/knowledge/types";
 import { getLocalizedLessonContent } from "@/features/lessons/lesson-localization";
 import type { LessonContent } from "@/features/lessons/types";
 import { cn } from "@/lib/utils";
 
 type LessonPageClientProps = {
   concept: Concept;
+  course: Course;
   lesson: LessonContent;
   previousLesson?: LessonContent;
   nextLesson?: LessonContent;
@@ -65,8 +66,9 @@ const copy = {
   en: {
     back: "Back to concept graph",
     badge: "Static lesson + AI teacher context",
+    coursePack: "Current course pack",
     intro:
-      "This lesson is maintained as structured curriculum content in the codebase. The AI Teacher chat is designed to use this lesson, the current concept, the current section, and learner memory later as context for interactive support.",
+      "This lesson is one structured curriculum object running inside the reusable AI learning platform. The AI Teacher uses the active course, current concept, lesson section, and learner memory as context for interactive support.",
     objective: "Learning objective",
     lessonFlow: "Lesson flow",
     hint: "Hint:",
@@ -113,8 +115,9 @@ const copy = {
   zh: {
     back: "返回概念图（concept graph）",
     badge: "静态课程（static lesson）+ AI 教师上下文（AI teacher context）",
+    coursePack: "当前课程包（course pack）",
     intro:
-      "这节课作为结构化课程内容（structured curriculum content）维护在代码库中。AI 教师（AI Teacher）会基于当前课程（lesson）、当前概念（concept）、当前段落（section），以及之后接入的学习者记忆（learner memory）来提供互动支持。",
+      "这节课是可复用 AI 学习平台中的一个结构化课程对象（structured curriculum object）。AI 教师（AI Teacher）会基于当前课程（course）、概念（concept）、段落（section）和学习记忆（learner memory）提供互动支持。",
     objective: "学习目标（learning objective）",
     lessonFlow: "学习流程（lesson flow）",
     hint: "提示（hint）：",
@@ -142,7 +145,7 @@ const copy = {
       },
       trap: {
         eyebrow: "常见误区（Common trap）",
-        title: "在误区固化前先抓住它。",
+        title: "在误区（misconception）固化前先抓住它。",
       },
       reflection: {
         eyebrow: "反思（Reflection）",
@@ -159,7 +162,6 @@ const copy = {
     fullContext: "完整课程上下文（Full lesson context）",
   },
 };
-
 function LessonSection({
   eyebrow,
   title,
@@ -223,6 +225,7 @@ function getSelectionActionForStudyAction(action: string | null) {
 
 export function LessonPageClient({
   concept,
+  course,
   lesson,
   previousLesson,
   nextLesson,
@@ -290,7 +293,7 @@ export function LessonPageClient({
           buttonVariants({ variant: "ghost", size: "sm" }),
           "mb-8",
         )}
-        href="/learn"
+        href={`/courses/${course.id}/learn/${concept.unitId}`}
       >
         <ArrowLeft className="size-4" />
         {pageCopy.back}
@@ -299,6 +302,12 @@ export function LessonPageClient({
       <header className="grid gap-8 lg:grid-cols-[1fr_22rem] lg:items-end">
         <div>
           <Badge variant="secondary">{pageCopy.badge}</Badge>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge variant="outline">
+              {pageCopy.coursePack}: {course.title}
+            </Badge>
+            <Badge variant="outline">{course.subject}</Badge>
+          </div>
           <h1 className="mt-5 text-4xl font-semibold leading-tight sm:text-5xl">
             {displayLesson.title}
           </h1>

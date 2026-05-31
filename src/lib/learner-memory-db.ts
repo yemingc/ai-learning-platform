@@ -1,0 +1,305 @@
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import Database from "better-sqlite3";
+import { DEFAULT_COURSE_ID } from "@/curricula";
+import type { CourseId } from "@/features/knowledge/types";
+import {
+  calculateReadiness,
+  getConceptMemoryStatus,
+} from "@/features/memory/memory-scoring";
+import type {
+  ConceptMemory,
+  LearnerMemory,
+  RecordTeacherInteractionInput,
+  TeacherInteractionMemory,
+} from "@/features/memory/types";
+
+type LearnerMemoryRow = {
+  id: string;
+  learner_id: string;
+  course_id: string;
+  concept_id: string;
+  payload_json: string;
+  created_at: string;
+  updated_at: string;
+};
+
+const dataDir = join(process.cwd(), "data");
+const dbPath = join(dataDir, "auth.sqlite");
+
+if (!existsSync(dataDir)) {
+  mkdirSync(dataDir, { recursive: true });
+}
+
+const db = new Database(dbPath);
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS learner_memories (
+  id TEXT PRIMARY KEY,
+  learner_id TEXT NOT NULL,
+  course_id TEXT NOT NULL,
+  concept_id TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(learner_id, course_id, concept_id)
+);
+
+CREATE INDEX IF NOT EXISTS learner_memories_learner_course_idx
+ON learner_memories (learner_id, course_id);
+`);
+
+function createId(prefix: string) {
+  return `${prefix}-${randomUUID()}`;
+}
+
+function createEmptyMemory(
+  learnerId: string,
+  courseId: CourseId = DEFAULT_COURSE_ID,
+  now = new Date().toISOString(),
+): LearnerMemory {
+  return {
+    learnerId,
+    courseId,
+    source: "authenticated",
+    conceptMemories: {},
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function createConceptMemory(
+  input: RecordTeacherInteractionInput,
+): ConceptMemory {
+  return {
+    conceptId: input.conceptId,
+    conceptTitle: input.conceptTitle,
+    status: "learning",
+    readiness: 18,
+    interactionCount: 0,
+    misconceptions: [],
+    confusionSignals: [],
+    memorySignalHistory: [],
+    recentInteractions: [],
+  };
+}
+
+function parseConceptMemory(row: LearnerMemoryRow) {
+  try {
+    return JSON.parse(row.payload_json) as ConceptMemory;
+  } catch {
+    return undefined;
+  }
+}
+
+export function getLearnerMemory(
+  learnerId: string,
+  courseId: CourseId = DEFAULT_COURSE_ID,
+): LearnerMemory {
+  const rows = db
+    .prepare(
+      `
+        SELECT *
+        FROM learner_memories
+        WHERE learner_id = ? AND course_id = ?
+        ORDER BY updated_at DESC
+      `,
+    )
+    .all(learnerId, courseId) as LearnerMemoryRow[];
+  const now = new Date().toISOString();
+
+  if (!rows.length) {
+    return createEmptyMemory(learnerId, courseId, now);
+  }
+
+  const conceptMemories = rows.reduce<LearnerMemory["conceptMemories"]>(
+    (memoryByConcept, row) => {
+      const conceptMemory = parseConceptMemory(row);
+
+      if (conceptMemory) {
+        memoryByConcept[row.concept_id] = conceptMemory;
+      }
+
+      return memoryByConcept;
+    },
+    {},
+  );
+  const createdAt = rows.reduce(
+    (earliest, row) => (row.created_at < earliest ? row.created_at : earliest),
+    rows[0]?.created_at ?? now,
+  );
+  const updatedAt = rows.reduce(
+    (latest, row) => (row.updated_at > latest ? row.updated_at : latest),
+    rows[0]?.updated_at ?? now,
+  );
+
+  return {
+    learnerId,
+    courseId,
+    source: "authenticated",
+    conceptMemories,
+    createdAt,
+    updatedAt,
+  };
+}
+
+export function resetLearnerMemory(
+  learnerId: string,
+  courseId: CourseId = DEFAULT_COURSE_ID,
+) {
+  db.prepare(
+    `
+      DELETE FROM learner_memories
+      WHERE learner_id = ? AND course_id = ?
+    `,
+  ).run(learnerId, courseId);
+
+  return getLearnerMemory(learnerId, courseId);
+}
+
+export function recordTeacherInteractionInDb(
+  input: RecordTeacherInteractionInput & {
+    learnerId: string;
+    courseId: CourseId;
+  },
+) {
+  const now = new Date().toISOString();
+  const existingRow = db
+    .prepare(
+      `
+        SELECT *
+        FROM learner_memories
+        WHERE learner_id = ? AND course_id = ? AND concept_id = ?
+      `,
+    )
+    .get(input.learnerId, input.courseId, input.conceptId) as
+    | LearnerMemoryRow
+    | undefined;
+  const existingConceptMemory =
+    (existingRow ? parseConceptMemory(existingRow) : undefined) ??
+    createConceptMemory(input);
+  const interaction: TeacherInteractionMemory = {
+    id: createId("interaction"),
+    conceptId: input.conceptId,
+    conceptTitle: input.conceptTitle,
+    source: input.source ?? "direct_chat",
+    section: input.section,
+    userMessage: input.userMessage,
+    selectedText: input.selectedText,
+    teachingMove: input.teachingMove,
+    detectedMisconception: input.detectedMisconception,
+    memorySignals: input.memorySignals,
+    locale: input.locale,
+    createdAt: now,
+  };
+  const matchingConfusionSignal = existingConceptMemory.confusionSignals.find(
+    (signal) =>
+      signal.section === input.section &&
+      (signal.selectedText ?? "") === (input.selectedText ?? ""),
+  );
+  const confusionSignals = matchingConfusionSignal
+    ? existingConceptMemory.confusionSignals.map((signal) =>
+        signal.id === matchingConfusionSignal.id
+          ? {
+              ...signal,
+              count: signal.count + 1,
+              lastSeenAt: now,
+            }
+          : signal,
+      )
+    : [
+        ...existingConceptMemory.confusionSignals,
+        {
+          id: createId("confusion"),
+          conceptId: input.conceptId,
+          section: input.section,
+          selectedText: input.selectedText,
+          count: 1,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        },
+      ];
+  const normalizedMisconception = input.detectedMisconception?.trim();
+  const matchingMisconception = normalizedMisconception
+    ? existingConceptMemory.misconceptions.find(
+        (misconception) =>
+          misconception.text.toLowerCase() ===
+          normalizedMisconception.toLowerCase(),
+      )
+    : undefined;
+  const misconceptions = normalizedMisconception
+    ? matchingMisconception
+      ? existingConceptMemory.misconceptions.map((misconception) =>
+          misconception.id === matchingMisconception.id
+            ? {
+                ...misconception,
+                count: misconception.count + 1,
+                lastSeenAt: now,
+              }
+            : misconception,
+        )
+      : [
+          ...existingConceptMemory.misconceptions,
+          {
+            id: createId("misconception"),
+            conceptId: input.conceptId,
+            text: normalizedMisconception,
+            sourceSection: input.section,
+            count: 1,
+            firstSeenAt: now,
+            lastSeenAt: now,
+          },
+        ]
+    : existingConceptMemory.misconceptions;
+  const nextConceptMemoryBase: ConceptMemory = {
+    ...existingConceptMemory,
+    conceptTitle: input.conceptTitle,
+    interactionCount: existingConceptMemory.interactionCount + 1,
+    lastStudiedAt: now,
+    confusionSignals,
+    misconceptions,
+    memorySignalHistory: [
+      input.memorySignals,
+      ...(existingConceptMemory.memorySignalHistory ?? []),
+    ].slice(0, 12),
+    recentInteractions: [
+      interaction,
+      ...existingConceptMemory.recentInteractions,
+    ].slice(0, 8),
+  };
+  const readiness = calculateReadiness(nextConceptMemoryBase);
+  const nextConceptMemory: ConceptMemory = {
+    ...nextConceptMemoryBase,
+    readiness,
+    status: getConceptMemoryStatus(readiness),
+  };
+
+  db.prepare(
+    `
+      INSERT INTO learner_memories (
+        id,
+        learner_id,
+        course_id,
+        concept_id,
+        payload_json,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(learner_id, course_id, concept_id) DO UPDATE SET
+        payload_json = excluded.payload_json,
+        updated_at = excluded.updated_at
+    `,
+  ).run(
+    existingRow?.id ?? randomUUID(),
+    input.learnerId,
+    input.courseId,
+    input.conceptId,
+    JSON.stringify(nextConceptMemory),
+    existingRow?.created_at ?? now,
+    now,
+  );
+
+  return nextConceptMemory;
+}

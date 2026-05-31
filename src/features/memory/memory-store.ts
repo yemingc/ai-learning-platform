@@ -1,6 +1,6 @@
 "use client";
 
-import { AP_CALCULUS_AB_COURSE_ID } from "@/features/knowledge/ap-calculus-ab";
+import { DEFAULT_COURSE_ID } from "@/curricula";
 import {
   calculateReadiness,
   getConceptMemoryStatus,
@@ -12,19 +12,31 @@ import {
   type RecordTeacherInteractionInput,
   type TeacherInteractionMemory,
 } from "@/features/memory/types";
+import type { CourseId } from "@/features/knowledge/types";
 
 export const LOCAL_DEMO_MEMORY_STORAGE_KEY =
   "ai-learning-platform:learner-memory:local-demo";
 export const MEMORY_UPDATED_EVENT = "learner-memory:updated";
 
+function getMemoryStorageKey(
+  learnerId: string = LOCAL_DEMO_LEARNER_ID,
+  courseId: CourseId = DEFAULT_COURSE_ID,
+) {
+  return `${LOCAL_DEMO_MEMORY_STORAGE_KEY}:${learnerId}:${courseId}`;
+}
+
 function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function createEmptyMemory(now = new Date().toISOString()): LearnerMemory {
+function createEmptyMemory(
+  learnerId: string = LOCAL_DEMO_LEARNER_ID,
+  courseId: CourseId = DEFAULT_COURSE_ID,
+  now = new Date().toISOString(),
+): LearnerMemory {
   return {
-    learnerId: LOCAL_DEMO_LEARNER_ID,
-    courseId: AP_CALCULUS_AB_COURSE_ID,
+    learnerId,
+    courseId,
     source: "local_demo",
     conceptMemories: {},
     createdAt: now,
@@ -52,36 +64,46 @@ function dispatchMemoryUpdated() {
   window.dispatchEvent(new CustomEvent(MEMORY_UPDATED_EVENT));
 }
 
-export function getLocalLearnerMemory(): LearnerMemory {
-  const rawMemory = window.localStorage.getItem(LOCAL_DEMO_MEMORY_STORAGE_KEY);
+export function getLocalLearnerMemory(
+  learnerId: string = LOCAL_DEMO_LEARNER_ID,
+  courseId: CourseId = DEFAULT_COURSE_ID,
+): LearnerMemory {
+  const rawMemory = window.localStorage.getItem(
+    getMemoryStorageKey(learnerId, courseId),
+  );
 
   if (!rawMemory) {
-    return createEmptyMemory();
+    return createEmptyMemory(learnerId, courseId);
   }
 
   try {
     return JSON.parse(rawMemory) as LearnerMemory;
   } catch {
-    return createEmptyMemory();
+    return createEmptyMemory(learnerId, courseId);
   }
 }
 
 export function saveLocalLearnerMemory(memory: LearnerMemory) {
   window.localStorage.setItem(
-    LOCAL_DEMO_MEMORY_STORAGE_KEY,
+    getMemoryStorageKey(memory.learnerId, memory.courseId),
     JSON.stringify(memory),
   );
   dispatchMemoryUpdated();
 }
 
-export function resetLocalLearnerMemory() {
-  window.localStorage.removeItem(LOCAL_DEMO_MEMORY_STORAGE_KEY);
+export function resetLocalLearnerMemory(
+  learnerId: string = LOCAL_DEMO_LEARNER_ID,
+  courseId: CourseId = DEFAULT_COURSE_ID,
+) {
+  window.localStorage.removeItem(getMemoryStorageKey(learnerId, courseId));
   dispatchMemoryUpdated();
 }
 
 export function recordTeacherInteraction(input: RecordTeacherInteractionInput) {
   const now = new Date().toISOString();
-  const memory = getLocalLearnerMemory();
+  const learnerId = input.learnerId ?? LOCAL_DEMO_LEARNER_ID;
+  const courseId = input.courseId ?? DEFAULT_COURSE_ID;
+  const memory = getLocalLearnerMemory(learnerId, courseId);
   const existingConceptMemory =
     memory.conceptMemories[input.conceptId] ?? createConceptMemory(input);
 

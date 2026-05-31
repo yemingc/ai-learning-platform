@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/card";
 import type { Concept } from "@/features/knowledge/types";
 import type { LessonContent } from "@/features/lessons/types";
-import { recordTeacherInteraction } from "@/features/memory/memory-store";
+import { notifyLearnerMemoryUpdated } from "@/features/memory/memory-api-client";
 import type {
   TeacherChatMessage,
   TeacherChatResponse,
@@ -306,12 +306,14 @@ export function AiTeacherChatPanel({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          courseId: concept.courseId,
           conceptId: concept.id,
           locale: language,
           currentSection: sectionForRequest,
           userMessage,
           selectedText: options?.selectedText,
           selectionAction: options?.selectionAction,
+          source: options?.source ?? "direct_chat",
           chatHistory: messages
             .filter((message) => message.id !== "welcome")
             .slice(-8)
@@ -376,18 +378,7 @@ export function AiTeacherChatPanel({
         });
       }
 
-      recordTeacherInteraction({
-        conceptId: concept.id,
-        conceptTitle: concept.title,
-        section: sectionForRequest,
-        userMessage,
-        selectedText: options?.selectedText,
-        source: options?.source ?? "direct_chat",
-        teachingMove: data.teachingMove,
-        detectedMisconception: data.detectedMisconception,
-        memorySignals: data.memorySignals,
-        locale: language,
-      });
+      notifyLearnerMemoryUpdated();
     } catch (requestError) {
       if (requestError instanceof DOMException && requestError.name === "AbortError") {
         setError(

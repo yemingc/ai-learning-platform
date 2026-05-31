@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthSessionProvider } from "@/components/auth/auth-session-provider";
 import { LanguageProvider } from "@/components/i18n/language-provider";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -35,10 +36,12 @@ export default function RootLayout({
         className="min-h-full bg-background text-foreground"
         suppressHydrationWarning
       >
-        <LanguageProvider>
-          <SiteHeader />
-          <main>{children}</main>
-        </LanguageProvider>
+        <AuthSessionProvider>
+          <LanguageProvider>
+            <SiteHeader />
+            <main>{children}</main>
+          </LanguageProvider>
+        </AuthSessionProvider>
       </body>
     </html>
   );

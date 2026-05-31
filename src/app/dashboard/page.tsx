@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Activity, ArrowRight, BarChart3, BrainCircuit } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Activity, ArrowRight, BarChart3, BrainCircuit, Code2 } from "lucide-react";
+import { auth } from "@/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,20 +30,25 @@ const dashboardAreas = [
   },
 ];
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login?callbackUrl=/dashboard");
+  }
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-[1fr_0.85fr] lg:items-end">
         <div>
           <Badge variant="outline">Learning dashboard</Badge>
           <h1 className="mt-5 text-4xl font-semibold leading-tight sm:text-5xl">
-            A dashboard for mastery, memory, and AI observability.
+            A dashboard for mastery, memory, and next learning actions.
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">
-            This area separates student-facing progress from developer-facing
-            AI workflow visibility. The product can show concept readiness while
-            the engineering story shows how the AI Teacher makes structured,
-            inspectable decisions.
+            This student-facing area focuses on concept readiness,
+            misconception repair, and application readiness. Internal AI
+            workflow tools live behind Developer Mode.
           </p>
         </div>
 
@@ -52,17 +59,17 @@ export default function DashboardPage() {
             </Badge>
             <CardTitle className="flex items-center gap-2">
               <BrainCircuit className="size-5" />
-              Inspect the AI learning workflow
+              Student progress, not debug traces
             </CardTitle>
             <CardDescription>
-              View LangGraph traces, teaching strategy choices, learning
-              signals, and memory patches from recent AI Teacher conversations.
+              The dashboard should help a learner understand what is stable,
+              what needs repair, and when they are ready to apply a concept.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link href="/dashboard/workflow-inspector">
-                Open Workflow Inspector
+              <Link href="/memory">
+                Open Memory
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -110,6 +117,31 @@ export default function DashboardPage() {
           </CardHeader>
         </Card>
       </div>
+
+      <Card className="mt-8 border-dashed">
+        <CardHeader>
+          <Badge className="w-fit" variant="outline">
+            Developer-only
+          </Badge>
+          <CardTitle className="flex items-center gap-2">
+            <Code2 className="size-5" />
+            Internal AI tools are separated
+          </CardTitle>
+          <CardDescription>
+            Workflow Inspector and AI Teacher Evaluation are useful for
+            engineering and portfolio review, but they are not part of the
+            learner experience.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/developer">
+              Open Developer Mode
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

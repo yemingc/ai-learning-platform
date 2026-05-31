@@ -1,21 +1,40 @@
-import { apCalculusABUnit1Lessons } from "@/features/lessons/ap-calculus-ab-unit-1-lessons";
+import {
+  DEFAULT_COURSE_ID,
+  getCurriculumPack,
+  getCurriculumPacks,
+} from "@/curricula";
 import type { LessonContent } from "@/features/lessons/types";
-import type { ConceptId } from "@/features/knowledge/types";
+import type { ConceptId, CourseId } from "@/features/knowledge/types";
 
-export function getAllLessons(): LessonContent[] {
-  return apCalculusABUnit1Lessons;
+function getLessonsForCourse(courseId: CourseId = DEFAULT_COURSE_ID) {
+  return getCurriculumPack(courseId)?.lessons ?? [];
+}
+
+export function getAllLessons(
+  courseId: CourseId = DEFAULT_COURSE_ID,
+): LessonContent[] {
+  return getLessonsForCourse(courseId);
+}
+
+export function getAllLessonsAcrossCurricula(): LessonContent[] {
+  return getCurriculumPacks().flatMap((curriculum) => curriculum.lessons);
 }
 
 export function getLessonByConceptId(
   conceptId: ConceptId,
+  courseId: CourseId = DEFAULT_COURSE_ID,
 ): LessonContent | undefined {
-  return apCalculusABUnit1Lessons.find(
+  return getLessonsForCourse(courseId).find(
     (lesson) => lesson.conceptId === conceptId,
   );
 }
 
-export function getNextLesson(conceptId: ConceptId): LessonContent | undefined {
-  const currentIndex = apCalculusABUnit1Lessons.findIndex(
+export function getNextLesson(
+  conceptId: ConceptId,
+  courseId: CourseId = DEFAULT_COURSE_ID,
+): LessonContent | undefined {
+  const lessons = getLessonsForCourse(courseId);
+  const currentIndex = lessons.findIndex(
     (lesson) => lesson.conceptId === conceptId,
   );
 
@@ -23,13 +42,15 @@ export function getNextLesson(conceptId: ConceptId): LessonContent | undefined {
     return undefined;
   }
 
-  return apCalculusABUnit1Lessons[currentIndex + 1];
+  return lessons[currentIndex + 1];
 }
 
 export function getPreviousLesson(
   conceptId: ConceptId,
+  courseId: CourseId = DEFAULT_COURSE_ID,
 ): LessonContent | undefined {
-  const currentIndex = apCalculusABUnit1Lessons.findIndex(
+  const lessons = getLessonsForCourse(courseId);
+  const currentIndex = lessons.findIndex(
     (lesson) => lesson.conceptId === conceptId,
   );
 
@@ -37,5 +58,5 @@ export function getPreviousLesson(
     return undefined;
   }
 
-  return apCalculusABUnit1Lessons[currentIndex - 1];
+  return lessons[currentIndex - 1];
 }
