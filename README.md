@@ -72,6 +72,9 @@ before they move into problem solving.
 - Explicit error messages for missing API keys, API failures, timeouts, invalid
   JSON, and schema validation failures.
 - 3-minute client timeout with loading state.
+- Optional retrieval context for lesson-grounded answers. The workflow retrieves
+  only the top curriculum chunks when useful, and the backend filters any
+  citation ids returned by the model against the retrieved chunk whitelist.
 
 ### Learning Dashboard
 
@@ -98,6 +101,8 @@ Student Message
   -> Build Context
   -> Classify Intent
   -> Select Teaching Strategy
+  -> Retrieve Curriculum Chunks
+  -> Assemble Curriculum Context
   -> Generate Teaching Response
   -> Validate Structured Output
   -> Extract Learning Signals
@@ -188,6 +193,33 @@ platform for future course-level RAG with cited lesson sections. Chinese lesson
 sections are indexed as first-class chunks rather than relying only on Chinese
 query expansion over English text.
 
+### Embedding Retrieval MVP
+
+The project now includes an embedding retrieval layer that is intentionally
+separate from the AI Teacher runtime until retrieval quality is evaluated.
+
+- Keyword retrieval remains the deterministic baseline.
+- Embedding retrieval stores vectors in local SQLite at
+  `data/rag-embeddings.sqlite`.
+- Hybrid retrieval combines keyword and embedding scores for developer
+  comparison.
+- `/developer/retrieval-preview` can switch between `keyword`, `embedding`, and
+  `hybrid` retrieval modes.
+- Embedding indexing is triggered server-side, so embedding API keys are never
+  exposed to the browser.
+- No vector database dependency has been added yet; pgvector, Chroma, or a
+  hosted vector store can replace the SQLite store later.
+
+Build the local embedding index after starting the dev server:
+
+```bash
+npm run embeddings:build
+```
+
+If embedding environment variables are missing, the index build and preview will
+show explicit configuration errors instead of silently falling back to fake
+vectors.
+
 ### Developer Mode
 
 Student login and developer access are intentionally separate.
@@ -221,6 +253,7 @@ debugging and evaluation story.
 - DeepSeek OpenAI-compatible API
 - LangGraph for workflow orchestration
 - SQLite for authentication and learner memory persistence
+- SQLite-backed local embedding index for RAG evaluation
 - LocalStorage for developer-only workflow inspection history
 
 ## Key Routes
@@ -240,6 +273,7 @@ debugging and evaluation story.
 | `/developer/retrieval-preview` | Retrieval-ready curriculum chunk preview for future RAG |
 | `/dashboard/ai-evaluation` | AI Teacher contract and pedagogy evaluation suite |
 | `/dashboard/workflow-inspector` | AI workflow trace and memory patch inspector |
+| `/api/developer/embedding-index` | Local embedding index status/build endpoint |
 | `/api/developer/retrieval-check` | Deterministic retrieval index health check |
 | `/api/memory` | Authenticated learner memory read/write/reset API |
 | `/api/teacher-evaluation/live` | Authenticated live AI Teacher evaluation API |
@@ -332,6 +366,21 @@ content so Chinese RAG queries can retrieve Chinese curriculum text directly.
 This prepares the platform for future course-level RAG with citations while
 keeping static lessons as the source of truth.
 
+The AI Teacher is connected to this RAG-preparation layer without requiring a
+vector database yet:
+
+- Retrieval is conditional, so lightweight greetings or acknowledgements do not
+  force a curriculum search.
+- At most the top four curriculum chunks are assembled into the model context.
+- The model may return `citationChunkIds`, but it cannot create citation
+  objects.
+- The server keeps only citation ids that match the retrieved chunk whitelist,
+  then returns those safe citations to the chat UI.
+
+When embeddings are added later, only the retrieval node needs to change. The
+context assembly, prompt contract, citation filtering, and UI display can stay
+the same.
+
 ## AI Teacher Design
 
 The AI Teacher receives:
@@ -380,6 +429,8 @@ AI Teacher responses are validated with Zod and include:
   - `suggestedStudyAction`
   - `confidenceDelta`
   - `evidenceNote`
+- `citationChunkIds`
+  - model-selected chunk ids from the retrieved curriculum whitelist
 
 This keeps the AI output usable by the product instead of being free-form text
 only.
@@ -435,9 +486,23 @@ TEACHER_WORKFLOW_ENGINE=langgraph
 NEXT_PUBLIC_SHOW_AI_TRACE=false
 ENABLE_DEVELOPER_TOOLS=true
 DEVELOPER_MODE_PASSWORD=
+
+EMBEDDING_PROVIDER=openai-compatible
+EMBEDDING_BASE_URL=
+EMBEDDING_API_KEY=
+EMBEDDING_MODEL=
+EMBEDDING_DIMENSIONS=
+EMBEDDING_INDEX_SECRET=
+EMBEDDING_INDEX_BASE_URL=http://localhost:3000
+EMBEDDING_INDEX_LOCALE=all
+EMBEDDING_INDEX_FORCE=false
 ```
 
 See `.env.example` for the current template.
+
+`EMBEDDING_INDEX_SECRET` is optional for local development. Set it for
+production or shared demos, then send it as a bearer token when triggering
+index builds.
 
 ## Getting Started
 
@@ -475,6 +540,13 @@ Run the RAG retrieval index check (also requires `npm run dev` already running o
 
 ```bash
 npm run test:rag
+```
+
+Build the optional local embedding index (requires `npm run dev` already
+running and embedding environment variables configured):
+
+```bash
+npm run embeddings:build
 ```
 
 Build:

@@ -78,6 +78,7 @@ export const teacherChatResponseSchema = z
     detectedMisconception: z.string().min(1).optional(),
     teachingMove: teachingMoveSchema,
     memorySignals: teacherMemorySignalsSchema,
+    citationChunkIds: z.array(z.string().min(1)).max(5).default([]),
   })
   .strict();
 

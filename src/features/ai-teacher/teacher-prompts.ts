@@ -5,6 +5,7 @@ import type {
   TeacherChatMessage,
   TeachingMove,
 } from "@/features/ai-teacher/types";
+import type { AssembledCurriculumContext } from "@/features/rag/curriculum-context";
 
 type TeacherPromptInput = {
   concept: Concept;
@@ -17,6 +18,7 @@ type TeacherPromptInput = {
   chatHistory: TeacherChatMessage[];
   intent?: TeacherIntent;
   teachingMoveHint?: TeachingMove;
+  curriculumContext?: AssembledCurriculumContext;
 };
 
 export function buildTeacherSystemPrompt(locale: "en" | "zh") {
@@ -41,6 +43,8 @@ export function buildTeacherSystemPrompt(locale: "en" | "zh") {
     "Use the current lesson context to explain confusing parts, ask Socratic guiding questions, offer alternate examples, identify misconceptions, and encourage reflection.",
     "Keep responses concise, student-friendly, and focused on the current concept.",
     "Also act as an educational observer: produce structured memorySignals that describe what this interaction suggests about the learner's state.",
+    "If retrieved curriculum chunks are provided, use them as supporting context. Do not invent citations.",
+    "You may return citationChunkIds, but only choose chunk ids explicitly listed in allowedCitationChunkIds.",
     ...languageRules,
     "Return one valid JSON object only. Do not wrap it in markdown. Do not include extra top-level keys.",
   ].join("\n");
@@ -57,7 +61,12 @@ export function buildTeacherUserPrompt({
   chatHistory,
   intent,
   teachingMoveHint,
+  curriculumContext,
 }: TeacherPromptInput) {
+  const allowedCitationChunkIds =
+    curriculumContext?.allowedCitations.map((citation) => citation.chunkId) ??
+    [];
+
   return JSON.stringify(
     {
       task: "Respond as an interactive AI Teacher inside the current lesson.",
@@ -76,6 +85,8 @@ export function buildTeacherUserPrompt({
           confidenceDelta: "number from -20 to 20",
           evidenceNote: "short string explaining the observation",
         },
+        citationChunkIds:
+          "array of chunk ids chosen only from allowedCitationChunkIds; use [] if no provided chunk directly supports the answer",
       },
       memorySignalGuidance: [
         "confusionLevel should reflect how much support the learner appears to need right now.",
@@ -91,6 +102,8 @@ export function buildTeacherUserPrompt({
         "suggestedFollowUps must be an array with 1 to 4 strings.",
         "teachingMove must be exactly one of: explain, ask_guiding_question, give_example, correct_misconception, reflect.",
         "memorySignals must be present and must match the required shape.",
+        "citationChunkIds must be an array. Only include ids from allowedCitationChunkIds.",
+        "Do not include citation objects, URLs, or source labels. Only return chunk ids.",
       ],
       rules: [
         "Base the response on the static lesson content below.",
@@ -101,6 +114,8 @@ export function buildTeacherUserPrompt({
         "Assume learner memory is local-demo only for now; do not claim long-term persistence.",
         "If the student asks for an answer, guide the reasoning instead of just giving a final answer.",
         "Keep assistantMessage under 170 words.",
+        "Use retrieved curriculum chunks as supporting evidence only when relevant; do not quote long passages.",
+        "If no retrieved chunk is relevant, answer from the current lesson context and return citationChunkIds: [].",
         locale === "zh"
           ? "Use natural Chinese. Add English parentheses only after math/course terminology, not after product or engineering terms."
           : "Use English.",
@@ -117,6 +132,8 @@ export function buildTeacherUserPrompt({
         commonMisconceptions: concept.commonMisconceptions,
       },
       lesson,
+      retrievedCurriculumContext: curriculumContext?.contextText ?? "",
+      allowedCitationChunkIds,
       currentSection,
       selectedText,
       selectionAction,

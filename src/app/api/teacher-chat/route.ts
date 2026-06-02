@@ -93,6 +93,10 @@ export async function POST(request: Request) {
     const teacherResponse = teacherChatResponseSchema.parse(
       teacherWorkflowResult.teacherResponse,
     );
+    const responseWithCitations = {
+      ...teacherResponse,
+      citations: teacherWorkflowResult.citations,
+    };
     const conceptMemory = recordTeacherInteractionInDb({
       conceptId: concept.id,
       conceptTitle: concept.title,
@@ -112,14 +116,14 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_SHOW_AI_TRACE === "true";
     const responseBody = shouldIncludeWorkflowTrace
       ? {
-          ...teacherResponse,
+          ...responseWithCitations,
           memoryPatch: teacherWorkflowResult.memoryPatch,
           conceptMemory,
           nextStudyAction: teacherWorkflowResult.nextStudyAction,
           workflowEngine,
           workflowTrace: teacherWorkflowResult.trace,
         }
-      : teacherResponse;
+      : responseWithCitations;
 
     return NextResponse.json(responseBody, {
       headers: workflowHeaders,

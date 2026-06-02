@@ -54,10 +54,18 @@ type TeacherChatErrorResponse = {
 };
 
 type TeacherChatDebugResponse = TeacherChatResponse & {
+  citations?: CurriculumCitation[];
   memoryPatch?: LearnerMemoryPatch;
   nextStudyAction?: NextStudyActionHint;
   workflowEngine?: string;
   workflowTrace?: TeacherWorkflowTraceEvent[];
+};
+
+type CurriculumCitation = {
+  chunkId: string;
+  sourceLabel: string;
+  sectionType: string;
+  locale: "en" | "zh";
 };
 
 type SelectionAction =
@@ -103,6 +111,7 @@ const panelCopy = {
     thinking: "AI Teacher is thinking with the lesson context...",
     misconception: "Possible misconception:",
     learningSignal: "Learning signal:",
+    citations: "Lesson citations",
     workflowTrace: "AI workflow trace",
     nextStudyAction: "Next study action",
     followUps: "Suggested follow-ups",
@@ -143,6 +152,7 @@ const panelCopy = {
     thinking: "AI 教师正在结合课程内容思考...",
     misconception: "可能的误区：",
     learningSignal: "学习信号：",
+    citations: "课程引用",
     workflowTrace: "AI 工作流记录",
     nextStudyAction: "下一步建议",
     followUps: "可以继续这样问",
@@ -194,6 +204,7 @@ export function AiTeacherChatPanel({
   const [workflowTrace, setWorkflowTrace] = useState<
     TeacherWorkflowTraceEvent[]
   >([]);
+  const [citations, setCitations] = useState<CurriculumCitation[]>([]);
   const [isWorkflowTraceExpanded, setIsWorkflowTraceExpanded] =
     useState(false);
   const [nextStudyAction, setNextStudyAction] = useState<
@@ -290,6 +301,7 @@ export function AiTeacherChatPanel({
     setDetectedMisconception(undefined);
     setMemorySignals(undefined);
     setWorkflowTrace([]);
+    setCitations([]);
     setIsWorkflowTraceExpanded(false);
     setNextStudyAction(undefined);
     setLoadingSeconds(0);
@@ -357,6 +369,7 @@ export function AiTeacherChatPanel({
       setMemorySignals(data.memorySignals);
       setWorkflowEngine(responseWorkflowEngine ?? data.workflowEngine);
       setWorkflowTrace(data.workflowTrace ?? []);
+      setCitations(data.citations ?? []);
       setIsWorkflowTraceExpanded(false);
       setNextStudyAction(data.nextStudyAction);
 
@@ -542,6 +555,33 @@ export function AiTeacherChatPanel({
               <div className="rounded-lg border border-learning-mint/30 bg-learning-mint/10 p-3 text-sm leading-6">
                 <span className="font-semibold">{copy.learningSignal}</span>{" "}
                 {memorySignals.evidenceNote}
+              </div>
+            )}
+
+            {citations.length > 0 && (
+              <div className="rounded-lg border border-border bg-background/70 p-3 text-xs leading-5">
+                <p className="font-semibold uppercase text-muted-foreground">
+                  {copy.citations}
+                </p>
+                <div className="mt-2 grid gap-2">
+                  {citations.map((citation, index) => (
+                    <div
+                      className="rounded-md bg-muted/50 p-2"
+                      key={citation.chunkId}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">#{index + 1}</Badge>
+                        <Badge variant="outline">{citation.locale}</Badge>
+                        <Badge variant="outline">
+                          {citation.sectionType}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-muted-foreground">
+                        {citation.sourceLabel}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

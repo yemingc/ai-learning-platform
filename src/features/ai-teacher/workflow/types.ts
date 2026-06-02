@@ -6,6 +6,10 @@ import type {
   TeacherMemorySignals,
   TeachingMove,
 } from "@/features/ai-teacher/types";
+import type {
+  AssembledCurriculumContext,
+  CurriculumCitation,
+} from "@/features/rag/curriculum-context";
 
 export type TeacherIntent =
   | "confusion"
@@ -20,6 +24,8 @@ export type TeacherWorkflowNode =
   | "build_context"
   | "classify_user_intent"
   | "select_teaching_strategy"
+  | "retrieve_curriculum_chunks"
+  | "assemble_curriculum_context"
   | "generate_teaching_response"
   | "validate_structured_output"
   | "extract_learning_signals"
@@ -78,6 +84,8 @@ export type TeacherWorkflowState = {
   context?: TeacherWorkflowContext;
   intent?: TeacherIntent;
   teachingStrategy?: TeachingMove;
+  curriculumContext?: AssembledCurriculumContext;
+  citations?: CurriculumCitation[];
   teacherResponse?: TeacherChatResponse;
   memorySignals?: TeacherMemorySignals;
   memoryPatch?: LearnerMemoryPatch;
@@ -91,6 +99,7 @@ export type TeacherWorkflowResult = {
   memorySignals: TeacherMemorySignals;
   memoryPatch: LearnerMemoryPatch;
   nextStudyAction: NextStudyActionHint;
+  citations: CurriculumCitation[];
   trace: TeacherWorkflowTraceEvent[];
   state: TeacherWorkflowState;
 };

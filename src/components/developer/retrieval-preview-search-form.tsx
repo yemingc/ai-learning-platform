@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { useTransition } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import type { LessonSectionType } from "@/features/lessons/types";
+import type { CurriculumRetrievalMode } from "@/features/rag/embedding-types";
 import type { CurriculumRetrievalLocale } from "@/features/rag/retrieval-types";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ type RetrievalPreviewSearchFormProps = {
   }>;
   initialConceptId?: string;
   initialLocale: CurriculumRetrievalLocale;
+  initialMode: CurriculumRetrievalMode;
   initialQuery: string;
   initialSectionType?: string;
   initialUnitId?: string;
@@ -30,6 +32,7 @@ export function RetrievalPreviewSearchForm({
   concepts,
   initialConceptId,
   initialLocale,
+  initialMode,
   initialQuery,
   initialSectionType,
   initialUnitId,
@@ -48,6 +51,7 @@ export function RetrievalPreviewSearchForm({
     const unitId = formData.get("unitId")?.toString() ?? "";
     const conceptId = formData.get("conceptId")?.toString() ?? "";
     const locale = formData.get("locale")?.toString() ?? "zh";
+    const mode = formData.get("mode")?.toString() ?? "keyword";
     const sectionType = formData.get("sectionType")?.toString() ?? "";
 
     if (query) {
@@ -66,6 +70,10 @@ export function RetrievalPreviewSearchForm({
       params.set("locale", locale);
     }
 
+    if (mode) {
+      params.set("mode", mode);
+    }
+
     if (sectionType) {
       params.set("sectionType", sectionType);
     }
@@ -78,7 +86,7 @@ export function RetrievalPreviewSearchForm({
 
   return (
     <form
-      className="grid gap-3 lg:grid-cols-[1.25fr_0.75fr_0.9fr_0.9fr_0.9fr_auto]"
+      className="grid gap-3 lg:grid-cols-[1.25fr_0.75fr_0.75fr_0.9fr_0.9fr_0.9fr_auto]"
       onSubmit={handleSubmit}
     >
       <label className="grid gap-2 text-sm font-medium">
@@ -101,6 +109,19 @@ export function RetrievalPreviewSearchForm({
           <option value="zh">中文 chunks</option>
           <option value="en">English chunks</option>
           <option value="all">All chunks</option>
+        </select>
+      </label>
+
+      <label className="grid gap-2 text-sm font-medium">
+        Mode
+        <select
+          className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+          defaultValue={initialMode}
+          name="mode"
+        >
+          <option value="keyword">Keyword</option>
+          <option value="embedding">Embedding</option>
+          <option value="hybrid">Hybrid</option>
         </select>
       </label>
 

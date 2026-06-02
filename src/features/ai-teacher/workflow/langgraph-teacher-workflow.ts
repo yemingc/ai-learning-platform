@@ -3,6 +3,12 @@ import "server-only";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { generateTeacherResponse } from "@/features/ai-teacher/teacher-service";
 import type { TeachingMove } from "@/features/ai-teacher/types";
+import {
+  assembleCurriculumContext,
+  filterAllowedCitations,
+  type AssembledCurriculumContext,
+  type CurriculumCitation,
+} from "@/features/rag/curriculum-context";
 import type {
   LearnerMemoryPatch,
   LearnerMemorySnapshot,
@@ -21,6 +27,8 @@ const TeacherWorkflowAnnotation = Annotation.Root({
   errors: Annotation<string[]>(),
   input: Annotation<TeacherWorkflowInput>(),
   intent: Annotation<TeacherIntent | undefined>(),
+  citations: Annotation<CurriculumCitation[]>(),
+  curriculumContext: Annotation<AssembledCurriculumContext | undefined>(),
   memoryPatch: Annotation<LearnerMemoryPatch | undefined>(),
   memorySignals: Annotation<TeacherWorkflowResult["memorySignals"] | undefined>(),
   nextStudyAction: Annotation<NextStudyActionHint | undefined>(),
@@ -162,21 +170,63 @@ function selectTeachingStrategyNode(state: GraphState): GraphUpdate {
   };
 }
 
+function retrieveCurriculumChunksNode(state: GraphState): GraphUpdate {
+  const curriculumContext = assembleCurriculumContext({
+    concept: state.input.concept,
+    currentSection: state.input.currentSection,
+    lesson: state.input.lesson,
+    locale: state.input.locale,
+    selectedText: state.input.selectedText,
+    selectionAction: state.input.selectionAction,
+    userMessage: state.input.userMessage,
+  });
+  const detail = curriculumContext.shouldRetrieve
+    ? `Retrieved ${curriculumContext.retrievedChunks.length} curriculum chunks.`
+    : "Skipped retrieval for this lightweight message.";
+
+  return {
+    curriculumContext,
+    trace: appendTrace(state, "retrieve_curriculum_chunks", detail),
+  };
+}
+
+function assembleCurriculumContextNode(state: GraphState): GraphUpdate {
+  const allowedCitationCount =
+    state.curriculumContext?.allowedCitations.length ?? 0;
+  const detail = state.curriculumContext?.shouldRetrieve
+    ? `Assembled curriculum context with ${allowedCitationCount} allowed citations.`
+    : "No curriculum context assembled for this turn.";
+
+  return {
+    trace: appendTrace(state, "assemble_curriculum_context", detail),
+  };
+}
+
 async function generateTeachingResponseNode(
   state: GraphState,
 ): Promise<GraphUpdate> {
   const teacherResponse = await generateTeacherResponse({
     ...state.input,
+    curriculumContext: state.curriculumContext,
     intent: state.intent,
     teachingMoveHint: state.teachingStrategy,
   });
+  const citations = filterAllowedCitations({
+    allowedCitations: state.curriculumContext?.allowedCitations ?? [],
+    requestedChunkIds: teacherResponse.citationChunkIds,
+  });
+  const sanitizedTeacherResponse = {
+    ...teacherResponse,
+    citationChunkIds: citations.map((citation) => citation.chunkId),
+  };
 
   return {
-    teacherResponse,
+    citations,
+    teacherResponse: sanitizedTeacherResponse,
     trace: appendTrace(
       state,
       "generate_teaching_response",
-      teacherResponse.teachingMove,
+      `${teacherResponse.teachingMove}; ${citations.length} citations accepted.`,
     ),
   };
 }
@@ -260,6 +310,8 @@ function createTeacherGraph() {
     .addNode("build_context", buildContextNode)
     .addNode("classify_user_intent", classifyUserIntentNode)
     .addNode("select_teaching_strategy", selectTeachingStrategyNode)
+    .addNode("retrieve_curriculum_chunks", retrieveCurriculumChunksNode)
+    .addNode("assemble_curriculum_context", assembleCurriculumContextNode)
     .addNode("generate_teaching_response", generateTeachingResponseNode)
     .addNode("validate_structured_output", validateStructuredOutputNode)
     .addNode("extract_learning_signals", extractLearningSignalsNode)
@@ -268,7 +320,9 @@ function createTeacherGraph() {
     .addEdge(START, "build_context")
     .addEdge("build_context", "classify_user_intent")
     .addEdge("classify_user_intent", "select_teaching_strategy")
-    .addEdge("select_teaching_strategy", "generate_teaching_response")
+    .addEdge("select_teaching_strategy", "retrieve_curriculum_chunks")
+    .addEdge("retrieve_curriculum_chunks", "assemble_curriculum_context")
+    .addEdge("assemble_curriculum_context", "generate_teaching_response")
     .addEdge("generate_teaching_response", "validate_structured_output")
     .addEdge("validate_structured_output", "extract_learning_signals")
     .addEdge("extract_learning_signals", "update_learner_memory")
@@ -283,6 +337,8 @@ export async function runLangGraphTeacherWorkflow(
   const graph = createTeacherGraph();
   const initialState: GraphState = {
     context: undefined,
+    citations: [],
+    curriculumContext: undefined,
     errors: [],
     input,
     intent: undefined,
@@ -311,6 +367,7 @@ export async function runLangGraphTeacherWorkflow(
     memorySignals: state.memorySignals,
     memoryPatch: state.memoryPatch,
     nextStudyAction: state.nextStudyAction,
+    citations: state.citations ?? [],
     trace: state.trace,
     state: state as TeacherWorkflowState,
   };

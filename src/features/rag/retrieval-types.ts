@@ -18,6 +18,8 @@ export type CurriculumRetrievalQuery = {
 };
 
 export type CurriculumRetrievalMatchReason =
+  | "embedding"
+  | "hybrid"
   | "title"
   | "text"
   | "tag"

@@ -9,6 +9,7 @@ import {
 import type { Concept } from "@/features/knowledge/types";
 import type { LessonContent } from "@/features/lessons/types";
 import type { TeacherIntent } from "@/features/ai-teacher/teacher-runtime-types";
+import type { AssembledCurriculumContext } from "@/features/rag/curriculum-context";
 import {
   buildTeacherSystemPrompt,
   buildTeacherUserPrompt,
@@ -33,6 +34,7 @@ type GenerateTeacherResponseInput = {
   chatHistory: TeacherChatMessage[];
   intent?: TeacherIntent;
   teachingMoveHint?: TeachingMove;
+  curriculumContext?: AssembledCurriculumContext;
 };
 
 const errorMessages: Record<TeacherChatErrorCode, string> = {
@@ -126,6 +128,21 @@ function normalizeFollowUps(value: unknown, locale: "en" | "zh") {
     .slice(0, 4);
 
   return followUps.length > 0 ? followUps : fallback;
+}
+
+function normalizeCitationChunkIds(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 5);
 }
 
 function normalizeBoolean(value: unknown, fallback: boolean) {
@@ -356,6 +373,12 @@ function normalizeTeacherResponse(
         value.followUps ??
         value.follow_ups,
       locale,
+    ),
+    citationChunkIds: normalizeCitationChunkIds(
+      value.citationChunkIds ??
+        value.citation_chunk_ids ??
+        value.citations ??
+        value.sources,
     ),
     teachingMove,
   };

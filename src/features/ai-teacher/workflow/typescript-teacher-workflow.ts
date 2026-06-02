@@ -2,6 +2,10 @@ import "server-only";
 
 import { generateTeacherResponse } from "@/features/ai-teacher/teacher-service";
 import type { TeachingMove } from "@/features/ai-teacher/types";
+import {
+  assembleCurriculumContext,
+  filterAllowedCitations,
+} from "@/features/rag/curriculum-context";
 import type {
   LearnerMemoryPatch,
   LearnerMemorySnapshot,
@@ -187,18 +191,55 @@ export async function runTypeScriptTeacherWorkflow(
     teachingStrategy,
   );
 
-  const teacherResponse = await generateTeacherResponse({
-    ...input,
-    intent,
-    teachingMoveHint: teachingStrategy,
+  const curriculumContext = assembleCurriculumContext({
+    concept: input.concept,
+    currentSection: input.currentSection,
+    lesson: input.lesson,
+    locale: input.locale,
+    selectedText: input.selectedText,
+    selectionAction: input.selectionAction,
+    userMessage: input.userMessage,
   });
   state = appendTrace(
     {
       ...state,
-      teacherResponse,
+      curriculumContext,
+    },
+    "retrieve_curriculum_chunks",
+    curriculumContext.shouldRetrieve
+      ? `Retrieved ${curriculumContext.retrievedChunks.length} curriculum chunks.`
+      : "Skipped retrieval for this lightweight message.",
+  );
+  state = appendTrace(
+    state,
+    "assemble_curriculum_context",
+    curriculumContext.shouldRetrieve
+      ? `Assembled curriculum context with ${curriculumContext.allowedCitations.length} allowed citations.`
+      : "No curriculum context assembled for this turn.",
+  );
+
+  const teacherResponse = await generateTeacherResponse({
+    ...input,
+    curriculumContext,
+    intent,
+    teachingMoveHint: teachingStrategy,
+  });
+  const citations = filterAllowedCitations({
+    allowedCitations: curriculumContext.allowedCitations,
+    requestedChunkIds: teacherResponse.citationChunkIds,
+  });
+  const sanitizedTeacherResponse = {
+    ...teacherResponse,
+    citationChunkIds: citations.map((citation) => citation.chunkId),
+  };
+  state = appendTrace(
+    {
+      ...state,
+      citations,
+      teacherResponse: sanitizedTeacherResponse,
     },
     "generate_teaching_response",
-    teacherResponse.teachingMove,
+    `${teacherResponse.teachingMove}; ${citations.length} citations accepted.`,
   );
 
   state = appendTrace(
@@ -207,7 +248,7 @@ export async function runTypeScriptTeacherWorkflow(
     "DeepSeek output normalized and validated against TeacherChatResponse schema.",
   );
 
-  const memorySignals = teacherResponse.memorySignals;
+  const memorySignals = sanitizedTeacherResponse.memorySignals;
   state = appendTrace(
     {
       ...state,
@@ -240,10 +281,11 @@ export async function runTypeScriptTeacherWorkflow(
   );
 
   return {
-    teacherResponse,
+    teacherResponse: sanitizedTeacherResponse,
     memorySignals,
     memoryPatch,
     nextStudyAction,
+    citations,
     trace: state.trace,
     state,
   };

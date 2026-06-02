@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:auth": "node scripts/auth-regression.mjs",
-    "test:rag": "node scripts/rag-retrieval-check.mjs"
+    "test:rag": "node scripts/rag-retrieval-check.mjs",
+    "embeddings:build": "node scripts/build-embeddings.mjs"
   },
   "dependencies": {
     "@langchain/langgraph": "^1.3.2",

@@ -23,6 +23,7 @@ export const teacherEvaluationCases: TeacherEvaluationCase[] = [
       ],
       detectedMisconception:
         "The limit is always the same as the function value.",
+      citationChunkIds: [],
       teachingMove: "correct_misconception",
       memorySignals: {
         confusionLevel: "medium",
@@ -55,6 +56,7 @@ export const teacherEvaluationCases: TeacherEvaluationCase[] = [
         "Can you explain the notation piece by piece?",
         "Give me a number-line example.",
       ],
+      citationChunkIds: [],
       teachingMove: "explain",
       memorySignals: {
         confusionLevel: "medium",
@@ -86,6 +88,7 @@ export const teacherEvaluationCases: TeacherEvaluationCase[] = [
         "What if the left and right sides approach different values?",
         "How do I read this from a table?",
       ],
+      citationChunkIds: [],
       teachingMove: "give_example",
       memorySignals: {
         confusionLevel: "low",
@@ -121,6 +124,7 @@ export const teacherEvaluationCases: TeacherEvaluationCase[] = [
         "能给我一个左右不一样的例子吗？",
         "为什么两边必须相同？",
       ],
+      citationChunkIds: [],
       teachingMove: "explain",
       memorySignals: {
         confusionLevel: "medium",
@@ -152,6 +156,7 @@ export const teacherEvaluationCases: TeacherEvaluationCase[] = [
         "What does from each side change?",
         "Give me a quick asymptote example.",
       ],
+      citationChunkIds: [],
       teachingMove: "ask_guiding_question",
       memorySignals: {
         confusionLevel: "low",

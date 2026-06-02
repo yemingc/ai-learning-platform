@@ -47,6 +47,14 @@ const nodeLabels: Record<
     en: "Classify intent",
     zh: "识别意图（classify intent）",
   },
+  retrieve_curriculum_chunks: {
+    en: "Retrieve curriculum chunks",
+    zh: "检索课程片段（retrieve chunks）",
+  },
+  assemble_curriculum_context: {
+    en: "Assemble curriculum context",
+    zh: "组装课程上下文（curriculum context）",
+  },
   extract_learning_signals: {
     en: "Extract learning signals",
     zh: "提取学习信号（learning signals）",

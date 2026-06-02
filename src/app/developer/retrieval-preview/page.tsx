@@ -14,11 +14,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { LessonSectionType } from "@/features/lessons/types";
+import { getCurriculumEmbeddingIndexStats } from "@/features/rag/embedding-store";
 import type { CurriculumRetrievalLocale } from "@/features/rag/retrieval-types";
 import {
   getCurriculumRetrievalChunks,
-  searchCurriculumChunks,
 } from "@/features/rag/curriculum-retriever";
+import {
+  getRetrievalMode,
+  searchCurriculumWithMode,
+} from "@/features/rag/retrieval-service";
 import {
   hasDeveloperModeAccess,
   isDeveloperToolsEnabled,
@@ -33,6 +37,7 @@ type RetrievalPreviewPageProps = {
     conceptId?: string;
     courseId?: string;
     locale?: string;
+    mode?: string;
     query?: string;
     sectionType?: string;
     tag?: string;
@@ -86,23 +91,48 @@ export default async function RetrievalPreviewPage({
   );
   const query = params.query?.trim() || "limit function value misconception";
   const locale = getRetrievalLocale(params.locale);
+  const mode = getRetrievalMode(params.mode);
   const tag = params.tag?.trim();
-  const preview = searchCurriculumChunks({
-    curricula,
-    query: {
-      conceptId: params.conceptId || undefined,
-      courseId,
-      limit: 8,
-      locale,
-      query,
-      sectionType: isLessonSectionType(params.sectionType)
-        ? params.sectionType
-        : undefined,
-      tags: tag ? [tag] : undefined,
-      unitId: params.unitId || undefined,
-    },
-  });
   const allChunks = getCurriculumRetrievalChunks(curricula, "all");
+  const embeddingStats = getCurriculumEmbeddingIndexStats();
+  const retrievalQuery = {
+    conceptId: params.conceptId || undefined,
+    courseId,
+    limit: 8,
+    locale,
+    query,
+    sectionType: isLessonSectionType(params.sectionType)
+      ? params.sectionType
+      : undefined,
+    tags: tag ? [tag] : undefined,
+    unitId: params.unitId || undefined,
+  };
+  const retrievalResult = await (async () => {
+    try {
+      const preview = await searchCurriculumWithMode({
+        curricula,
+        mode,
+        query: retrievalQuery,
+      });
+
+      return {
+        preview,
+        retrievalError: undefined,
+      };
+    } catch (error) {
+      return {
+        preview: {
+          query: retrievalQuery,
+          results: [],
+          totalChunks: allChunks.length,
+          totalMatches: 0,
+        },
+        retrievalError:
+          error instanceof Error ? error.message : "Retrieval failed.",
+      };
+    }
+  })();
+  const { preview, retrievalError } = retrievalResult;
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
@@ -138,7 +168,8 @@ export default async function RetrievalPreviewPage({
             </CardTitle>
             <CardDescription>
               {curricula.length} course pack indexed from structured lesson
-              sections. No vector database is used in this phase.
+              sections. {embeddingStats.recordCount} embedding records are
+              stored locally.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -165,6 +196,7 @@ export default async function RetrievalPreviewPage({
             }
             initialConceptId={params.conceptId}
             initialLocale={locale}
+            initialMode={mode}
             initialQuery={query}
             initialSectionType={params.sectionType}
             initialUnitId={params.unitId}
@@ -191,12 +223,34 @@ export default async function RetrievalPreviewPage({
               <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">
                 {query}
               </code>{" "}
-              in <span className="font-semibold text-foreground">{locale}</span>{" "}
-              mode within {preview.totalChunks} scoped chunks. Results show
-              stable IDs and source labels for future citation.
+              with{" "}
+              <span className="font-semibold text-foreground">{mode}</span>{" "}
+              retrieval in{" "}
+              <span className="font-semibold text-foreground">{locale}</span>{" "}
+              chunks. Results show stable IDs and source labels for future
+              citation.
             </p>
           </div>
         </div>
+
+        {retrievalError && (
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle>Embedding retrieval is not ready yet</CardTitle>
+              <CardDescription>{retrievalError}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Fill the embedding environment variables, start the dev server,
+                then run{" "}
+                <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">
+                  npm run embeddings:build
+                </code>
+                . Keyword retrieval remains available as the baseline.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {preview.results.map((result) => (
           <Card key={result.id}>

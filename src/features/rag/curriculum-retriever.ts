@@ -143,6 +143,38 @@ function createPreviewText(text: string) {
   return `${compactText.slice(0, 257).trim()}...`;
 }
 
+export function createCurriculumRetrievalResult({
+  chunk,
+  curricula,
+  matchedReasons,
+  score,
+}: {
+  chunk: LessonRetrievalChunk;
+  curricula: CurriculumPack[];
+  matchedReasons: CurriculumRetrievalMatchReason[];
+  score: number;
+}): CurriculumRetrievalResult {
+  const curriculum = curricula.find((item) => item.course.id === chunk.courseId);
+  const citation = curriculum
+    ? getChunkCitation(curriculum, chunk)
+    : {
+        conceptTitle: chunk.conceptId,
+        courseTitle: chunk.courseId,
+        sectionTitle: chunk.title,
+        sectionType: chunk.sectionType,
+        unitTitle: chunk.unitId,
+      };
+
+  return {
+    ...chunk,
+    citation,
+    matchedReasons,
+    previewText: createPreviewText(chunk.text),
+    score,
+    sourceLabel: `${citation.courseTitle} / ${citation.unitTitle} / ${citation.conceptTitle} / ${citation.sectionTitle}`,
+  };
+}
+
 function scoreChunk({
   chunk,
   query,
@@ -254,26 +286,14 @@ export function searchCurriculumChunks({
   const limit = query.limit ?? 8;
   const scoredResults = chunks
     .map((chunk) => {
-      const curriculum = curricula.find((item) => item.course.id === chunk.courseId);
-      const citation = curriculum
-        ? getChunkCitation(curriculum, chunk)
-        : {
-            conceptTitle: chunk.conceptId,
-            courseTitle: chunk.courseId,
-            sectionTitle: chunk.title,
-            sectionType: chunk.sectionType,
-            unitTitle: chunk.unitId,
-          };
       const scoredChunk = scoreChunk({ chunk, query, tokens });
 
-      return {
-        ...chunk,
-        citation,
+      return createCurriculumRetrievalResult({
+        chunk,
+        curricula,
         matchedReasons: scoredChunk.matchedReasons,
-        previewText: createPreviewText(chunk.text),
         score: scoredChunk.score,
-        sourceLabel: `${citation.courseTitle} / ${citation.unitTitle} / ${citation.conceptTitle} / ${citation.sectionTitle}`,
-      } satisfies CurriculumRetrievalResult;
+      });
     })
     .filter((result) => {
       if (!tokens.length && !(query.tags?.length || query.sectionType)) {
