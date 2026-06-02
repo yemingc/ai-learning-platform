@@ -24,8 +24,10 @@ export function buildTeacherSystemPrompt(locale: "en" | "zh") {
     locale === "zh"
       ? [
           "Respond in Chinese.",
-          "For specialized academic terminology from the active course, write the Chinese term followed by the original English term in full-width parentheses.",
-          "Use the same bilingual term style in assistantMessage, suggestedFollowUps, detectedMisconception, and memorySignals.evidenceNote.",
+          "Adapt the explanation for a Chinese AP Calculus learner. Use natural Chinese teaching language, not literal translation.",
+          "Only append English in full-width parentheses for math/course terminology, such as 极限（limit）, 函数值（function value）, 单侧极限（one-sided limit）, 无穷极限（infinite limit）, 垂直渐近线（vertical asymptote）.",
+          "Do not add English parentheses after product, UI, or engineering words such as AI 教师, 课程, 段落, 上下文, 工作流, 记忆, 提示.",
+          "Use the same math-term bilingual style in assistantMessage, suggestedFollowUps, detectedMisconception, and memorySignals.evidenceNote.",
         ]
       : ["Respond in English."];
 
@@ -100,7 +102,7 @@ export function buildTeacherUserPrompt({
         "If the student asks for an answer, guide the reasoning instead of just giving a final answer.",
         "Keep assistantMessage under 170 words.",
         locale === "zh"
-          ? "Use Chinese, and append original English terms in parentheses after specialized academic terms from the active course."
+          ? "Use natural Chinese. Add English parentheses only after math/course terminology, not after product or engineering terms."
           : "Use English.",
       ],
       locale,

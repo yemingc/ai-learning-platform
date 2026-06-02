@@ -3,10 +3,14 @@ import type {
   lessonApplicationPromptSchema,
   lessonContentSchema,
   lessonGuidedQuestionSchema,
+  lessonGlossaryTermSchema,
   lessonMisconceptionCheckSchema,
   lessonObjectiveSchema,
+  lessonPracticeReadinessTaskSchema,
   lessonPrerequisiteConnectionSchema,
   lessonReflectionPromptSchema,
+  lessonSectionSchema,
+  lessonSectionTypeSchema,
   lessonWorkedExampleSchema,
 } from "@/features/lessons/lesson-schema";
 
@@ -30,6 +34,16 @@ export type LessonReflectionPrompt = z.infer<
 
 export type LessonApplicationPrompt = z.infer<
   typeof lessonApplicationPromptSchema
+>;
+
+export type LessonSectionType = z.infer<typeof lessonSectionTypeSchema>;
+
+export type LessonSection = z.infer<typeof lessonSectionSchema>;
+
+export type LessonGlossaryTerm = z.infer<typeof lessonGlossaryTermSchema>;
+
+export type LessonPracticeReadinessTask = z.infer<
+  typeof lessonPracticeReadinessTaskSchema
 >;
 
 export type LessonContent = z.infer<typeof lessonContentSchema>;

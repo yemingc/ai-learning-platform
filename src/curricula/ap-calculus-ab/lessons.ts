@@ -1,6 +1,307 @@
 import { lessonContentArraySchema } from "@/features/lessons/lesson-schema";
+import { validateRetrievalReadyLessons } from "@/features/lessons/retrieval-chunks";
+import type {
+  LessonApplicationPrompt,
+  LessonGuidedQuestion,
+  LessonMisconceptionCheck,
+  LessonObjective,
+  LessonPrerequisiteConnection,
+  LessonReflectionPrompt,
+  LessonWorkedExample,
+} from "@/features/lessons/types";
 
-export const apCalculusABUnit1Lessons = lessonContentArraySchema.parse([
+const COURSE_ID = "ap-calculus-ab";
+const UNIT_ID = "ap-calculus-ab-unit-1-limits-continuity";
+
+type LegacyLessonContent = {
+  conceptId: string;
+  title: string;
+  objective: LessonObjective;
+  hook: string;
+  intuition: string;
+  formalExplanation: string;
+  prerequisiteConnections: LessonPrerequisiteConnection[];
+  workedExamples: LessonWorkedExample[];
+  guidedQuestions: LessonGuidedQuestion[];
+  misconceptionChecks: LessonMisconceptionCheck[];
+  reflectionPrompt: LessonReflectionPrompt;
+  applicationPrompt: LessonApplicationPrompt;
+  keyTakeaways: string[];
+};
+
+const lessonMetadata: Record<
+  string,
+  {
+    retrievalTags: string[];
+    glossaryTerms: Array<{
+      term: string;
+      definition: string;
+      aliases?: string[];
+    }>;
+  }
+> = {
+  "what-is-a-limit": {
+    retrievalTags: ["limits", "approaching behavior", "function value"],
+    glossaryTerms: [
+      {
+        term: "limit",
+        definition:
+          "The value a function approaches near an input, based on nearby behavior.",
+      },
+      {
+        term: "function value",
+        definition:
+          "The actual output of the function at a specific input, when it is defined.",
+      },
+    ],
+  },
+  "limit-notation": {
+    retrievalTags: ["limits", "notation", "approach"],
+    glossaryTerms: [
+      {
+        term: "limit notation",
+        definition:
+          "A compact symbolic statement describing input movement and output behavior.",
+      },
+      {
+        term: "approaches",
+        definition:
+          "Describes getting close to a target value without requiring equality.",
+      },
+    ],
+  },
+  "estimating-limits-from-graphs": {
+    retrievalTags: ["limits", "graphs", "two-sided limits"],
+    glossaryTerms: [
+      {
+        term: "two-sided limit",
+        definition:
+          "A limit where the left-hand and right-hand behaviors approach the same output value.",
+      },
+      {
+        term: "filled point",
+        definition:
+          "A plotted point showing the function value at an input, not necessarily the limit.",
+      },
+    ],
+  },
+  "one-sided-limits": {
+    retrievalTags: ["limits", "one-sided limits", "left and right behavior"],
+    glossaryTerms: [
+      {
+        term: "left-hand limit",
+        definition:
+          "Function behavior as x approaches a target from values less than the target.",
+      },
+      {
+        term: "right-hand limit",
+        definition:
+          "Function behavior as x approaches a target from values greater than the target.",
+      },
+    ],
+  },
+  "infinite-limits": {
+    retrievalTags: ["limits", "infinite limits", "vertical asymptotes"],
+    glossaryTerms: [
+      {
+        term: "infinite limit",
+        definition:
+          "A description of function values growing or decreasing without bound near an input.",
+      },
+      {
+        term: "vertical asymptote",
+        definition:
+          "A vertical line near which a graph may show unbounded behavior.",
+      },
+    ],
+  },
+};
+
+function stableSectionId(conceptId: string, sectionId: string) {
+  return `${COURSE_ID}/${UNIT_ID}/${conceptId}/${sectionId}`;
+}
+
+function joinWorkedExamples(examples: LessonWorkedExample[]) {
+  return examples
+    .map((example) =>
+      [
+        example.title,
+        example.setup,
+        ...example.walkthrough.map((step, index) => `${index + 1}. ${step}`),
+        `Takeaway: ${example.takeaway}`,
+      ].join("\n"),
+    )
+    .join("\n\n");
+}
+
+function joinGuidedQuestions(questions: LessonGuidedQuestion[]) {
+  return questions
+    .map((question) =>
+      [
+        `Prompt: ${question.prompt}`,
+        `Hint: ${question.hint}`,
+        `Target insight: ${question.targetInsight}`,
+      ].join("\n"),
+    )
+    .join("\n\n");
+}
+
+function joinMisconceptionChecks(checks: LessonMisconceptionCheck[]) {
+  return checks
+    .map((check, index) =>
+      [
+        `Misconception ${index + 1}: ${check.misconception}`,
+        `Check prompt: ${check.checkPrompt}`,
+        `Correction: ${check.correction}`,
+      ].join("\n"),
+    )
+    .join("\n\n");
+}
+
+function createRetrievalReadyLesson(lesson: LegacyLessonContent) {
+  const metadata = lessonMetadata[lesson.conceptId] ?? {
+    glossaryTerms: [],
+    retrievalTags: [],
+  };
+  const prerequisiteConceptIds = lesson.prerequisiteConnections.map(
+    (connection) => connection.conceptId,
+  );
+  const misconceptionIds = lesson.misconceptionChecks.map(
+    (_, index) => `${lesson.conceptId}-misconception-${index + 1}`,
+  );
+  const applicationTask = {
+    id: `${COURSE_ID}/${UNIT_ID}/${lesson.conceptId}/application-task-1`,
+    title: lesson.applicationPrompt.title,
+    prompt: lesson.applicationPrompt.prompt,
+    readinessSignal: lesson.applicationPrompt.whyItTransfers,
+    sectionId: "application",
+  };
+
+  return {
+    ...lesson,
+    id: `${COURSE_ID}/${UNIT_ID}/${lesson.conceptId}`,
+    lessonId: `${lesson.conceptId}-lesson`,
+    courseId: COURSE_ID,
+    unitId: UNIT_ID,
+    learningObjectives: [
+      lesson.objective.description,
+      ...lesson.objective.successCriteria,
+    ],
+    prerequisiteConceptIds,
+    retrievalTags: metadata.retrievalTags,
+    glossaryTerms: metadata.glossaryTerms.map((term) => ({
+      aliases: term.aliases ?? [],
+      ...term,
+    })),
+    applicationTasks: [applicationTask],
+    practiceReadinessTasks: [applicationTask],
+    sections: [
+      {
+        id: stableSectionId(lesson.conceptId, "why"),
+        sectionId: "why",
+        type: "why_this_matters" as const,
+        title: "Why this matters",
+        body: lesson.hook,
+        teachingGoal:
+          "Show the purpose of the concept before introducing procedure.",
+        retrievalTags: ["purpose", "motivation"],
+      },
+      {
+        id: stableSectionId(lesson.conceptId, "intuition"),
+        sectionId: "intuition",
+        type: "intuition" as const,
+        title: "Intuition",
+        body: [
+          lesson.intuition,
+          ...lesson.prerequisiteConnections.map(
+            (connection) =>
+              `Prerequisite connection - ${connection.title}: ${connection.connection}`,
+          ),
+        ].join("\n\n"),
+        teachingGoal:
+          "Build a mental model before formal definitions or notation.",
+        retrievalTags: ["intuition", "mental model", ...prerequisiteConceptIds],
+      },
+      {
+        id: stableSectionId(lesson.conceptId, "formal"),
+        sectionId: "formal",
+        type: "formal_idea" as const,
+        title: "Formal idea",
+        body: lesson.formalExplanation,
+        teachingGoal: "Name the concept precisely using AP-level language.",
+        retrievalTags: ["definition", "formal explanation"],
+      },
+      {
+        id: stableSectionId(lesson.conceptId, "worked"),
+        sectionId: "worked",
+        type: "worked_example" as const,
+        title: "Worked example",
+        body: joinWorkedExamples(lesson.workedExamples),
+        teachingGoal:
+          "Demonstrate the concept through a guided, non-question-bank example.",
+        retrievalTags: ["worked example", "example"],
+      },
+      {
+        id: stableSectionId(lesson.conceptId, "guided"),
+        sectionId: "guided",
+        type: "think_with_me" as const,
+        title: "Think with me",
+        body: joinGuidedQuestions(lesson.guidedQuestions),
+        teachingGoal:
+          "Use Socratic prompts to make the learner reason through the idea.",
+        retrievalTags: ["guided question", "socratic"],
+      },
+      {
+        id: stableSectionId(lesson.conceptId, "trap"),
+        sectionId: "trap",
+        type: "common_trap" as const,
+        title: "Common trap",
+        body: joinMisconceptionChecks(lesson.misconceptionChecks),
+        teachingGoal:
+          "Identify and repair misconceptions before they become durable.",
+        retrievalTags: ["misconception", "common trap"],
+        misconceptionIds,
+      },
+      {
+        id: stableSectionId(lesson.conceptId, "reflection"),
+        sectionId: "reflection",
+        type: "reflection" as const,
+        title: "Reflection",
+        body: [
+          lesson.reflectionPrompt.prompt,
+          `Sentence starter: ${lesson.reflectionPrompt.sentenceStarter}`,
+        ].join("\n"),
+        teachingGoal:
+          "Make the learner articulate understanding in their own words.",
+        retrievalTags: ["reflection", "metacognition"],
+      },
+      {
+        id: stableSectionId(lesson.conceptId, "application"),
+        sectionId: "application",
+        type: "try_applying_it" as const,
+        title: lesson.applicationPrompt.title,
+        body: [
+          lesson.applicationPrompt.prompt,
+          `Why it transfers: ${lesson.applicationPrompt.whyItTransfers}`,
+        ].join("\n"),
+        teachingGoal:
+          "Connect concept understanding to application after readiness.",
+        retrievalTags: ["application", "readiness"],
+      },
+      {
+        id: stableSectionId(lesson.conceptId, "takeaways"),
+        sectionId: "takeaways",
+        type: "key_takeaways" as const,
+        title: "Key takeaways",
+        body: lesson.keyTakeaways.map((takeaway) => `- ${takeaway}`).join("\n"),
+        teachingGoal: "Summarize the durable ideas the learner should retain.",
+        retrievalTags: ["summary", "takeaways"],
+      },
+    ],
+  };
+}
+
+const rawApCalculusABUnit1Lessons: LegacyLessonContent[] = [
   {
     conceptId: "what-is-a-limit",
     title: "What is a limit?",
@@ -490,4 +791,10 @@ export const apCalculusABUnit1Lessons = lessonContentArraySchema.parse([
       "One-sided behavior is essential near vertical asymptotes.",
     ],
   },
-]);
+];
+
+export const apCalculusABUnit1Lessons = lessonContentArraySchema.parse(
+  rawApCalculusABUnit1Lessons.map(createRetrievalReadyLesson),
+);
+
+validateRetrievalReadyLessons(apCalculusABUnit1Lessons);

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   type FormEvent,
@@ -99,9 +99,12 @@ const panelCopy = {
     description: "Responses use the current static lesson and section context.",
     close: "Close AI Teacher chat",
     context: "Context",
-    memory: "Learner memory placeholder",
+    memory: "Learning progress context",
     thinking: "AI Teacher is thinking with the lesson context...",
     misconception: "Possible misconception:",
+    learningSignal: "Learning signal:",
+    workflowTrace: "AI workflow trace",
+    nextStudyAction: "Next study action",
     followUps: "Suggested follow-ups",
     message: "Message",
     placeholder:
@@ -119,43 +122,44 @@ const panelCopy = {
   },
   zh: {
     welcome: (title: string) =>
-      `我已经准备好帮助你学习 ${title}。你可以问某个段落（section）、困惑的表达（confusing phrase），或想拆解的误区（misconception）。`,
+      `我会陪你学「${title}」。你可以问某一段哪里没懂，也可以选中文本让我解释，或者让我帮你拆一个常见误区。`,
     defaultFollowUps: [
-      "请用更简单的话解释这个概念（concept）",
-      "再给我一个例子（example）",
-      "问我一个引导问题（guiding question）",
+      "用更简单的话解释一下",
+      "再给我一个例子",
+      "问我一个引导问题",
     ],
     askSectionPrompt: (section: string) =>
-      `请帮我理解 ${section} 这一段落（section）。`,
-    selectedTextPrompt: "请解释我选中的课程文本（selected lesson text）。",
+      `请帮我理解「${section}」这一部分。`,
+    selectedTextPrompt: "请解释我选中的这段课程内容。",
     timeout:
-      "AI 教师（AI Teacher）响应超过 3 分钟。请用更短的问题再试一次。",
-    failed: "AI 教师（AI Teacher）请求失败。",
-    badge: "AI 教师聊天（AI Teacher Chat）",
-    title: "询问你的 AI 教师（AI teacher）",
-    description:
-      "回答会基于当前静态课程（static lesson）和段落上下文（section context）。",
-    close: "关闭 AI 教师聊天（AI Teacher chat）",
-    context: "上下文（context）",
-    memory: "学习者记忆占位（learner memory placeholder）",
-    thinking: "AI 教师（AI Teacher）正在结合课程上下文思考...",
-    misconception: "可能的误区（misconception）：",
-    followUps: "建议追问（suggested follow-ups）",
-    message: "消息（message）",
-    placeholder: "请求更简单的解释、另一个例子（example）或引导问题（guiding question）。",
-    askTeacher: "询问教师（Ask teacher）",
+      "AI 教师响应超过 3 分钟。可以把问题缩短一点再试。",
+    failed: "AI 教师请求失败。",
+    badge: "AI 教师",
+    title: "问问你的 AI 教师",
+    description: "回答会基于当前课程内容和你正在阅读的部分。",
+    close: "关闭 AI 教师",
+    context: "当前上下文",
+    memory: "学习进度上下文",
+    thinking: "AI 教师正在结合课程内容思考...",
+    misconception: "可能的误区：",
+    learningSignal: "学习信号：",
+    workflowTrace: "AI 工作流记录",
+    nextStudyAction: "下一步建议",
+    followUps: "可以继续这样问",
+    message: "你的问题",
+    placeholder: "可以请它讲简单点、换个例子，或问你一个引导问题。",
+    askTeacher: "发送给 AI 教师",
     floating: "问 AI 教师",
-    closeOverlay: "关闭 AI 教师浮层（AI Teacher overlay）",
+    closeOverlay: "关闭 AI 教师浮层",
     teachingMoveLabels: {
-      explain: "解释（explain）",
-      ask_guiding_question: "引导问题（guiding question）",
-      give_example: "例子（example）",
-      correct_misconception: "纠正误区（misconception check）",
-      reflect: "反思（reflection）",
+      explain: "解释",
+      ask_guiding_question: "引导提问",
+      give_example: "举例",
+      correct_misconception: "纠正误区",
+      reflect: "反思",
     } satisfies Record<TeachingMove, string>,
   },
 };
-
 function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -536,7 +540,7 @@ export function AiTeacherChatPanel({
 
             {memorySignals && (
               <div className="rounded-lg border border-learning-mint/30 bg-learning-mint/10 p-3 text-sm leading-6">
-                <span className="font-semibold">Learning signal:</span>{" "}
+                <span className="font-semibold">{copy.learningSignal}</span>{" "}
                 {memorySignals.evidenceNote}
               </div>
             )}
@@ -554,9 +558,7 @@ export function AiTeacherChatPanel({
                 >
                   <span>
                     <span className="font-semibold">
-                      {language === "zh"
-                        ? "AI 工作流轨迹（workflow trace）"
-                        : "AI workflow trace"}
+                      {copy.workflowTrace}
                     </span>
                     <span className="ml-2 text-muted-foreground">
                       {workflowTrace.length} nodes
@@ -595,9 +597,7 @@ export function AiTeacherChatPanel({
                     </ol>
                     {nextStudyAction && (
                       <p className="mt-2 text-muted-foreground">
-                        {language === "zh"
-                          ? "下一步建议（next study action）"
-                          : "Next study action"}
+                        {copy.nextStudyAction}
                         : {nextStudyAction.action} - {nextStudyAction.reason}
                       </p>
                     )}
@@ -711,3 +711,4 @@ export function AiTeacherChatPanel({
     </>
   );
 }
+

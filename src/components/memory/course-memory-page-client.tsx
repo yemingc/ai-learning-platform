@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import type { CurriculumPack } from "@/curricula/types";
+import { useLanguage } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -21,6 +22,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  getLocalizedCourse,
+  getLocalizedUnit,
+} from "@/features/knowledge/concept-localization";
 import {
   fetchLearnerMemory,
   MEMORY_UPDATED_EVENT,
@@ -33,12 +38,64 @@ type CourseMemoryPageClientProps = {
   curriculum: CurriculumPack;
 };
 
-function formatDate(value?: string) {
+const copy = {
+  en: {
+    notStudied: "Not studied yet",
+    loadError: "Unable to load learning progress.",
+    back: "Back to dashboard",
+    badge: "Course progress",
+    title: (courseTitle: string) => `Choose a unit in ${courseTitle}.`,
+    intro:
+      "Course-level progress summarizes all units, while concept details stay inside each selected unit. That keeps learning signals readable as the curriculum grows.",
+    source: "Progress source",
+    updated: "Updated",
+    reset: "Reset course progress",
+    units: "Units",
+    studiedConcepts: "Studied concepts",
+    aiInteractions: "AI interactions",
+    reviewSignals: "Review signals",
+    unit: "Unit",
+    concepts: "concepts",
+    studied: "Studied",
+    ready: "Ready",
+    chats: "Chats",
+    review: "Review",
+    openUnit: "Open unit progress",
+  },
+  zh: {
+    notStudied: "还没有学习记录",
+    loadError: "无法加载学习进度。",
+    back: "返回仪表盘",
+    badge: "课程进度",
+    title: (courseTitle: string) => `选择 ${courseTitle} 中的一个 Unit。`,
+    intro:
+      "课程级进度负责总结所有 Unit，概念级细节保留在每个 Unit 内部。这样课程扩展后，学习信号仍然清晰可读。",
+    source: "进度来源",
+    updated: "更新时间",
+    reset: "重置本课程进度",
+    units: "Unit",
+    studiedConcepts: "已学习概念",
+    aiInteractions: "AI 互动",
+    reviewSignals: "复习信号",
+    unit: "Unit",
+    concepts: "个概念",
+    studied: "已学",
+    ready: "准备度",
+    chats: "对话",
+    review: "复习",
+    openUnit: "打开 Unit 进度",
+  },
+};
+
+function formatDate(
+  value: string | undefined,
+  language: "en" | "zh",
+) {
   if (!value) {
-    return "Not studied yet";
+    return copy[language].notStudied;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -47,10 +104,12 @@ function formatDate(value?: string) {
 export function CourseMemoryPageClient({
   curriculum,
 }: CourseMemoryPageClientProps) {
-  const course = curriculum.course;
+  const { language } = useLanguage();
+  const pageCopy = copy[language];
+  const course = getLocalizedCourse(curriculum.course, language);
   const [memory, setMemory] = useState<LearnerMemory | undefined>();
   const [memoryError, setMemoryError] = useState<string | undefined>();
-  const courseIdRef = useRef(course.id);
+  const courseIdRef = useRef(curriculum.course.id);
 
   useEffect(() => {
     async function syncMemory() {
@@ -59,9 +118,7 @@ export function CourseMemoryPageClient({
         setMemoryError(undefined);
       } catch (error) {
         setMemoryError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load learner memory.",
+          error instanceof Error ? error.message : pageCopy.loadError,
         );
       }
     }
@@ -72,7 +129,7 @@ export function CourseMemoryPageClient({
     return () => {
       window.removeEventListener(MEMORY_UPDATED_EVENT, syncMemory);
     };
-  }, []);
+  }, [pageCopy.loadError]);
 
   const unitSummaries = useMemo(() => {
     return curriculum.units.map((unit) => {
@@ -138,50 +195,48 @@ export function CourseMemoryPageClient({
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
       <Link
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-8")}
-        href="/memory"
+        href="/dashboard"
       >
         <ArrowLeft className="size-4" />
-        Back to courses
+        {pageCopy.back}
       </Link>
 
       <section className="grid gap-8 lg:grid-cols-[1fr_24rem] lg:items-end">
         <div>
-          <Badge variant="secondary">Course Memory</Badge>
+          <Badge variant="secondary">{pageCopy.badge}</Badge>
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge variant="outline">{course.subject}</Badge>
             <Badge variant="outline">{course.title}</Badge>
           </div>
           <h1 className="mt-5 text-4xl font-semibold leading-tight sm:text-5xl">
-            Choose a unit in {course.title}.
+            {pageCopy.title(course.title)}
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">
-            Course-level memory summarizes all units, but concept details stay
-            inside the selected unit. That makes learner memory readable as the
-            curriculum grows.
+            {pageCopy.intro}
           </p>
         </div>
 
         <Card>
           <CardHeader>
             <Badge className="w-fit" variant="outline">
-              Memory source
+              {pageCopy.source}
             </Badge>
             <CardTitle>{memory?.source ?? "local_demo"}</CardTitle>
             <CardDescription>
-              Updated: {formatDate(memory?.updatedAt)}
+              {pageCopy.updated}: {formatDate(memory?.updatedAt, language)}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button
               className="w-full"
               onClick={async () => {
-                setMemory(await resetLearnerMemory(course.id));
+                setMemory(await resetLearnerMemory(curriculum.course.id));
               }}
               type="button"
               variant="outline"
             >
               <RotateCcw className="size-4" />
-              Reset course memory
+              {pageCopy.reset}
             </Button>
           </CardContent>
         </Card>
@@ -196,13 +251,13 @@ export function CourseMemoryPageClient({
       <section className="mt-10 grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardDescription>Units</CardDescription>
+            <CardDescription>{pageCopy.units}</CardDescription>
             <CardTitle>{curriculum.units.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Studied concepts</CardDescription>
+            <CardDescription>{pageCopy.studiedConcepts}</CardDescription>
             <CardTitle>
               {studiedConceptCount} / {curriculum.concepts.length}
             </CardTitle>
@@ -210,86 +265,92 @@ export function CourseMemoryPageClient({
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>AI interactions</CardDescription>
+            <CardDescription>{pageCopy.aiInteractions}</CardDescription>
             <CardTitle>{totalInteractions}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Review signals</CardDescription>
+            <CardDescription>{pageCopy.reviewSignals}</CardDescription>
             <CardTitle>{totalReviewSignals}</CardTitle>
           </CardHeader>
         </Card>
       </section>
 
       <section className="mt-12 grid gap-5 lg:grid-cols-2">
-        {unitSummaries.map((summary) => (
-          <Card key={summary.unit.id}>
-            <CardHeader>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">Unit {summary.unit.sequence}</Badge>
-                <Badge variant="secondary">
-                  {summary.unitConcepts.length} concepts
-                </Badge>
-              </div>
-              <CardTitle className="text-2xl leading-8">
-                {summary.unit.title}
-              </CardTitle>
-              <CardDescription>{summary.unit.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-4">
-                <div className="rounded-lg border border-border bg-background/70 p-3">
-                  <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                    <Layers3 className="size-3.5" />
-                    Studied
-                  </p>
-                  <p className="mt-2 text-xl font-semibold">
-                    {summary.studiedCount}/{summary.unitConcepts.length}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background/70 p-3">
-                  <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                    <Brain className="size-3.5" />
-                    Ready
-                  </p>
-                  <p className="mt-2 text-xl font-semibold">
-                    {summary.averageReadiness}%
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background/70 p-3">
-                  <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                    <MessageSquare className="size-3.5" />
-                    Chats
-                  </p>
-                  <p className="mt-2 text-xl font-semibold">
-                    {summary.interactionCount}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background/70 p-3">
-                  <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                    <TriangleAlert className="size-3.5" />
-                    Review
-                  </p>
-                  <p className="mt-2 text-xl font-semibold">
-                    {summary.reviewSignalCount + summary.trapCount}
-                  </p>
-                </div>
-              </div>
+        {unitSummaries.map((summary) => {
+          const displayUnit = getLocalizedUnit(summary.unit, language);
 
-              <Link
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "w-full justify-between px-4",
-                )}
-                href={`/memory/${course.id}/${summary.unit.id}`}
-              >
-                Open unit concept memory
-                <ArrowRight className="size-4" />
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
+          return (
+            <Card key={summary.unit.id}>
+              <CardHeader>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">
+                    {pageCopy.unit} {summary.unit.sequence}
+                  </Badge>
+                  <Badge variant="secondary">
+                    {summary.unitConcepts.length}{pageCopy.concepts}
+                  </Badge>
+                </div>
+                <CardTitle className="text-2xl leading-8">
+                  {displayUnit.title}
+                </CardTitle>
+                <CardDescription>{displayUnit.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <div className="rounded-lg border border-border bg-background/70 p-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                      <Layers3 className="size-3.5" />
+                      {pageCopy.studied}
+                    </p>
+                    <p className="mt-2 text-xl font-semibold">
+                      {summary.studiedCount}/{summary.unitConcepts.length}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background/70 p-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                      <Brain className="size-3.5" />
+                      {pageCopy.ready}
+                    </p>
+                    <p className="mt-2 text-xl font-semibold">
+                      {summary.averageReadiness}%
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background/70 p-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                      <MessageSquare className="size-3.5" />
+                      {pageCopy.chats}
+                    </p>
+                    <p className="mt-2 text-xl font-semibold">
+                      {summary.interactionCount}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background/70 p-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                      <TriangleAlert className="size-3.5" />
+                      {pageCopy.review}
+                    </p>
+                    <p className="mt-2 text-xl font-semibold">
+                      {summary.reviewSignalCount + summary.trapCount}
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    "w-full justify-between px-4",
+                  )}
+                  href={`/dashboard/${curriculum.course.id}/${summary.unit.id}`}
+                >
+                  {pageCopy.openUnit}
+                  <ArrowRight className="size-4" />
+                </Link>
+              </CardContent>
+            </Card>
+          );
+        })}
       </section>
     </div>
   );

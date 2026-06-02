@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
@@ -65,10 +65,10 @@ type LessonSectionId =
 const copy = {
   en: {
     back: "Back to concept graph",
-    badge: "Static lesson + AI teacher context",
-    coursePack: "Current course pack",
+    badge: "Structured lesson + AI Teacher",
+    coursePack: "Current course",
     intro:
-      "This lesson is one structured curriculum object running inside the reusable AI learning platform. The AI Teacher uses the active course, current concept, lesson section, and learner memory as context for interactive support.",
+      "This lesson is a structured curriculum asset. The AI Teacher uses the current course, concept, section, and learning progress to support the student while reading.",
     objective: "Learning objective",
     lessonFlow: "Lesson flow",
     hint: "Hint:",
@@ -113,53 +113,53 @@ const copy = {
     fullContext: "Full lesson context",
   },
   zh: {
-    back: "返回概念图（concept graph）",
-    badge: "静态课程（static lesson）+ AI 教师上下文（AI teacher context）",
-    coursePack: "当前课程包（course pack）",
+    back: "返回概念图",
+    badge: "结构化课程 + AI 教师",
+    coursePack: "当前课程",
     intro:
-      "这节课是可复用 AI 学习平台中的一个结构化课程对象（structured curriculum object）。AI 教师（AI Teacher）会基于当前课程（course）、概念（concept）、段落（section）和学习记忆（learner memory）提供互动支持。",
-    objective: "学习目标（learning objective）",
-    lessonFlow: "学习流程（lesson flow）",
-    hint: "提示（hint）：",
-    targetInsight: "目标洞察（target insight）：",
-    sentenceStarter: "句子开头（sentence starter）：",
+      "这节课是平台维护的结构化课程内容。AI 教师会结合当前课程、概念、阅读位置和学习进度，在你读课时提供解释、追问和纠偏，而不是重新生成一套课。",
+    objective: "学习目标",
+    lessonFlow: "学习路径",
+    hint: "提示：",
+    targetInsight: "你需要抓住的点：",
+    sentenceStarter: "句子开头：",
     sections: {
       why: {
-        eyebrow: "为什么重要（Why this matters）",
-        title: "先建立目的，再进入步骤。",
+        eyebrow: "为什么重要",
+        title: "先知道为什么学，再进入方法。",
       },
       intuition: {
-        eyebrow: "直觉（Intuition）",
-        title: "先建立心理图像（mental picture）。",
+        eyebrow: "直观理解",
+        title: "先建立脑海里的图像。",
       },
       formal: {
-        eyebrow: "形式化想法（Formal idea）",
-        title: "准确命名这个概念（concept）。",
+        eyebrow: "正式说法",
+        title: "把直觉说成准确的数学语言。",
       },
       worked: {
-        eyebrow: "例题讲解（Worked example）",
+        eyebrow: "例子拆解",
       },
       guided: {
-        eyebrow: "一起思考（Think with me）",
-        title: "暂停一下，做引导推理（guided reasoning）。",
+        eyebrow: "一起想一想",
+        title: "先暂停，检查你是否真的理解。",
       },
       trap: {
-        eyebrow: "常见误区（Common trap）",
-        title: "在误区（misconception）固化前先抓住它。",
+        eyebrow: "常见误区",
+        title: "在错误变成习惯前，把它拆开。",
       },
       reflection: {
-        eyebrow: "反思（Reflection）",
-        title: "让学习过程变得可见。",
+        eyebrow: "反思巩固",
+        title: "把理解用自己的话说出来。",
       },
       application: {
-        eyebrow: "尝试应用（Try applying it）",
+        eyebrow: "尝试应用",
       },
       takeaways: {
-        eyebrow: "关键收获（Key takeaways）",
-        title: "哪些内容应该留下来。",
+        eyebrow: "关键收获",
+        title: "学完后应该留下什么。",
       },
     },
-    fullContext: "完整课程上下文（Full lesson context）",
+    fullContext: "整节课上下文",
   },
 };
 function LessonSection({
@@ -564,3 +564,4 @@ export function LessonPageClient({
     </div>
   );
 }
+

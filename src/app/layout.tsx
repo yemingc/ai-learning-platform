@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthSessionProvider } from "@/components/auth/auth-session-provider";
 import { LanguageProvider } from "@/components/i18n/language-provider";
@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Learning Platform | AP Calculus AB",
+  title: "AI Learning Platform | AI 自适应学习平台",
   description:
-    "A learning-centric AI platform for AP Calculus AB concept mastery, adaptive planning, and application practice.",
+    "面向概念学习的 AI 教育平台，支持结构化课程、AI 教师、学习记忆和后续应用练习。",
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >

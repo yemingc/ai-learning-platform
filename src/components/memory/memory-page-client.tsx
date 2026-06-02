@@ -89,7 +89,7 @@ export function MemoryPageClient({
         setMemoryError(
           error instanceof Error
             ? error.message
-            : "Unable to load learner memory.",
+            : "Unable to load learning progress.",
         );
       }
     }
@@ -142,7 +142,7 @@ export function MemoryPageClient({
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
       <Link
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-8")}
-        href={`/memory/${course.id}`}
+        href={`/dashboard/${course.id}`}
       >
         <ArrowLeft className="size-4" />
         Back to {course.shortTitle ?? course.title} units
@@ -150,17 +150,17 @@ export function MemoryPageClient({
 
       <section className="grid gap-8 lg:grid-cols-[1fr_24rem] lg:items-end">
         <div>
-          <Badge variant="secondary">Unit Learner Memory</Badge>
+          <Badge variant="secondary">Unit progress</Badge>
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge variant="outline">{course.title}</Badge>
             <Badge variant="outline">Unit {unit.sequence}</Badge>
             <Badge variant="outline">{course.subject}</Badge>
           </div>
           <h1 className="mt-5 text-4xl font-semibold leading-tight sm:text-5xl">
-            {unit.title} memory.
+            {unit.title} progress.
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">
-            This page shows learner memory for one unit only. Each concept keeps
+            This page shows learning progress for one unit. Each concept keeps
             its own readiness score, confusion signals, misconceptions, and AI
             Teacher recommendations.
           </p>
@@ -169,7 +169,7 @@ export function MemoryPageClient({
         <Card>
           <CardHeader>
             <Badge className="w-fit" variant="outline">
-              Memory source
+              Progress source
             </Badge>
             <CardTitle>{memory?.source ?? "local_demo"}</CardTitle>
             <CardDescription>
@@ -186,7 +186,7 @@ export function MemoryPageClient({
               variant="outline"
             >
               <RotateCcw className="size-4" />
-              Reset course memory
+              Reset course progress
             </Button>
           </CardContent>
         </Card>

@@ -73,7 +73,7 @@ before they move into problem solving.
   JSON, and schema validation failures.
 - 3-minute client timeout with loading state.
 
-### Learner Memory
+### Learning Dashboard
 
 - Account-scoped learner memory persisted in SQLite.
 - Concept-level memory records:
@@ -83,8 +83,8 @@ before they move into problem solving.
   - confusion signals
   - misconceptions
   - memory signal history
-- Memory navigation split into course selection, unit selection, and
-  concept-level progress/recommendations.
+- Student-facing Dashboard navigation split into course selection, unit
+  selection, and concept-level progress/recommendations.
 - Study recommendations generated from memory signals rather than raw question
   counts.
 - Authenticated memory API with user isolation by `learnerId + courseId`.
@@ -161,6 +161,33 @@ real AI Teacher workflow through `/api/teacher-evaluation/live` and scores the
 model response with the same cases. This route is authenticated and intended
 for development or portfolio demos, not for student-facing learning sessions.
 
+### Curriculum Retrieval Preview
+
+The project includes a developer-facing RAG preparation tool behind Developer
+Mode at:
+
+```text
+/developer/retrieval-preview
+```
+
+It previews how structured static lessons are flattened into bilingual
+retrieval-ready curriculum chunks before adding embeddings or a vector database.
+The preview supports deterministic keyword, tag, section-type, course, unit,
+concept, and locale filtering, and displays:
+
+- stable chunk ids
+- locale (`zh` or `en`)
+- source labels for future citation
+- section types
+- retrieval tags
+- matched reasons
+- preview text
+
+This keeps the current curriculum as the source of truth while preparing the
+platform for future course-level RAG with cited lesson sections. Chinese lesson
+sections are indexed as first-class chunks rather than relying only on Chinese
+query expansion over English text.
+
 ### Developer Mode
 
 Student login and developer access are intentionally separate.
@@ -205,13 +232,15 @@ debugging and evaluation story.
 | `/courses/[courseId]/learn` | Course unit overview |
 | `/courses/[courseId]/learn/[unitId]` | Unit-specific concept graph and lesson list |
 | `/learn/[conceptId]` | Static lesson plus AI Teacher chat |
-| `/memory` | Learner memory course selection |
-| `/memory/[courseId]` | Course-level memory and unit selection |
-| `/memory/[courseId]/[unitId]` | Unit-level concept memory and recommendations |
-| `/dashboard` | Product dashboard and developer observability entry |
+| `/dashboard` | Student course progress dashboard |
+| `/dashboard/[courseId]` | Course-level progress and unit selection |
+| `/dashboard/[courseId]/[unitId]` | Unit-level concept readiness and recommendations |
+| `/memory` | Legacy redirect to `/dashboard` |
 | `/developer` | Developer Mode entry and internal tool launcher |
+| `/developer/retrieval-preview` | Retrieval-ready curriculum chunk preview for future RAG |
 | `/dashboard/ai-evaluation` | AI Teacher contract and pedagogy evaluation suite |
 | `/dashboard/workflow-inspector` | AI workflow trace and memory patch inspector |
+| `/api/developer/retrieval-check` | Deterministic retrieval index health check |
 | `/api/memory` | Authenticated learner memory read/write/reset API |
 | `/api/teacher-evaluation/live` | Authenticated live AI Teacher evaluation API |
 | `/api/teacher-chat` | Server-side AI Teacher chat API |
@@ -223,15 +252,15 @@ src/
   app/
     api/teacher-chat/          Server-side AI Teacher route
     api/memory/                Authenticated learner memory API
-    dashboard/                 Dashboard and Workflow Inspector
+    dashboard/                 Student dashboard and developer tools
     learn/                     Course library and lesson pages
-    memory/                    Learner memory page
+    memory/                    Legacy redirects to dashboard
 
   components/
     dashboard/                 Workflow Inspector UI
     i18n/                      Language provider and toggle
     learning/                  Lesson and AI Teacher UI
-    memory/                    Memory page UI
+    memory/                    Learning progress UI backed by learner memory
     ui/                        Shared UI primitives
 
   curricula/
@@ -244,7 +273,7 @@ src/
     ai-teacher/evaluation/     Fixed evaluation cases and offline runner
     application/               Application task domain types
     knowledge/                 Course-agnostic graph types and getters
-    lessons/                   Course-agnostic lesson types and getters
+    lessons/                   Structured lesson assets, getters, and retrieval chunk helpers
     memory/                    Learner memory model, API client, scoring, recommendations
     planner/                   Planner domain types
 ```
@@ -276,8 +305,10 @@ downstream from concept learning.
 
 ## Static Lesson Content
 
-Lessons are maintained as structured curriculum content in the codebase. This
-choice is intentional:
+Lessons are maintained as structured curriculum assets in the codebase. Each
+lesson includes stable section ids, section types, learning objectives,
+prerequisite concept ids, glossary terms, retrieval tags, and application
+readiness tasks. This choice is intentional:
 
 - The curriculum is stable and reviewable.
 - The AI Teacher has reliable context.
@@ -285,6 +316,21 @@ choice is intentional:
 - The product avoids becoming a generic AI content generator.
 - Future authoring tools can edit structured lesson content without changing
   the AI runtime.
+
+Lessons can also be flattened into retrieval-ready chunks without binding the
+project to a specific vector database:
+
+```text
+courseId/unitId/conceptId/locale/sectionId
+```
+
+Each chunk includes source metadata such as course id, unit id, concept id,
+lesson id, locale, section id, section type, retrieval tags, and a
+human-readable source label. English chunks are created from canonical
+structured lesson sections. Chinese chunks are created from localized lesson
+content so Chinese RAG queries can retrieve Chinese curriculum text directly.
+This prepares the platform for future course-level RAG with citations while
+keeping static lessons as the source of truth.
 
 ## AI Teacher Design
 
@@ -425,6 +471,12 @@ Run auth regression checks (requires `npm run dev` already running on `http://lo
 npm run test:auth
 ```
 
+Run the RAG retrieval index check (also requires `npm run dev` already running on `http://localhost:3000`):
+
+```bash
+npm run test:rag
+```
+
 Build:
 
 ```bash
@@ -451,7 +503,7 @@ npm run start
    I think the limit is always the same as the function value.
    ```
 
-8. Open `/memory`, choose a course, then choose a unit to inspect concept memory.
+8. Open `/dashboard`, choose a course, then choose a unit to inspect concept readiness and recommendations.
 9. Open `/dashboard/workflow-inspector` to inspect the AI workflow run.
 10. If prompted, open `/developer` and enable Developer Mode first.
 
@@ -515,17 +567,19 @@ observable teaching workflow inspector.
 
 ## Recommended Next Step
 
-Build an **AI Teacher Evaluation Suite**.
+Build **RAG Phase 2: Embeddings and Retrieval Quality Evaluation**.
 
-The deterministic and live model evaluation modes are now implemented. The next
-improvement is to persist evaluation runs and compare model/prompt quality over
-time.
+The curriculum is now structured into retrieval-ready chunks and can be
+previewed with deterministic search. The next improvement is to add embeddings
+and a vector store, then evaluate retrieval quality before letting the AI
+Teacher cite retrieved chunks in live conversations.
 
 ## Roadmap
 
 ### Short Term
 
-- AI Teacher Evaluation Suite
+- RAG Phase 2: embedding provider and vector store selection
+- Retrieval quality eval cases for lesson citations
 - Persisted eval run history and prompt/model comparison
 - Better memory summaries per concept
 - Application readiness gate

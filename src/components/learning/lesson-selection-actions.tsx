@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Lightbulb, MessageSquare, SearchCheck, Sparkles } from "lucide-react";
@@ -37,19 +37,19 @@ const quickActions: QuickAction[] = [
     selectionAction: "explain_this",
     prompt: {
       en: () => "Explain this selected lesson text.",
-      zh: () => "请解释我选中的课程文本（selected lesson text）。",
+      zh: () => "请解释我选中的这段课程内容。",
     },
     icon: <Sparkles className="size-4" />,
   },
   {
     label: {
       en: "Give example",
-      zh: "给个例子",
+      zh: "举个例子",
     },
     selectionAction: "give_example",
     prompt: {
       en: () => "Give me another example for this selected text.",
-      zh: () => "请基于这段选中文本（selected text）再给我一个例子（example）。",
+      zh: () => "请基于我选中的这段内容，再给我一个例子。",
     },
     icon: <Lightbulb className="size-4" />,
   },
@@ -61,8 +61,7 @@ const quickActions: QuickAction[] = [
     selectionAction: "check_misconception",
     prompt: {
       en: () => "What misconception should I watch for in this selected text?",
-      zh: () =>
-        "这段选中文本（selected text）里我应该注意什么常见误区（misconception）？",
+      zh: () => "这段内容里我最容易产生什么误区？请帮我指出并纠正。",
     },
     icon: <SearchCheck className="size-4" />,
   },
@@ -74,7 +73,7 @@ const quickActions: QuickAction[] = [
     selectionAction: "ask_guiding_question",
     prompt: {
       en: () => "Ask me a guiding question about this selected text.",
-      zh: () => "请围绕这段选中文本（selected text）问我一个引导问题（guiding question）。",
+      zh: () => "请围绕我选中的内容，问我一个引导问题。",
     },
     icon: <MessageSquare className="size-4" />,
   },

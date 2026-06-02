@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ export function LanguageToggle() {
 
   return (
     <Button
-      aria-label={isChinese ? "Switch to English" : "切换到中文"}
+      aria-label={isChinese ? "切换到英文" : "切换到中文"}
       onClick={toggleLanguage}
       size="sm"
       type="button"

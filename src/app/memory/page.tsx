@@ -1,14 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { MemoryCourseListPage } from "@/components/memory/memory-course-list-page";
-import { getCurriculumPacks } from "@/curricula";
 
-export default async function MemoryPage() {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    redirect("/login?callbackUrl=/memory");
-  }
-
-  return <MemoryCourseListPage curricula={getCurriculumPacks()} />;
+export default function MemoryPage() {
+  redirect("/dashboard");
 }

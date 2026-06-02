@@ -81,6 +81,17 @@ async function checkProtectedRedirect(path) {
   console.log(`PASS redirect ${path} -> ${location}`);
 }
 
+async function checkLegacyRedirect(path, expectedLocation) {
+  const res = await request(path);
+  const location = res.headers.get("location") ?? "";
+  assert(res.status === 307, `${path} expected 307, got ${res.status}`);
+  assert(
+    location === expectedLocation,
+    `${path} expected ${expectedLocation} redirect, got ${location}`,
+  );
+  console.log(`PASS legacy redirect ${path} -> ${location}`);
+}
+
 async function checkDeveloperRedirect(path, jar) {
   const res = await request(path, { method: "GET" }, jar);
   const location = res.headers.get("location") ?? "";
@@ -110,7 +121,8 @@ async function run() {
   console.log(`Auth regression start: ${BASE_URL}`);
 
   await checkPublicPages();
-  await checkProtectedRedirect("/memory");
+  await checkLegacyRedirect("/memory", "/dashboard");
+  await checkLegacyRedirect("/memory/ap-calculus-ab", "/dashboard/ap-calculus-ab");
   await checkProtectedRedirect("/dashboard");
   await checkProtectedRedirect("/dashboard/ai-evaluation");
   await checkProtectedRedirect("/dashboard/workflow-inspector");
@@ -243,9 +255,12 @@ async function run() {
   );
   console.log("PASS authenticated session");
 
-  const authMemory = await request("/memory", { method: "GET" }, jar);
-  assert(authMemory.status === 200, `/memory with auth expected 200, got ${authMemory.status}`);
-  console.log("PASS authenticated /memory");
+  const authDashboard = await request("/dashboard", { method: "GET" }, jar);
+  assert(
+    authDashboard.status === 200,
+    `/dashboard with auth expected 200, got ${authDashboard.status}`,
+  );
+  console.log("PASS authenticated /dashboard");
 
   const { bodyJson: initialMemory, res: initialMemoryRes } = await getJson(
     "/api/memory?courseId=ap-calculus-ab",

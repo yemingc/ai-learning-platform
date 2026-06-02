@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { MessageSquare } from "lucide-react";
 import { useLanguage } from "@/components/i18n/language-provider";
@@ -28,7 +28,7 @@ export function AskAboutSectionButton({ section }: AskAboutSectionButtonProps) {
       type="button"
     >
       <MessageSquare className="size-4" />
-      {language === "zh" ? "询问这段（Ask about this）" : "Ask about this"}
+      {language === "zh" ? "问问这部分" : "Ask about this"}
     </button>
   );
 }

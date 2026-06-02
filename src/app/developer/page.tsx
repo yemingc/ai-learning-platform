@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Beaker, Bug, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Beaker,
+  BookOpenText,
+  Bug,
+  Gauge,
+  ShieldCheck,
+} from "lucide-react";
 import { auth } from "@/auth";
 import { DeveloperModeClient } from "@/components/developer/developer-mode-client";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +46,20 @@ const developerTools = [
     href: "/dashboard/ai-evaluation",
     icon: Beaker,
     title: "AI Teacher Evaluation",
+  },
+  {
+    description:
+      "Preview retrieval-ready curriculum chunks, source labels, tags, and stable citation ids before adding embeddings.",
+    href: "/developer/retrieval-preview",
+    icon: BookOpenText,
+    title: "Curriculum Retrieval Preview",
+  },
+  {
+    description:
+      "Run fixed Chinese and English retrieval cases to evaluate whether queries hit the right concept and section.",
+    href: "/developer/retrieval-evaluation",
+    icon: Gauge,
+    title: "Retrieval Quality Evaluation",
   },
 ];
 
