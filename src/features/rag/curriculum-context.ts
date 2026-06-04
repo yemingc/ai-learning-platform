@@ -3,16 +3,28 @@ import type { LessonContent } from "@/features/lessons/types";
 import type { LessonRetrievalChunk } from "@/features/lessons/retrieval-chunks";
 import { getCurriculumPacks } from "@/curricula";
 import { searchCurriculumChunks } from "@/features/rag/curriculum-retriever";
+import type { CurriculumRetrievalMode } from "@/features/rag/embedding-types";
+import {
+  getRetrievalMode,
+  searchCurriculumWithMode,
+} from "@/features/rag/retrieval-service";
 
 export type CurriculumCitation = {
   chunkId: string;
+  conceptId: string;
+  href: string;
   sourceLabel: string;
+  sectionId: string;
+  sectionTitle: string;
   sectionType: string;
   locale: "en" | "zh";
 };
 
 export type AssembledCurriculumContext = {
   shouldRetrieve: boolean;
+  requestedMode: CurriculumRetrievalMode;
+  actualMode: CurriculumRetrievalMode;
+  retrievalFallbackReason?: string;
   retrievedChunks: LessonRetrievalChunk[];
   contextText: string;
   allowedCitations: CurriculumCitation[];
@@ -29,6 +41,10 @@ type AssembleCurriculumContextInput = {
 };
 
 const MAX_RETRIEVED_CHUNKS = 4;
+
+function getAiTeacherRetrievalMode() {
+  return getRetrievalMode(process.env.RAG_RETRIEVAL_MODE);
+}
 
 function shouldRetrieveCurriculumChunks({
   selectedText,
@@ -91,14 +107,65 @@ function formatContextText(chunks: LessonRetrievalChunk[]) {
     .join("\n\n---\n\n");
 }
 
-export function assembleCurriculumContext({
+async function retrieveCurriculumChunks({
+  concept,
+  currentSection,
+  locale,
+  selectedText,
+  userMessage,
+}: Pick<
+  AssembleCurriculumContextInput,
+  "concept" | "currentSection" | "locale" | "selectedText" | "userMessage"
+>) {
+  const curricula = getCurriculumPacks();
+  const requestedMode = getAiTeacherRetrievalMode();
+  const query = {
+    courseId: concept.courseId,
+    limit: MAX_RETRIEVED_CHUNKS,
+    locale,
+    query: buildRetrievalQuery({ currentSection, selectedText, userMessage }),
+  };
+
+  if (requestedMode === "keyword") {
+    return {
+      actualMode: "keyword" as const,
+      preview: searchCurriculumChunks({ curricula, query }),
+      requestedMode,
+    };
+  }
+
+  try {
+    return {
+      actualMode: requestedMode,
+      preview: await searchCurriculumWithMode({
+        curricula,
+        mode: requestedMode,
+        query,
+      }),
+      requestedMode,
+    };
+  } catch (error) {
+    const fallbackReason =
+      error instanceof Error ? error.message : "Configured retrieval mode failed.";
+
+    return {
+      actualMode: "keyword" as const,
+      fallbackReason,
+      preview: searchCurriculumChunks({ curricula, query }),
+      requestedMode,
+    };
+  }
+}
+
+export async function assembleCurriculumContext({
   concept,
   currentSection,
   locale,
   selectedText,
   selectionAction,
   userMessage,
-}: AssembleCurriculumContextInput): AssembledCurriculumContext {
+}: AssembleCurriculumContextInput): Promise<AssembledCurriculumContext> {
+  const requestedMode = getAiTeacherRetrievalMode();
   const shouldRetrieve = shouldRetrieveCurriculumChunks({
     selectedText,
     selectionAction,
@@ -107,32 +174,39 @@ export function assembleCurriculumContext({
 
   if (!shouldRetrieve) {
     return {
+      actualMode: requestedMode,
       allowedCitations: [],
       contextText: "",
+      requestedMode,
       retrievedChunks: [],
       shouldRetrieve: false,
     };
   }
 
-  const retrievalPreview = searchCurriculumChunks({
-    curricula: getCurriculumPacks(),
-    query: {
-      courseId: concept.courseId,
-      limit: MAX_RETRIEVED_CHUNKS,
-      locale,
-      query: buildRetrievalQuery({ currentSection, selectedText, userMessage }),
-    },
+  const retrieval = await retrieveCurriculumChunks({
+    concept,
+    currentSection,
+    locale,
+    selectedText,
+    userMessage,
   });
-  const retrievedChunks = retrievalPreview.results.slice(0, MAX_RETRIEVED_CHUNKS);
+  const retrievedChunks = retrieval.preview.results.slice(0, MAX_RETRIEVED_CHUNKS);
 
   return {
+    actualMode: retrieval.actualMode,
     allowedCitations: retrievedChunks.map((chunk) => ({
       chunkId: chunk.id,
+      conceptId: chunk.conceptId,
+      href: `/learn/${chunk.conceptId}#lesson-section-${chunk.sectionId}`,
       locale: chunk.locale,
+      sectionId: chunk.sectionId,
+      sectionTitle: chunk.title,
       sectionType: chunk.sectionType,
       sourceLabel: chunk.sourceLabel,
     })),
     contextText: formatContextText(retrievedChunks),
+    requestedMode: retrieval.requestedMode,
+    retrievalFallbackReason: retrieval.fallbackReason,
     retrievedChunks,
     shouldRetrieve: true,
   };

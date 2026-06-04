@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Trophy, XCircle } from "lucide-react";
 import { auth } from "@/auth";
 import { getCurriculumPacks } from "@/curricula";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { runRetrievalEvaluation } from "@/features/rag/evaluation/eval-runner";
+import type { CurriculumRetrievalMode } from "@/features/rag/embedding-types";
+import type {
+  RetrievalEvalResult,
+  RetrievalEvalSummary,
+} from "@/features/rag/evaluation/eval-types";
+import { runRetrievalModeComparison } from "@/features/rag/evaluation/eval-runner";
 import {
   hasDeveloperModeAccess,
   isDeveloperToolsEnabled,
@@ -22,8 +27,115 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const modeLabels: Record<CurriculumRetrievalMode, string> = {
+  embedding: "Embedding",
+  hybrid: "Hybrid",
+  keyword: "Keyword",
+};
+
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
+}
+
+function getModeTone(mode?: CurriculumRetrievalMode) {
+  if (mode === "hybrid") {
+    return "border-learning-mint/30 bg-learning-mint/10";
+  }
+
+  if (mode === "embedding") {
+    return "border-blue-200 bg-blue-50/60";
+  }
+
+  return "bg-muted/30";
+}
+
+function ModeSummaryCard({
+  isBest,
+  summary,
+}: {
+  isBest: boolean;
+  summary: RetrievalEvalSummary;
+}) {
+  const mode = summary.mode ?? "keyword";
+
+  return (
+    <Card className={cn(getModeTone(mode), isBest && "ring-2 ring-primary/20")}>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <Badge className="w-fit" variant={isBest ? "default" : "secondary"}>
+            {modeLabels[mode]}
+          </Badge>
+          {isBest && <Trophy className="size-5 text-primary" />}
+        </div>
+        <CardTitle>{formatPercent(summary.passRate)} pass rate</CardTitle>
+        <CardDescription>
+          {summary.error
+            ? summary.error
+            : `${summary.passedCases}/${summary.totalCases} cases passed. MRR ${summary.meanReciprocalRank.toFixed(2)}.`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-lg border border-border bg-background/70 p-3">
+          <p className="text-xs uppercase text-muted-foreground">Top-1</p>
+          <p className="mt-1 font-semibold">
+            {summary.topOneHits}/{summary.totalCases} · {formatPercent(summary.topOneHitRate)}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-background/70 p-3">
+          <p className="text-xs uppercase text-muted-foreground">Top-3</p>
+          <p className="mt-1 font-semibold">
+            {summary.topThreeHits}/{summary.totalCases} · {formatPercent(summary.topThreeHitRate)}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ResultCell({ result }: { result?: RetrievalEvalResult }) {
+  if (!result) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+        No result
+      </div>
+    );
+  }
+
+  const topResult = result.topResults[0];
+
+  return (
+    <div className="rounded-lg border border-border bg-background/70 p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          className={!result.passed ? "text-destructive" : undefined}
+          variant={result.passed ? "secondary" : "outline"}
+        >
+          {result.passed ? "pass" : "fail"}
+        </Badge>
+        <Badge variant="outline">
+          {result.topRank ? `rank ${result.topRank}` : "no match"}
+        </Badge>
+      </div>
+
+      {topResult ? (
+        <div className="mt-3">
+          <p className="font-semibold">{topResult.title}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {topResult.sourceLabel}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Badge variant="outline">score {topResult.score}</Badge>
+            <Badge variant="outline">{topResult.locale}</Badge>
+            <Badge variant="outline">{topResult.sectionType}</Badge>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {result.failureReason ?? "No chunks returned."}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default async function RetrievalEvaluationPage() {
@@ -37,7 +149,28 @@ export default async function RetrievalEvaluationPage() {
     redirect("/developer?callbackUrl=/developer/retrieval-evaluation");
   }
 
-  const evaluation = runRetrievalEvaluation({ curricula: getCurriculumPacks() });
+  const comparison = await runRetrievalModeComparison({
+    curricula: getCurriculumPacks(),
+  });
+  const caseIds = comparison.modes[0]?.results.map((result) => result.caseId) ?? [];
+  const caseResults = caseIds.map((caseId) => {
+    const firstResult = comparison.modes[0]?.results.find(
+      (result) => result.caseId === caseId,
+    );
+
+    return {
+      caseId,
+      description: firstResult?.description ?? caseId,
+      locale: firstResult?.locale ?? "all",
+      query: firstResult?.query ?? caseId,
+      resultsByMode: new Map(
+        comparison.modes.map((summary) => [
+          summary.mode ?? "keyword",
+          summary.results.find((result) => result.caseId === caseId),
+        ]),
+      ),
+    };
+  });
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
@@ -56,124 +189,80 @@ export default async function RetrievalEvaluationPage() {
             Retrieval Quality Evaluation
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">
-            Run fixed Chinese and English retrieval cases against the current
-            bilingual curriculum chunks. This gives us a baseline before adding
-            embeddings or a vector database.
+            Compare keyword, embedding, and hybrid retrieval on the same Chinese
+            and English curriculum cases. This makes the RAG upgrade measurable
+            before it is promoted into the AI Teacher workflow.
           </p>
         </div>
 
         <Card className="border-learning-mint/30 bg-learning-mint/10">
           <CardHeader>
             <Badge className="w-fit" variant="secondary">
-              Summary
+              Current winner
             </Badge>
-            <CardTitle>{formatPercent(evaluation.passRate)} pass rate</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="size-5" />
+              {comparison.bestMode
+                ? modeLabels[comparison.bestMode]
+                : "No passing mode"}
+            </CardTitle>
             <CardDescription>
-              {evaluation.passedCases}/{evaluation.totalCases} cases passed.
-              Mean reciprocal rank: {evaluation.meanReciprocalRank.toFixed(2)}.
+              Selected by pass rate first, then mean reciprocal rank. Use this
+              as evidence before changing live AI Teacher retrieval.
             </CardDescription>
           </CardHeader>
         </Card>
       </section>
 
-      <section className="mt-10 grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardDescription>Total cases</CardDescription>
-            <CardTitle>{evaluation.totalCases}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Passed</CardDescription>
-            <CardTitle>{evaluation.passedCases}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Failed</CardDescription>
-            <CardTitle>{evaluation.failedCases}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>MRR</CardDescription>
-            <CardTitle>{evaluation.meanReciprocalRank.toFixed(2)}</CardTitle>
-          </CardHeader>
-        </Card>
+      <section className="mt-10 grid gap-4 lg:grid-cols-3">
+        {comparison.modes.map((summary) => (
+          <ModeSummaryCard
+            isBest={summary.mode === comparison.bestMode}
+            key={summary.mode}
+            summary={summary}
+          />
+        ))}
       </section>
 
       <section className="mt-10 grid gap-5">
-        {evaluation.results.map((result) => (
-          <Card key={result.caseId}>
+        {caseResults.map((item) => (
+          <Card key={item.caseId}>
             <CardHeader>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  className={!result.passed ? "text-destructive" : undefined}
-                  variant={result.passed ? "secondary" : "outline"}
-                >
-                  {result.passed ? "pass" : "fail"}
-                </Badge>
-                <Badge variant="outline">{result.locale}</Badge>
-                <Badge variant="outline">
-                  {result.topRank ? `rank ${result.topRank}` : "no match"}
-                </Badge>
+                <Badge variant="outline">{item.locale}</Badge>
+                {comparison.modes.map((summary) => {
+                  const result = item.resultsByMode.get(summary.mode ?? "keyword");
+
+                  return result?.passed ? (
+                    <CheckCircle2
+                      className="size-4 text-learning-mint"
+                      key={summary.mode}
+                    />
+                  ) : (
+                    <XCircle
+                      className="size-4 text-destructive"
+                      key={summary.mode}
+                    />
+                  );
+                })}
               </div>
-              <CardTitle className="flex items-center gap-2 text-xl leading-7">
-                {result.passed ? (
-                  <CheckCircle2 className="size-5 text-learning-mint" />
-                ) : (
-                  <XCircle className="size-5 text-destructive" />
-                )}
-                {result.query}
-              </CardTitle>
-              <CardDescription>{result.description}</CardDescription>
+              <CardTitle className="text-xl leading-7">{item.query}</CardTitle>
+              <CardDescription>{item.description}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {!result.passed && result.failureReason && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                  {result.failureReason}
-                </div>
-              )}
+            <CardContent>
+              <div className="grid gap-3 lg:grid-cols-3">
+                {comparison.modes.map((summary) => {
+                  const mode = summary.mode ?? "keyword";
 
-              <div className="grid gap-3 text-sm lg:grid-cols-2">
-                <div className="rounded-lg border border-border bg-background/70 p-3">
-                  <p className="font-semibold">Expected concepts</p>
-                  <p className="mt-1 text-muted-foreground">
-                    {result.expectedConceptIds.join(", ")}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background/70 p-3">
-                  <p className="font-semibold">Expected sections</p>
-                  <p className="mt-1 text-muted-foreground">
-                    {result.expectedSectionTypes.join(", ")}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Top retrieved chunks
-                </p>
-                <div className="mt-3 grid gap-2">
-                  {result.topResults.map((topResult, index) => (
-                    <div
-                      className="rounded-lg border border-border bg-muted/30 p-3 text-sm"
-                      key={topResult.id}
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">#{index + 1}</Badge>
-                        <Badge variant="outline">score {topResult.score}</Badge>
-                        <Badge variant="outline">{topResult.locale}</Badge>
-                        <Badge variant="outline">{topResult.sectionType}</Badge>
-                      </div>
-                      <p className="mt-2 font-semibold">{topResult.title}</p>
-                      <p className="mt-1 text-muted-foreground">
-                        {topResult.sourceLabel}
+                  return (
+                    <div className="grid gap-2" key={mode}>
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">
+                        {modeLabels[mode]}
                       </p>
+                      <ResultCell result={item.resultsByMode.get(mode)} />
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

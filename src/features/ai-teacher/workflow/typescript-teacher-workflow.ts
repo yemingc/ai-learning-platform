@@ -191,7 +191,7 @@ export async function runTypeScriptTeacherWorkflow(
     teachingStrategy,
   );
 
-  const curriculumContext = assembleCurriculumContext({
+  const curriculumContext = await assembleCurriculumContext({
     concept: input.concept,
     currentSection: input.currentSection,
     lesson: input.lesson,
@@ -200,15 +200,27 @@ export async function runTypeScriptTeacherWorkflow(
     selectionAction: input.selectionAction,
     userMessage: input.userMessage,
   });
+  const retrievalDetail = curriculumContext.shouldRetrieve
+    ? [
+        `Retrieved ${curriculumContext.retrievedChunks.length} curriculum chunks.`,
+        `mode: ${curriculumContext.actualMode}`,
+        curriculumContext.actualMode !== curriculumContext.requestedMode
+          ? `requested: ${curriculumContext.requestedMode}`
+          : undefined,
+        curriculumContext.retrievalFallbackReason
+          ? `fallback: ${curriculumContext.retrievalFallbackReason}`
+          : undefined,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "Skipped retrieval for this lightweight message.";
   state = appendTrace(
     {
       ...state,
       curriculumContext,
     },
     "retrieve_curriculum_chunks",
-    curriculumContext.shouldRetrieve
-      ? `Retrieved ${curriculumContext.retrievedChunks.length} curriculum chunks.`
-      : "Skipped retrieval for this lightweight message.",
+    retrievalDetail,
   );
   state = appendTrace(
     state,

@@ -170,8 +170,10 @@ function selectTeachingStrategyNode(state: GraphState): GraphUpdate {
   };
 }
 
-function retrieveCurriculumChunksNode(state: GraphState): GraphUpdate {
-  const curriculumContext = assembleCurriculumContext({
+async function retrieveCurriculumChunksNode(
+  state: GraphState,
+): Promise<GraphUpdate> {
+  const curriculumContext = await assembleCurriculumContext({
     concept: state.input.concept,
     currentSection: state.input.currentSection,
     lesson: state.input.lesson,
@@ -181,7 +183,18 @@ function retrieveCurriculumChunksNode(state: GraphState): GraphUpdate {
     userMessage: state.input.userMessage,
   });
   const detail = curriculumContext.shouldRetrieve
-    ? `Retrieved ${curriculumContext.retrievedChunks.length} curriculum chunks.`
+    ? [
+        `Retrieved ${curriculumContext.retrievedChunks.length} curriculum chunks.`,
+        `mode: ${curriculumContext.actualMode}`,
+        curriculumContext.actualMode !== curriculumContext.requestedMode
+          ? `requested: ${curriculumContext.requestedMode}`
+          : undefined,
+        curriculumContext.retrievalFallbackReason
+          ? `fallback: ${curriculumContext.retrievalFallbackReason}`
+          : undefined,
+      ]
+        .filter(Boolean)
+        .join(" ")
     : "Skipped retrieval for this lightweight message.";
 
   return {

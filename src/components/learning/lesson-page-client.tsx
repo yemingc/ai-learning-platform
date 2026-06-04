@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -167,6 +167,7 @@ function LessonSection({
   title,
   sectionId,
   icon,
+  isHighlighted,
   lessonFlowLabel,
   children,
 }: {
@@ -174,6 +175,7 @@ function LessonSection({
   title: string;
   sectionId: LessonSectionId;
   icon: React.ReactNode;
+  isHighlighted?: boolean;
   lessonFlowLabel: string;
   children: React.ReactNode;
 }) {
@@ -181,7 +183,11 @@ function LessonSection({
 
   return (
     <section
-      className="grid gap-4 border-t border-border py-8 md:grid-cols-[13rem_1fr]"
+      className={cn(
+        "grid scroll-mt-24 gap-4 border-t border-border py-8 transition-colors md:grid-cols-[13rem_1fr]",
+        isHighlighted &&
+          "rounded-lg bg-learning-mint/10 ring-2 ring-learning-mint/40 ring-offset-4 ring-offset-background",
+      )}
       data-lesson-section={section}
       id={`lesson-section-${sectionId}`}
     >
@@ -223,6 +229,30 @@ function getSelectionActionForStudyAction(action: string | null) {
   return actionMap[action as ExecutableStudyAction] ?? "explain_this";
 }
 
+const lessonSectionIds: LessonSectionId[] = [
+  "why",
+  "intuition",
+  "formal",
+  "worked",
+  "guided",
+  "trap",
+  "reflection",
+  "application",
+  "takeaways",
+];
+
+function isLessonSectionId(value?: string): value is LessonSectionId {
+  return Boolean(
+    value && lessonSectionIds.includes(value as LessonSectionId),
+  );
+}
+
+function getLessonSectionIdFromHash(hash: string) {
+  const sectionId = hash.replace(/^#lesson-section-/, "");
+
+  return isLessonSectionId(sectionId) ? sectionId : undefined;
+}
+
 export function LessonPageClient({
   concept,
   course,
@@ -232,6 +262,10 @@ export function LessonPageClient({
 }: LessonPageClientProps) {
   const { language } = useLanguage();
   const handledStudyActionRef = useRef(false);
+  const highlightTimeoutRef = useRef<number | undefined>(undefined);
+  const [highlightedSectionId, setHighlightedSectionId] = useState<
+    LessonSectionId | undefined
+  >();
   const pageCopy = copy[language];
   const displayLesson = getLocalizedLessonContent(lesson, language);
   const displayPreviousLesson = previousLesson
@@ -241,6 +275,50 @@ export function LessonPageClient({
     ? getLocalizedLessonContent(nextLesson, language)
     : undefined;
   const primaryExample = displayLesson.workedExamples[0];
+
+  useEffect(() => {
+    function highlightSection(sectionId?: string) {
+      if (!isLessonSectionId(sectionId)) {
+        return;
+      }
+
+      setHighlightedSectionId(sectionId);
+
+      if (highlightTimeoutRef.current !== undefined) {
+        window.clearTimeout(highlightTimeoutRef.current);
+      }
+
+      highlightTimeoutRef.current = window.setTimeout(() => {
+        setHighlightedSectionId(undefined);
+      }, 2600);
+    }
+
+    function handleHashChange() {
+      highlightSection(getLessonSectionIdFromHash(window.location.hash));
+    }
+
+    function handleHighlightEvent(event: Event) {
+      const customEvent = event as CustomEvent<{ sectionId?: string }>;
+
+      highlightSection(customEvent.detail?.sectionId);
+    }
+
+    window.addEventListener("hashchange", handleHashChange);
+    window.addEventListener("lesson:highlight-section", handleHighlightEvent);
+    window.setTimeout(handleHashChange, 0);
+
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener(
+        "lesson:highlight-section",
+        handleHighlightEvent,
+      );
+
+      if (highlightTimeoutRef.current !== undefined) {
+        window.clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (handledStudyActionRef.current) {
@@ -348,6 +426,7 @@ export function LessonPageClient({
             <LessonSection
               eyebrow={pageCopy.sections.why.eyebrow}
               icon={<Sparkles className="size-4 text-primary" />}
+              isHighlighted={highlightedSectionId === "why"}
               lessonFlowLabel={pageCopy.lessonFlow}
               sectionId="why"
               title={pageCopy.sections.why.title}
@@ -360,6 +439,7 @@ export function LessonPageClient({
             <LessonSection
               eyebrow={pageCopy.sections.intuition.eyebrow}
               icon={<Lightbulb className="size-4 text-primary" />}
+              isHighlighted={highlightedSectionId === "intuition"}
               lessonFlowLabel={pageCopy.lessonFlow}
               sectionId="intuition"
               title={pageCopy.sections.intuition.title}
@@ -389,6 +469,7 @@ export function LessonPageClient({
             <LessonSection
               eyebrow={pageCopy.sections.formal.eyebrow}
               icon={<Target className="size-4 text-primary" />}
+              isHighlighted={highlightedSectionId === "formal"}
               lessonFlowLabel={pageCopy.lessonFlow}
               sectionId="formal"
               title={pageCopy.sections.formal.title}
@@ -401,6 +482,7 @@ export function LessonPageClient({
             <LessonSection
               eyebrow={pageCopy.sections.worked.eyebrow}
               icon={<Compass className="size-4 text-primary" />}
+              isHighlighted={highlightedSectionId === "worked"}
               lessonFlowLabel={pageCopy.lessonFlow}
               sectionId="worked"
               title={primaryExample.title}
@@ -430,6 +512,7 @@ export function LessonPageClient({
             <LessonSection
               eyebrow={pageCopy.sections.guided.eyebrow}
               icon={<MessageSquare className="size-4 text-primary" />}
+              isHighlighted={highlightedSectionId === "guided"}
               lessonFlowLabel={pageCopy.lessonFlow}
               sectionId="guided"
               title={pageCopy.sections.guided.title}
@@ -456,6 +539,7 @@ export function LessonPageClient({
             <LessonSection
               eyebrow={pageCopy.sections.trap.eyebrow}
               icon={<TriangleAlert className="size-4 text-primary" />}
+              isHighlighted={highlightedSectionId === "trap"}
               lessonFlowLabel={pageCopy.lessonFlow}
               sectionId="trap"
               title={pageCopy.sections.trap.title}
@@ -480,6 +564,7 @@ export function LessonPageClient({
             <LessonSection
               eyebrow={pageCopy.sections.reflection.eyebrow}
               icon={<PenLine className="size-4 text-primary" />}
+              isHighlighted={highlightedSectionId === "reflection"}
               lessonFlowLabel={pageCopy.lessonFlow}
               sectionId="reflection"
               title={pageCopy.sections.reflection.title}
@@ -498,6 +583,7 @@ export function LessonPageClient({
             <LessonSection
               eyebrow={pageCopy.sections.application.eyebrow}
               icon={<Brain className="size-4 text-primary" />}
+              isHighlighted={highlightedSectionId === "application"}
               lessonFlowLabel={pageCopy.lessonFlow}
               sectionId="application"
               title={displayLesson.applicationPrompt.title}
@@ -513,6 +599,7 @@ export function LessonPageClient({
             <LessonSection
               eyebrow={pageCopy.sections.takeaways.eyebrow}
               icon={<BookOpen className="size-4 text-primary" />}
+              isHighlighted={highlightedSectionId === "takeaways"}
               lessonFlowLabel={pageCopy.lessonFlow}
               sectionId="takeaways"
               title={pageCopy.sections.takeaways.title}

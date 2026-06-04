@@ -195,8 +195,8 @@ query expansion over English text.
 
 ### Embedding Retrieval MVP
 
-The project now includes an embedding retrieval layer that is intentionally
-separate from the AI Teacher runtime until retrieval quality is evaluated.
+The project now includes an embedding retrieval layer that can be promoted into
+the AI Teacher runtime after retrieval quality is evaluated.
 
 - Keyword retrieval remains the deterministic baseline.
 - Embedding retrieval stores vectors in local SQLite at
@@ -205,6 +205,10 @@ separate from the AI Teacher runtime until retrieval quality is evaluated.
   comparison.
 - `/developer/retrieval-preview` can switch between `keyword`, `embedding`, and
   `hybrid` retrieval modes.
+- `/developer/retrieval-evaluation` compares the same cases across all three
+  modes before changing the live teacher workflow.
+- The AI Teacher retrieval node is configurable with `RAG_RETRIEVAL_MODE` and
+  falls back to keyword retrieval if embedding or hybrid retrieval fails.
 - Embedding indexing is triggered server-side, so embedding API keys are never
   exposed to the browser.
 - No vector database dependency has been added yet; pgvector, Chroma, or a
@@ -367,19 +371,23 @@ This prepares the platform for future course-level RAG with citations while
 keeping static lessons as the source of truth.
 
 The AI Teacher is connected to this RAG-preparation layer without requiring a
-vector database yet:
+vector database:
 
 - Retrieval is conditional, so lightweight greetings or acknowledgements do not
   force a curriculum search.
 - At most the top four curriculum chunks are assembled into the model context.
+- Retrieval mode is controlled by `RAG_RETRIEVAL_MODE`:
+  `keyword`, `embedding`, or `hybrid`.
+- If `embedding` or `hybrid` retrieval fails, the workflow falls back to
+  keyword retrieval and records that fallback in the workflow trace.
 - The model may return `citationChunkIds`, but it cannot create citation
   objects.
 - The server keeps only citation ids that match the retrieved chunk whitelist,
   then returns those safe citations to the chat UI.
 
-When embeddings are added later, only the retrieval node needs to change. The
-context assembly, prompt contract, citation filtering, and UI display can stay
-the same.
+If pgvector, Chroma, or a hosted vector store is added later, only the retrieval
+implementation needs to change. The context assembly, prompt contract, citation
+filtering, workflow trace, and UI display can stay the same.
 
 ## AI Teacher Design
 
@@ -483,6 +491,7 @@ AUTH_SECRET=change_me_to_a_long_random_secret
 AUTH_TRUST_HOST=true
 
 TEACHER_WORKFLOW_ENGINE=langgraph
+RAG_RETRIEVAL_MODE=keyword
 NEXT_PUBLIC_SHOW_AI_TRACE=false
 ENABLE_DEVELOPER_TOOLS=true
 DEVELOPER_MODE_PASSWORD=

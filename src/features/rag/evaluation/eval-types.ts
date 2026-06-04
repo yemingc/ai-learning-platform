@@ -1,4 +1,5 @@
 ﻿import type { LessonSectionType } from "@/features/lessons/types";
+import type { CurriculumRetrievalMode } from "@/features/rag/embedding-types";
 import type { CurriculumRetrievalLocale } from "@/features/rag/retrieval-types";
 
 export type RetrievalEvalCase = {
@@ -35,10 +36,21 @@ export type RetrievalEvalResult = {
 };
 
 export type RetrievalEvalSummary = {
+  mode?: CurriculumRetrievalMode;
   totalCases: number;
   passedCases: number;
   failedCases: number;
   passRate: number;
   meanReciprocalRank: number;
+  topOneHits: number;
+  topOneHitRate: number;
+  topThreeHits: number;
+  topThreeHitRate: number;
   results: RetrievalEvalResult[];
+  error?: string;
+};
+
+export type RetrievalModeComparisonSummary = {
+  bestMode?: CurriculumRetrievalMode;
+  modes: RetrievalEvalSummary[];
 };

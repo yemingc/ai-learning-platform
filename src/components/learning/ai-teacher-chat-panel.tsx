@@ -2,13 +2,14 @@
 
 import {
   type FormEvent,
+  type MouseEvent,
   type RefObject,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { Bot, ChevronDown, Loader2, Send, Sparkles, X } from "lucide-react";
+import { BookOpenCheck, Bot, ChevronDown, Loader2, Send, Sparkles, X } from "lucide-react";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -63,7 +64,11 @@ type TeacherChatDebugResponse = TeacherChatResponse & {
 
 type CurriculumCitation = {
   chunkId: string;
+  conceptId: string;
+  href: string;
   sourceLabel: string;
+  sectionId: string;
+  sectionTitle: string;
   sectionType: string;
   locale: "en" | "zh";
 };
@@ -111,7 +116,8 @@ const panelCopy = {
     thinking: "AI Teacher is thinking with the lesson context...",
     misconception: "Possible misconception:",
     learningSignal: "Learning signal:",
-    citations: "Lesson citations",
+    citations: "Referenced lesson sections",
+    citationJump: "Jump to section",
     workflowTrace: "AI workflow trace",
     nextStudyAction: "Next study action",
     followUps: "Suggested follow-ups",
@@ -152,7 +158,8 @@ const panelCopy = {
     thinking: "AI 教师正在结合课程内容思考...",
     misconception: "可能的误区：",
     learningSignal: "学习信号：",
-    citations: "课程引用",
+    citations: "参考课程内容",
+    citationJump: "跳到这一段",
     workflowTrace: "AI 工作流记录",
     nextStudyAction: "下一步建议",
     followUps: "可以继续这样问",
@@ -222,6 +229,34 @@ export function AiTeacherChatPanel({
     () => `${lesson.title} - ${activeSection}`,
     [activeSection, lesson.title],
   );
+
+  function handleCitationClick(
+    event: MouseEvent<HTMLAnchorElement>,
+    citation: CurriculumCitation,
+  ) {
+    if (citation.conceptId !== concept.id) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const target = document.getElementById(
+      `lesson-section-${citation.sectionId}`,
+    );
+
+    window.history.replaceState(null, "", citation.href);
+    target?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    window.dispatchEvent(
+      new CustomEvent("lesson:highlight-section", {
+        detail: {
+          sectionId: citation.sectionId,
+        },
+      }),
+    );
+  }
 
   useEffect(() => {
     function handleAskSection(event: Event) {
@@ -559,27 +594,35 @@ export function AiTeacherChatPanel({
             )}
 
             {citations.length > 0 && (
-              <div className="rounded-lg border border-border bg-background/70 p-3 text-xs leading-5">
-                <p className="font-semibold uppercase text-muted-foreground">
+              <div className="rounded-lg border border-learning-mint/30 bg-learning-mint/10 p-3 text-xs leading-5">
+                <p className="flex items-center gap-2 font-semibold uppercase text-muted-foreground">
+                  <BookOpenCheck className="size-4 text-learning-mint" />
                   {copy.citations}
                 </p>
                 <div className="mt-2 grid gap-2">
                   {citations.map((citation, index) => (
-                    <div
-                      className="rounded-md bg-muted/50 p-2"
+                    <a
+                      className="group rounded-md border border-border bg-background/80 p-2 transition-colors hover:border-primary/40 hover:bg-background"
+                      href={citation.href}
                       key={citation.chunkId}
+                      onClick={(event) => handleCitationClick(event, citation)}
                     >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">#{index + 1}</Badge>
-                        <Badge variant="outline">{citation.locale}</Badge>
-                        <Badge variant="outline">
-                          {citation.sectionType}
-                        </Badge>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">#{index + 1}</Badge>
+                          <Badge variant="outline">{citation.locale}</Badge>
+                        </div>
+                        <span className="text-[11px] font-semibold text-muted-foreground transition-colors group-hover:text-primary">
+                          {copy.citationJump}
+                        </span>
                       </div>
+                      <p className="mt-2 font-semibold">
+                        {citation.sectionTitle}
+                      </p>
                       <p className="mt-1 text-muted-foreground">
                         {citation.sourceLabel}
                       </p>
-                    </div>
+                    </a>
                   ))}
                 </div>
               </div>

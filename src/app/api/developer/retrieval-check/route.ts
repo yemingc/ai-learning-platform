@@ -1,12 +1,21 @@
 ﻿import { NextResponse } from "next/server";
 import { getCurriculumPacks } from "@/curricula";
 import { validateCurriculumRetrievalIndex } from "@/features/rag/curriculum-retriever";
-import { runRetrievalEvaluation } from "@/features/rag/evaluation/eval-runner";
+import {
+  runRetrievalEvaluation,
+  runRetrievalModeComparison,
+} from "@/features/rag/evaluation/eval-runner";
 
-export function GET() {
+export async function GET(request: Request) {
   const curricula = getCurriculumPacks();
+  const url = new URL(request.url);
+  const shouldIncludeModeComparison =
+    url.searchParams.get("includeModeComparison") === "true";
   const result = validateCurriculumRetrievalIndex(curricula);
   const evaluation = runRetrievalEvaluation({ curricula });
+  const modeComparison = shouldIncludeModeComparison
+    ? await runRetrievalModeComparison({ curricula })
+    : undefined;
 
   return NextResponse.json({
     ok: true,
@@ -18,6 +27,25 @@ export function GET() {
       results: evaluation.results,
       totalCases: evaluation.totalCases,
     },
+    modeComparison: modeComparison
+      ? {
+          bestMode: modeComparison.bestMode,
+          modes: modeComparison.modes.map((summary) => ({
+            error: summary.error,
+            failedCases: summary.failedCases,
+            meanReciprocalRank: summary.meanReciprocalRank,
+            mode: summary.mode,
+            passedCases: summary.passedCases,
+            passRate: summary.passRate,
+            results: summary.results,
+            topOneHitRate: summary.topOneHitRate,
+            topOneHits: summary.topOneHits,
+            topThreeHitRate: summary.topThreeHitRate,
+            topThreeHits: summary.topThreeHits,
+            totalCases: summary.totalCases,
+          })),
+        }
+      : undefined,
     ...result,
   });
 }

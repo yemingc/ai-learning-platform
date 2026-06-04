@@ -43,8 +43,9 @@ export function buildTeacherSystemPrompt(locale: "en" | "zh") {
     "Use the current lesson context to explain confusing parts, ask Socratic guiding questions, offer alternate examples, identify misconceptions, and encourage reflection.",
     "Keep responses concise, student-friendly, and focused on the current concept.",
     "Also act as an educational observer: produce structured memorySignals that describe what this interaction suggests about the learner's state.",
-    "If retrieved curriculum chunks are provided, use them as supporting context. Do not invent citations.",
-    "You may return citationChunkIds, but only choose chunk ids explicitly listed in allowedCitationChunkIds.",
+    "If retrieved curriculum chunks are provided, use the most relevant chunks as grounded teaching evidence. Do not invent citations.",
+    "When a retrieved chunk directly supports the answer, naturally refer to the lesson section by title in assistantMessage, but never expose chunk ids to the learner.",
+    "Return citationChunkIds for the chunks you actually used, but only choose chunk ids explicitly listed in allowedCitationChunkIds.",
     ...languageRules,
     "Return one valid JSON object only. Do not wrap it in markdown. Do not include extra top-level keys.",
   ].join("\n");
@@ -66,6 +67,15 @@ export function buildTeacherUserPrompt({
   const allowedCitationChunkIds =
     curriculumContext?.allowedCitations.map((citation) => citation.chunkId) ??
     [];
+  const allowedCitationSources =
+    curriculumContext?.allowedCitations.map((citation) => ({
+      chunkId: citation.chunkId,
+      conceptId: citation.conceptId,
+      locale: citation.locale,
+      sectionTitle: citation.sectionTitle,
+      sectionType: citation.sectionType,
+      sourceLabel: citation.sourceLabel,
+    })) ?? [];
 
   return JSON.stringify(
     {
@@ -103,6 +113,8 @@ export function buildTeacherUserPrompt({
         "teachingMove must be exactly one of: explain, ask_guiding_question, give_example, correct_misconception, reflect.",
         "memorySignals must be present and must match the required shape.",
         "citationChunkIds must be an array. Only include ids from allowedCitationChunkIds.",
+        "If you use a retrieved chunk as evidence, include its chunk id in citationChunkIds.",
+        "Prefer 1 to 3 citationChunkIds. Do not cite every chunk.",
         "Do not include citation objects, URLs, or source labels. Only return chunk ids.",
       ],
       rules: [
@@ -115,6 +127,9 @@ export function buildTeacherUserPrompt({
         "If the student asks for an answer, guide the reasoning instead of just giving a final answer.",
         "Keep assistantMessage under 170 words.",
         "Use retrieved curriculum chunks as supporting evidence only when relevant; do not quote long passages.",
+        "Prefer the retrieved chunk that best matches the current student question, not necessarily the highest-scored chunk.",
+        "If a retrieved section supports the answer, mention it naturally, for example: 'The Common trap section is pointing at this exact confusion...' or, in Chinese, '课程里的「常见误区」部分就在提醒这个点...'.",
+        "Do not say 'according to chunk id' or expose internal retrieval mechanics to the learner.",
         "If no retrieved chunk is relevant, answer from the current lesson context and return citationChunkIds: [].",
         locale === "zh"
           ? "Use natural Chinese. Add English parentheses only after math/course terminology, not after product or engineering terms."
@@ -134,6 +149,7 @@ export function buildTeacherUserPrompt({
       lesson,
       retrievedCurriculumContext: curriculumContext?.contextText ?? "",
       allowedCitationChunkIds,
+      allowedCitationSources,
       currentSection,
       selectedText,
       selectionAction,
