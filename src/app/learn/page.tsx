@@ -102,10 +102,12 @@ export default function LearnPage() {
                     当前模块
                   </p>
                   <p className="mt-2 text-sm font-semibold">
-                    {activeUnit ? "极限与连续性（Limits and Continuity）" : "暂无模块"}
+                    {activeUnit
+                      ? "极限与连续性（Limits and Continuity · Unit 1）"
+                      : "暂无模块"}
                   </p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    第 1 单元帮助学生用图像、表格、符号和语言描述函数（function）在某个输入附近的行为。
+                    第 1 单元覆盖极限表示、极限法则、夹逼定理、连续性、介值定理与端行为，并把每个概念连接到可视化证据和 AI 教师。
                   </p>
                 </div>
 

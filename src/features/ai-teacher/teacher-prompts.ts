@@ -1,11 +1,15 @@
 ﻿import type { Concept } from "@/features/knowledge/types";
 import type { LessonContent } from "@/features/lessons/types";
-import type { TeacherIntent } from "@/features/ai-teacher/teacher-runtime-types";
+import type { TeacherIntent } from "@/features/ai-teacher/workflow/types";
 import type {
   TeacherChatMessage,
   TeachingMove,
 } from "@/features/ai-teacher/types";
 import type { AssembledCurriculumContext } from "@/features/rag/curriculum-context";
+import type { LearnerMemorySnapshot } from "@/features/ai-teacher/workflow/types";
+import { getLessonVisualization } from "@/features/lessons/lesson-visualizations";
+
+export const TEACHER_PROMPT_VERSION = "teacher-v4-formative-evidence";
 
 type TeacherPromptInput = {
   concept: Concept;
@@ -19,6 +23,7 @@ type TeacherPromptInput = {
   intent?: TeacherIntent;
   teachingMoveHint?: TeachingMove;
   curriculumContext?: AssembledCurriculumContext;
+  learnerMemorySnapshot?: LearnerMemorySnapshot;
 };
 
 export function buildTeacherSystemPrompt(locale: "en" | "zh") {
@@ -41,13 +46,18 @@ export function buildTeacherSystemPrompt(locale: "en" | "zh") {
     "Do not become a generic chatbot.",
     "Do not grade quizzes or turn the exchange into a question bank.",
     "Use the current lesson context to explain confusing parts, ask Socratic guiding questions, offer alternate examples, identify misconceptions, and encourage reflection.",
+    "When visualRepresentationEvidence is provided, keep graph and table explanations numerically consistent with that exact evidence.",
     "Keep responses concise, student-friendly, and focused on the current concept.",
     "Also act as an educational observer: produce structured memorySignals that describe what this interaction suggests about the learner's state.",
+    "Use learner memory as tentative personalization context, not as unquestionable truth. The current student message always has priority over historical signals.",
+    "Treat server-scored diagnostic and exit-ticket results as stronger learning evidence than model-inferred confidence signals.",
+    "Do not reveal internal readiness scores, memory labels, stored evidence notes, or workflow mechanics unless the student explicitly asks how personalization works.",
     "If retrieved curriculum chunks are provided, use the most relevant chunks as grounded teaching evidence. Do not invent citations.",
     "When a retrieved chunk directly supports the answer, naturally refer to the lesson section by title in assistantMessage, but never expose chunk ids to the learner.",
     "Return citationChunkIds for the chunks you actually used, but only choose chunk ids explicitly listed in allowedCitationChunkIds.",
     ...languageRules,
     "Return one valid JSON object only. Do not wrap it in markdown. Do not include extra top-level keys.",
+    "Place assistantMessage as the first top-level JSON field so it can be rendered progressively.",
   ].join("\n");
 }
 
@@ -63,6 +73,7 @@ export function buildTeacherUserPrompt({
   intent,
   teachingMoveHint,
   curriculumContext,
+  learnerMemorySnapshot,
 }: TeacherPromptInput) {
   const allowedCitationChunkIds =
     curriculumContext?.allowedCitations.map((citation) => citation.chunkId) ??
@@ -119,11 +130,12 @@ export function buildTeacherUserPrompt({
       ],
       rules: [
         "Base the response on the static lesson content below.",
+        "Use visualRepresentationEvidence when the learner asks about the displayed graph, nearby-value table, approach direction, open point, jump, or asymptote.",
         "Use the current section as the main local context.",
         "If selectedText is provided, respond directly to that selected lesson text.",
         "If selectionAction is provided, honor that action first.",
         "Use recent chat history only to maintain continuity.",
-        "Assume learner memory is local-demo only for now; do not claim long-term persistence.",
+        "Use the provided authenticated learner-memory snapshot for personalization when available, while treating historical signals as tentative evidence.",
         "If the student asks for an answer, guide the reasoning instead of just giving a final answer.",
         "Keep assistantMessage under 170 words.",
         "Use retrieved curriculum chunks as supporting evidence only when relevant; do not quote long passages.",
@@ -147,6 +159,7 @@ export function buildTeacherUserPrompt({
         commonMisconceptions: concept.commonMisconceptions,
       },
       lesson,
+      visualRepresentationEvidence: getLessonVisualization(concept.id),
       retrievedCurriculumContext: curriculumContext?.contextText ?? "",
       allowedCitationChunkIds,
       allowedCitationSources,
@@ -159,11 +172,22 @@ export function buildTeacherUserPrompt({
         note:
           "These are deterministic runtime hints for future LangGraph orchestration. Use them as guidance, not as content to reveal to the learner.",
       },
-      learnerMemoryPlaceholder: {
-        status: "local_demo_memory_enabled",
-        intendedUse:
-          "This response's memorySignals will update local learner memory and adaptive study recommendations.",
+      learnerMemoryContext: learnerMemorySnapshot ?? {
+        source: "not_available",
+        conceptId: concept.id,
+        interactionCount: 0,
+        recentConfusionSections: [],
+        recentMisconceptions: [],
       },
+      learnerMemoryRules: [
+        "Treat historical misconceptions and confusion sections as hypotheses to check, not facts to repeat blindly.",
+        "Treat diagnosticScore and exitTicketScore as server-scored evidence. Use a low diagnostic score to start from prerequisites, and use a low exit-ticket score to revisit the key misconception with a fresh representation.",
+        "Use learningGain to recognize improvement or stalled learning, but never claim that a score proves permanent mastery.",
+        "When a relevant misconception is present, address it through the current explanation or guiding question without announcing that it came from stored memory.",
+        "When readiness is high, prefer reflection or application-oriented reasoning over repeating a basic explanation unless the current message shows confusion.",
+        "Never quote internal evidence notes or expose numeric readiness or assessment scores unless the learner explicitly asks about their saved progress.",
+        "The memorySignals in this response will be persisted by the authenticated server route after successful validation.",
+      ],
       recentChatHistory: chatHistory,
       userMessage,
     },

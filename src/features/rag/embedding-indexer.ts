@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { CurriculumPack } from "@/curricula/types";
 import { flattenLessonsToRetrievalChunks } from "@/features/lessons/retrieval-chunks";
+import type { LessonRetrievalChunk } from "@/features/lessons/retrieval-chunks";
 import { createEmbeddingProvider } from "@/features/rag/embedding-provider";
 import type { CurriculumEmbeddingBuildSummary } from "@/features/rag/embedding-types";
 import {
@@ -22,7 +23,7 @@ function hashText(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function getEmbeddingInputText({
+export function getEmbeddingInputText({
   retrievalTags,
   sourceLabel,
   text,
@@ -41,6 +42,12 @@ function getEmbeddingInputText({
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+export function getCurriculumEmbeddingTextHash(
+  chunk: LessonRetrievalChunk,
+) {
+  return hashText(getEmbeddingInputText(chunk));
 }
 
 function getRequestedLocales(locale: "all" | "en" | "zh") {
@@ -82,7 +89,7 @@ export async function buildCurriculumEmbeddingIndex({
       return {
         chunk,
         inputText,
-        textHash: hashText(inputText),
+        textHash: getCurriculumEmbeddingTextHash(chunk),
       };
     })
     .filter(({ chunk, textHash }) => {
@@ -145,3 +152,39 @@ export async function buildCurriculumEmbeddingIndex({
   };
 }
 
+export function getCurriculumEmbeddingIndexCoverage({
+  curricula,
+  locale = "all",
+}: Pick<BuildCurriculumEmbeddingIndexInput, "curricula" | "locale">) {
+  const chunks = getCurriculumChunksForEmbedding({ curricula, locale });
+  const currentChunkIds = new Set(chunks.map((chunk) => chunk.id));
+  const records = getCurriculumEmbeddingRecords({ locale });
+  const recordByChunkId = new Map(
+    records.map((record) => [record.chunkId, record]),
+  );
+  let missingCount = 0;
+  let staleCount = 0;
+
+  for (const chunk of chunks) {
+    const record = recordByChunkId.get(chunk.id);
+
+    if (!record) {
+      missingCount += 1;
+    } else if (record.textHash !== getCurriculumEmbeddingTextHash(chunk)) {
+      staleCount += 1;
+    }
+  }
+
+  const orphanedCount = records.filter(
+    (record) => !currentChunkIds.has(record.chunkId),
+  ).length;
+
+  return {
+    currentCount: chunks.length - missingCount - staleCount,
+    expectedCount: chunks.length,
+    isCurrent: missingCount === 0 && staleCount === 0,
+    missingCount,
+    orphanedCount,
+    staleCount,
+  };
+}

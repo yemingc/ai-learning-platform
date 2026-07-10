@@ -3,11 +3,13 @@ import type {
   TeacherMemorySignals,
   TeachingMove,
 } from "@/features/ai-teacher/types";
+import type {
+  FormativeAssessmentAttempt,
+  FormativeAssessmentFeedback,
+  FormativeAssessmentPhase,
+} from "@/features/assessment/types";
 
-export const LOCAL_DEMO_LEARNER_ID = "local-demo";
-export const LOCAL_DEMO_MEMORY_SOURCE = "local_demo";
-
-export type LearnerMemorySource = "local_demo" | "authenticated";
+export type LearnerMemorySource = "authenticated";
 
 export type ConceptMemoryStatus =
   | "not_started"
@@ -65,6 +67,7 @@ export type ConceptMemory = {
   confusionSignals: ConfusionSignal[];
   memorySignalHistory: TeacherMemorySignals[];
   recentInteractions: TeacherInteractionMemory[];
+  assessmentAttempts: FormativeAssessmentAttempt[];
 };
 
 export type LearnerMemory = {
@@ -89,4 +92,18 @@ export type RecordTeacherInteractionInput = {
   detectedMisconception?: string;
   memorySignals: TeacherMemorySignals;
   locale: "en" | "zh";
+};
+
+export type RecordFormativeAssessmentInput = {
+  learnerId: string;
+  courseId: CourseId;
+  conceptId: ConceptId;
+  conceptTitle: string;
+  assessmentId: string;
+  assessmentVersion: string;
+  phase: FormativeAssessmentPhase;
+  score: number;
+  correctCount: number;
+  questionCount: number;
+  feedback: FormativeAssessmentFeedback[];
 };

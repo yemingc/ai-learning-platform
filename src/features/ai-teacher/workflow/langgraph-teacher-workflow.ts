@@ -9,6 +9,11 @@ import {
   type AssembledCurriculumContext,
   type CurriculumCitation,
 } from "@/features/rag/curriculum-context";
+import {
+  classifyTeacherIntent,
+  createTeacherMemoryPatch,
+  selectTeachingStrategy,
+} from "@/features/ai-teacher/workflow/teacher-policy";
 import type {
   LearnerMemoryPatch,
   LearnerMemorySnapshot,
@@ -18,6 +23,7 @@ import type {
   TeacherWorkflowInput,
   TeacherWorkflowNode,
   TeacherWorkflowResult,
+  TeacherWorkflowRuntimeOptions,
   TeacherWorkflowState,
   TeacherWorkflowTraceEvent,
 } from "@/features/ai-teacher/workflow/types";
@@ -31,6 +37,7 @@ const TeacherWorkflowAnnotation = Annotation.Root({
   curriculumContext: Annotation<AssembledCurriculumContext | undefined>(),
   memoryPatch: Annotation<LearnerMemoryPatch | undefined>(),
   memorySignals: Annotation<TeacherWorkflowResult["memorySignals"] | undefined>(),
+  modelTelemetry: Annotation<TeacherWorkflowResult["modelTelemetry"] | undefined>(),
   nextStudyAction: Annotation<NextStudyActionHint | undefined>(),
   teacherResponse: Annotation<TeacherWorkflowResult["teacherResponse"] | undefined>(),
   teachingStrategy: Annotation<TeachingMove | undefined>(),
@@ -60,68 +67,6 @@ function appendTrace(
   return [...(state.trace ?? []), createTraceEvent(node, detail)];
 }
 
-function classifyUserIntent(input: TeacherWorkflowInput): TeacherIntent {
-  const normalizedMessage = input.userMessage.toLowerCase();
-
-  if (
-    input.selectionAction === "give_example" ||
-    normalizedMessage.includes("example") ||
-    normalizedMessage.includes("例子")
-  ) {
-    return "example_request";
-  }
-
-  if (
-    input.selectionAction === "check_misconception" ||
-    normalizedMessage.includes("misconception") ||
-    normalizedMessage.includes("trap") ||
-    normalizedMessage.includes("误区")
-  ) {
-    return "misconception";
-  }
-
-  if (
-    input.selectionAction === "ask_guiding_question" ||
-    normalizedMessage.includes("guiding question") ||
-    normalizedMessage.includes("引导")
-  ) {
-    return "reflection";
-  }
-
-  if (
-    normalizedMessage.includes("apply") ||
-    normalizedMessage.includes("application") ||
-    normalizedMessage.includes("应用")
-  ) {
-    return "application";
-  }
-
-  if (
-    input.selectionAction === "explain_this" ||
-    normalizedMessage.includes("confused") ||
-    normalizedMessage.includes("understand") ||
-    normalizedMessage.includes("不懂") ||
-    normalizedMessage.includes("解释")
-  ) {
-    return "confusion";
-  }
-
-  return "general_support";
-}
-
-function selectTeachingStrategy(intent: TeacherIntent): TeachingMove {
-  const moveByIntent: Record<TeacherIntent, TeachingMove> = {
-    application: "ask_guiding_question",
-    confusion: "explain",
-    example_request: "give_example",
-    general_support: "explain",
-    misconception: "correct_misconception",
-    reflection: "reflect",
-  };
-
-  return moveByIntent[intent];
-}
-
 function buildContextNode(state: GraphState): GraphUpdate {
   const learnerMemorySnapshot: LearnerMemorySnapshot =
     state.input.learnerMemorySnapshot ?? {
@@ -141,13 +86,15 @@ function buildContextNode(state: GraphState): GraphUpdate {
     trace: appendTrace(
       state,
       "build_context",
-      "Loaded static concept, lesson, section, and learner memory snapshot.",
+      learnerMemorySnapshot.source === "server_persistent"
+        ? `Loaded server learner memory with ${learnerMemorySnapshot.interactionCount ?? 0} prior interactions and ${learnerMemorySnapshot.assessmentEvidenceLevel ?? "none"} assessment evidence.`
+        : "Loaded lesson context without server-persistent learner memory.",
     ),
   };
 }
 
 function classifyUserIntentNode(state: GraphState): GraphUpdate {
-  const intent = classifyUserIntent(state.input);
+  const intent = classifyTeacherIntent(state.input);
 
   return {
     intent,
@@ -158,6 +105,8 @@ function classifyUserIntentNode(state: GraphState): GraphUpdate {
 function selectTeachingStrategyNode(state: GraphState): GraphUpdate {
   const teachingStrategy = selectTeachingStrategy(
     state.intent ?? "general_support",
+    state.context?.learnerMemorySnapshot,
+    state.input.userMessage,
   );
 
   return {
@@ -217,13 +166,15 @@ function assembleCurriculumContextNode(state: GraphState): GraphUpdate {
 
 async function generateTeachingResponseNode(
   state: GraphState,
+  runtimeOptions: TeacherWorkflowRuntimeOptions,
 ): Promise<GraphUpdate> {
-  const teacherResponse = await generateTeacherResponse({
+  const generatedResponse = await generateTeacherResponse({
     ...state.input,
     curriculumContext: state.curriculumContext,
     intent: state.intent,
     teachingMoveHint: state.teachingStrategy,
-  });
+  }, runtimeOptions);
+  const teacherResponse = generatedResponse.teacherResponse;
   const citations = filterAllowedCitations({
     allowedCitations: state.curriculumContext?.allowedCitations ?? [],
     requestedChunkIds: teacherResponse.citationChunkIds,
@@ -235,6 +186,7 @@ async function generateTeachingResponseNode(
 
   return {
     citations,
+    modelTelemetry: generatedResponse.modelTelemetry,
     teacherResponse: sanitizedTeacherResponse,
     trace: appendTrace(
       state,
@@ -276,15 +228,11 @@ function updateLearnerMemoryNode(state: GraphState): GraphUpdate {
     throw new Error("Cannot create memory patch before learning signals exist.");
   }
 
-  const memoryPatch: LearnerMemoryPatch = {
+  const memoryPatch = createTeacherMemoryPatch({
     conceptId: state.input.concept.id,
-    source: "teacher_workflow",
     memorySignals: state.memorySignals,
-    shouldPersistClientSide:
-      state.context?.learnerMemorySnapshot.source !== "server_persistent",
-    rationale:
-      "Memory persistence is currently handled by the local-demo client store; a future LangGraph version can persist this patch server-side.",
-  };
+    memorySnapshot: state.context?.learnerMemorySnapshot,
+  });
 
   return {
     memoryPatch,
@@ -318,14 +266,16 @@ function returnNextStudyActionNode(state: GraphState): GraphUpdate {
   };
 }
 
-function createTeacherGraph() {
+function createTeacherGraph(runtimeOptions: TeacherWorkflowRuntimeOptions) {
   return new StateGraph(TeacherWorkflowAnnotation)
     .addNode("build_context", buildContextNode)
     .addNode("classify_user_intent", classifyUserIntentNode)
     .addNode("select_teaching_strategy", selectTeachingStrategyNode)
     .addNode("retrieve_curriculum_chunks", retrieveCurriculumChunksNode)
     .addNode("assemble_curriculum_context", assembleCurriculumContextNode)
-    .addNode("generate_teaching_response", generateTeachingResponseNode)
+    .addNode("generate_teaching_response", (state) =>
+      generateTeachingResponseNode(state, runtimeOptions),
+    )
     .addNode("validate_structured_output", validateStructuredOutputNode)
     .addNode("extract_learning_signals", extractLearningSignalsNode)
     .addNode("update_learner_memory", updateLearnerMemoryNode)
@@ -346,8 +296,9 @@ function createTeacherGraph() {
 
 export async function runLangGraphTeacherWorkflow(
   input: TeacherWorkflowInput,
+  runtimeOptions: TeacherWorkflowRuntimeOptions = {},
 ): Promise<TeacherWorkflowResult> {
-  const graph = createTeacherGraph();
+  const graph = createTeacherGraph(runtimeOptions);
   const initialState: GraphState = {
     context: undefined,
     citations: [],
@@ -357,6 +308,7 @@ export async function runLangGraphTeacherWorkflow(
     intent: undefined,
     memoryPatch: undefined,
     memorySignals: undefined,
+    modelTelemetry: undefined,
     nextStudyAction: undefined,
     teacherResponse: undefined,
     teachingStrategy: undefined,
@@ -370,13 +322,15 @@ export async function runLangGraphTeacherWorkflow(
     !state.teacherResponse ||
     !state.memorySignals ||
     !state.memoryPatch ||
-    !state.nextStudyAction
+    !state.nextStudyAction ||
+    !state.modelTelemetry
   ) {
     throw new Error("LangGraph teacher workflow finished with incomplete state.");
   }
 
   return {
     teacherResponse: state.teacherResponse,
+    modelTelemetry: state.modelTelemetry,
     memorySignals: state.memorySignals,
     memoryPatch: state.memoryPatch,
     nextStudyAction: state.nextStudyAction,

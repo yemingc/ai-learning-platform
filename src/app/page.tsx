@@ -293,10 +293,11 @@ export default function Home() {
               <Badge className="w-fit" variant="outline">
                 Scope for now
               </Badge>
-              <CardTitle>No database or auth yet</CardTitle>
+              <CardTitle>Authenticated, persistent learning state</CardTitle>
               <CardDescription>
-                AI chat is server-side, learner memory is local-demo storage,
-                and the typed data model is ready for future persistence.
+                AI chat runs server-side, Auth.js protects learner sessions,
+                and account-scoped memory persists readiness, misconceptions,
+                and study recommendations in SQLite.
               </CardDescription>
             </CardHeader>
           </Card>

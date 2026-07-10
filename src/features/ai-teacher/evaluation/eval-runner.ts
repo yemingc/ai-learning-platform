@@ -7,21 +7,13 @@ import type {
   TeacherEvaluationSummary,
 } from "@/features/ai-teacher/evaluation/eval-types";
 import type { TeacherChatResponse } from "@/features/ai-teacher/types";
-import type { TeacherWorkflowNode } from "@/features/ai-teacher/workflow/types";
+import type { TeacherWorkflowTraceEvent } from "@/features/ai-teacher/workflow/types";
+import {
+  getMissingSuccessfulWorkflowNodes,
+  requiredWorkflowNodes,
+} from "@/features/ai-teacher/evaluation/workflow-trace-evaluation";
 import { getConceptById } from "@/features/knowledge/get-concepts";
 import { getLessonByConceptId } from "@/features/lessons/get-lessons";
-
-const requiredWorkflowNodes: TeacherWorkflowNode[] = [
-  "student_message",
-  "build_context",
-  "classify_user_intent",
-  "select_teaching_strategy",
-  "generate_teaching_response",
-  "validate_structured_output",
-  "extract_learning_signals",
-  "update_learner_memory",
-  "return_next_study_action",
-];
 
 function includesEveryTerm(text: string, terms: string[] = []) {
   const normalizedText = text.toLowerCase();
@@ -80,12 +72,16 @@ export function evaluateTeacherResponse({
   response,
   testCase,
   workflowEngine,
+  workflowTrace,
+  modelTelemetry,
 }: {
   durationMs?: number;
   error?: string;
   response?: TeacherChatResponse;
   testCase: TeacherEvaluationCase;
   workflowEngine?: string;
+  workflowTrace?: TeacherWorkflowTraceEvent[];
+  modelTelemetry?: TeacherEvaluationResult["modelTelemetry"];
 }): TeacherEvaluationResult {
   const concept = getConceptById(testCase.conceptId, testCase.courseId);
   const lesson = getLessonByConceptId(testCase.conceptId, testCase.courseId);
@@ -99,7 +95,7 @@ export function evaluateTeacherResponse({
         response.memorySignals.evidenceNote,
       ].join(" ")
     : "";
-  const checks = [
+  const checks: TeacherEvaluationCheck[] = [
     createCheck(
       "concept_resolves",
       "Concept resolves from curriculum registry",
@@ -164,13 +160,22 @@ export function evaluateTeacherResponse({
         responseToEvaluate.suggestedFollowUps.length <= 4,
       `${responseToEvaluate.suggestedFollowUps.length} follow-up prompts.`,
     ),
-    createCheck(
-      "workflow_nodes",
-      "Evaluation target covers full graph-ready workflow",
-      requiredWorkflowNodes.length === 9,
-      `${requiredWorkflowNodes.length} required workflow nodes defined.`,
-    ),
   ];
+  if (workflowTrace) {
+    const missingWorkflowNodes =
+      getMissingSuccessfulWorkflowNodes(workflowTrace);
+
+    checks.push(
+      createCheck(
+        "workflow_trace",
+        "Live run completed every required workflow node",
+        missingWorkflowNodes.length === 0,
+        missingWorkflowNodes.length === 0
+          ? `${requiredWorkflowNodes.length} required workflow nodes completed successfully.`
+          : `Missing successful nodes: ${missingWorkflowNodes.join(", ")}.`,
+      ),
+    );
+  }
   const passedChecks = checks.filter((check) => check.passed).length;
   const score = Math.round((passedChecks / checks.length) * 100);
 
@@ -186,6 +191,7 @@ export function evaluateTeacherResponse({
     durationMs,
     error,
     workflowEngine,
+    modelTelemetry,
   };
 }
 

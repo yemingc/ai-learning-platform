@@ -165,6 +165,39 @@ async function run() {
   );
   console.log("PASS unauthorized /api/memory => 401");
 
+  const { bodyJson: publicDiagnostic, res: publicDiagnosticRes } = await getJson(
+    "/api/formative-assessment?courseId=ap-calculus-ab&conceptId=what-is-a-limit&phase=diagnostic&locale=en",
+  );
+  assert(
+    publicDiagnosticRes.status === 200,
+    `public assessment GET expected 200, got ${publicDiagnosticRes.status}`,
+  );
+  assert(
+    publicDiagnostic?.assessment?.questions?.length === 2 &&
+      !JSON.stringify(publicDiagnostic.assessment).includes("correctOptionId"),
+    "public assessment must include two questions without answer keys",
+  );
+  console.log("PASS public assessment DTO hides answer keys");
+
+  const unauthAssessmentWrite = await request("/api/formative-assessment", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      courseId: "ap-calculus-ab",
+      conceptId: "what-is-a-limit",
+      phase: "diagnostic",
+      locale: "en",
+      answers: [],
+    }),
+  });
+  assert(
+    unauthAssessmentWrite.status === 401,
+    `unauth assessment POST expected 401, got ${unauthAssessmentWrite.status}`,
+  );
+  console.log("PASS unauthorized assessment write => 401");
+
   const email = `auth_reg_${Date.now()}@example.com`;
   const password = "Password123!";
 
@@ -276,6 +309,79 @@ async function run() {
   );
   console.log("PASS authenticated /api/memory GET");
 
+  const diagnosticWrite = await request(
+    "/api/formative-assessment",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        courseId: "ap-calculus-ab",
+        conceptId: "what-is-a-limit",
+        phase: "diagnostic",
+        locale: "en",
+        answers: [
+          { questionId: "what-is-a-limit-d1", selectedOptionId: "b" },
+          { questionId: "what-is-a-limit-d2", selectedOptionId: "c" },
+        ],
+      }),
+    },
+    jar,
+  );
+  const diagnosticBody = await diagnosticWrite.json();
+  assert(
+    diagnosticWrite.status === 200 && diagnosticBody?.attempt?.score === 100,
+    `diagnostic write expected score 100, got ${diagnosticWrite.status} ${JSON.stringify(diagnosticBody)}`,
+  );
+  assert(
+    diagnosticBody.readiness <= 69,
+    `diagnostic-only readiness must remain below mastery, got ${diagnosticBody.readiness}`,
+  );
+  console.log("PASS authenticated diagnostic is server-scored and mastery-capped");
+
+  const exitWrite = await request(
+    "/api/formative-assessment",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        courseId: "ap-calculus-ab",
+        conceptId: "what-is-a-limit",
+        phase: "exit_ticket",
+        locale: "en",
+        answers: [
+          { questionId: "what-is-a-limit-e1", selectedOptionId: "a" },
+          { questionId: "what-is-a-limit-e2", selectedOptionId: "b" },
+        ],
+      }),
+    },
+    jar,
+  );
+  const exitBody = await exitWrite.json();
+  assert(
+    exitWrite.status === 200 &&
+      exitBody?.attempt?.score === 100 &&
+      exitBody?.progress?.learningGain === 0 &&
+      exitBody?.status === "familiar",
+    `exit write expected pre/post evidence and familiar status, got ${exitWrite.status} ${JSON.stringify(exitBody)}`,
+  );
+  console.log("PASS exit evidence completes readiness loop");
+
+  const { bodyJson: assessmentAfterWrite, res: assessmentAfterWriteRes } =
+    await getJson(
+      "/api/formative-assessment?courseId=ap-calculus-ab&conceptId=what-is-a-limit&phase=exit_ticket&locale=en",
+      jar,
+    );
+  assert(
+    assessmentAfterWriteRes.status === 200 &&
+      assessmentAfterWrite?.latestAttempt?.score === 100,
+    "authenticated assessment GET should return the current learner's latest attempt",
+  );
+  console.log("PASS assessment attempt readback");
+
   const memoryWriteRes = await request(
     "/api/memory",
     {
@@ -304,26 +410,11 @@ async function run() {
     },
     jar,
   );
-  const memoryWriteBody = await memoryWriteRes.json();
   assert(
-    memoryWriteRes.status === 200,
-    `/api/memory POST expected 200, got ${memoryWriteRes.status}`,
+    memoryWriteRes.status === 405,
+    `/api/memory client POST expected 405, got ${memoryWriteRes.status}`,
   );
-  assert(
-    memoryWriteBody?.conceptMemory?.interactionCount === 1,
-    "memory POST should create first concept interaction",
-  );
-  console.log("PASS authenticated /api/memory POST");
-
-  const { bodyJson: memoryAfterWrite } = await getJson(
-    "/api/memory?courseId=ap-calculus-ab",
-    jar,
-  );
-  assert(
-    memoryAfterWrite?.memory?.conceptMemories?.["what-is-a-limit"]?.interactionCount >= 1,
-    "memory GET should include saved concept memory",
-  );
-  console.log("PASS /api/memory persists concept memory");
+  console.log("PASS client cannot forge learner memory => 405");
 
   const secondEmail = `auth_reg_second_${Date.now()}@example.com`;
   const secondJar = new CookieJar();
@@ -368,10 +459,21 @@ async function run() {
     secondJar,
   );
   assert(
-    !secondMemory?.memory?.conceptMemories?.["what-is-a-limit"],
-    "second user should not see first user's learner memory",
+    secondMemory?.memory?.learnerId &&
+      secondMemory.memory.learnerId !== initialMemory.memory.learnerId,
+    "second user should receive a distinct learner-memory identity",
   );
-  console.log("PASS learner memory isolated by authenticated user");
+  console.log("PASS learner memory identity isolated by authenticated user");
+
+  const { bodyJson: secondAssessment } = await getJson(
+    "/api/formative-assessment?courseId=ap-calculus-ab&conceptId=what-is-a-limit&phase=exit_ticket&locale=en",
+    secondJar,
+  );
+  assert(
+    !secondAssessment?.latestAttempt,
+    "second learner must not receive the first learner's assessment attempt",
+  );
+  console.log("PASS assessment evidence isolated by authenticated user");
 
   const teacherWithAuth = await request(
     "/api/teacher-chat",

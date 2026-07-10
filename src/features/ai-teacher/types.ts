@@ -64,6 +64,7 @@ export const teacherMemorySignalsSchema = z
 
 export const teacherChatErrorCodeSchema = z.enum([
   "missing_api_key",
+  "request_cancelled",
   "api_timeout",
   "api_error",
   "empty_response",

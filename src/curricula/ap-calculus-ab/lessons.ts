@@ -1,5 +1,9 @@
 import { lessonContentArraySchema } from "@/features/lessons/lesson-schema";
 import { validateRetrievalReadyLessons } from "@/features/lessons/retrieval-chunks";
+import {
+  apCalculusABUnit1ExtensionLessons,
+  unit1ExtensionLessonMetadata,
+} from "@/curricula/ap-calculus-ab/unit-1-extension-lessons";
 import type {
   LessonApplicationPrompt,
   LessonGuidedQuestion,
@@ -40,6 +44,7 @@ const lessonMetadata: Record<
     }>;
   }
 > = {
+  ...unit1ExtensionLessonMetadata,
   "what-is-a-limit": {
     retrievalTags: ["limits", "approaching behavior", "function value"],
     glossaryTerms: [
@@ -301,7 +306,7 @@ function createRetrievalReadyLesson(lesson: LegacyLessonContent) {
   };
 }
 
-const rawApCalculusABUnit1Lessons: LegacyLessonContent[] = [
+const apCalculusABUnit1FoundationLessons: LegacyLessonContent[] = [
   {
     conceptId: "what-is-a-limit",
     title: "What is a limit?",
@@ -791,6 +796,11 @@ const rawApCalculusABUnit1Lessons: LegacyLessonContent[] = [
       "One-sided behavior is essential near vertical asymptotes.",
     ],
   },
+];
+
+const rawApCalculusABUnit1Lessons: LegacyLessonContent[] = [
+  ...apCalculusABUnit1FoundationLessons,
+  ...apCalculusABUnit1ExtensionLessons,
 ];
 
 export const apCalculusABUnit1Lessons = lessonContentArraySchema.parse(

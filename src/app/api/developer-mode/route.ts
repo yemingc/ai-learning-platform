@@ -3,7 +3,9 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/auth";
 import {
+  createDeveloperModeCookieValue,
   DEVELOPER_MODE_COOKIE,
+  DEVELOPER_MODE_MAX_AGE_SECONDS,
   isDeveloperToolsEnabled,
   isValidDeveloperModePassword,
 } from "@/lib/developer-mode";
@@ -70,9 +72,9 @@ export async function POST(request: Request) {
 
   const cookieStore = await cookies();
 
-  cookieStore.set(DEVELOPER_MODE_COOKIE, "enabled", {
+  cookieStore.set(DEVELOPER_MODE_COOKIE, createDeveloperModeCookieValue(), {
     httpOnly: true,
-    maxAge: 60 * 60 * 8,
+    maxAge: DEVELOPER_MODE_MAX_AGE_SECONDS,
     path: "/",
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

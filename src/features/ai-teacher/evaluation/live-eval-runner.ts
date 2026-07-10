@@ -57,8 +57,10 @@ export async function runLiveTeacherEvaluationSuite(): Promise<LiveTeacherEvalua
         evaluateTeacherResponse({
           durationMs: Date.now() - caseStartedAt,
           response: workflowResult.teacherResponse,
+          modelTelemetry: workflowResult.modelTelemetry,
           testCase,
           workflowEngine,
+          workflowTrace: workflowResult.trace,
         }),
       );
     } catch (error) {

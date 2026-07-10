@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import type { LessonSectionType } from "@/features/lessons/types";
 import { getCurriculumEmbeddingIndexStats } from "@/features/rag/embedding-store";
+import { getCurriculumEmbeddingIndexCoverage } from "@/features/rag/embedding-indexer";
 import type { CurriculumRetrievalLocale } from "@/features/rag/retrieval-types";
 import {
   getCurriculumRetrievalChunks,
@@ -95,6 +96,7 @@ export default async function RetrievalPreviewPage({
   const tag = params.tag?.trim();
   const allChunks = getCurriculumRetrievalChunks(curricula, "all");
   const embeddingStats = getCurriculumEmbeddingIndexStats();
+  const embeddingCoverage = getCurriculumEmbeddingIndexCoverage({ curricula });
   const retrievalQuery = {
     conceptId: params.conceptId || undefined,
     courseId,
@@ -159,9 +161,14 @@ export default async function RetrievalPreviewPage({
 
         <Card>
           <CardHeader>
-            <Badge className="w-fit" variant="secondary">
-              Index snapshot
-            </Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge className="w-fit" variant="secondary">
+                Index snapshot
+              </Badge>
+              <Badge variant={embeddingCoverage.isCurrent ? "secondary" : "outline"}>
+                {embeddingCoverage.isCurrent ? "Embeddings current" : "Embedding rebuild needed"}
+              </Badge>
+            </div>
             <CardTitle className="flex items-center gap-2">
               <BookOpenText className="size-5" />
               {allChunks.length} chunks
@@ -169,7 +176,9 @@ export default async function RetrievalPreviewPage({
             <CardDescription>
               {curricula.length} course pack indexed from structured lesson
               sections. {embeddingStats.recordCount} embedding records are
-              stored locally.
+              stored locally; {embeddingCoverage.currentCount}/
+              {embeddingCoverage.expectedCount} match the current curriculum
+              ({embeddingCoverage.missingCount} missing, {embeddingCoverage.staleCount} stale).
             </CardDescription>
           </CardHeader>
         </Card>

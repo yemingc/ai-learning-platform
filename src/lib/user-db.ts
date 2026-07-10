@@ -100,7 +100,7 @@ export function createUser(input: CreateUserInput) {
     input.name?.trim() || null,
     input.passwordHash,
     now,
-    now,
+    null,
   );
 
   return getUserById(id);

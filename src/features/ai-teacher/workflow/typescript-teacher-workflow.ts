@@ -1,20 +1,23 @@
 import "server-only";
 
 import { generateTeacherResponse } from "@/features/ai-teacher/teacher-service";
-import type { TeachingMove } from "@/features/ai-teacher/types";
 import {
   assembleCurriculumContext,
   filterAllowedCitations,
 } from "@/features/rag/curriculum-context";
+import {
+  classifyTeacherIntent,
+  createTeacherMemoryPatch,
+  selectTeachingStrategy,
+} from "@/features/ai-teacher/workflow/teacher-policy";
 import type {
-  LearnerMemoryPatch,
   LearnerMemorySnapshot,
   NextStudyActionHint,
-  TeacherIntent,
   TeacherWorkflowContext,
   TeacherWorkflowInput,
   TeacherWorkflowNode,
   TeacherWorkflowResult,
+  TeacherWorkflowRuntimeOptions,
   TeacherWorkflowState,
   TeacherWorkflowTraceEvent,
 } from "@/features/ai-teacher/workflow/types";
@@ -59,84 +62,16 @@ function buildContext(input: TeacherWorkflowInput): TeacherWorkflowContext {
   };
 }
 
-function classifyUserIntent(input: TeacherWorkflowInput): TeacherIntent {
-  const normalizedMessage = input.userMessage.toLowerCase();
-
-  if (
-    input.selectionAction === "give_example" ||
-    normalizedMessage.includes("example") ||
-    normalizedMessage.includes("例子")
-  ) {
-    return "example_request";
-  }
-
-  if (
-    input.selectionAction === "check_misconception" ||
-    normalizedMessage.includes("misconception") ||
-    normalizedMessage.includes("trap") ||
-    normalizedMessage.includes("误区")
-  ) {
-    return "misconception";
-  }
-
-  if (
-    input.selectionAction === "ask_guiding_question" ||
-    normalizedMessage.includes("guiding question") ||
-    normalizedMessage.includes("引导")
-  ) {
-    return "reflection";
-  }
-
-  if (
-    normalizedMessage.includes("apply") ||
-    normalizedMessage.includes("application") ||
-    normalizedMessage.includes("应用")
-  ) {
-    return "application";
-  }
-
-  if (
-    input.selectionAction === "explain_this" ||
-    normalizedMessage.includes("confused") ||
-    normalizedMessage.includes("understand") ||
-    normalizedMessage.includes("不懂") ||
-    normalizedMessage.includes("解释")
-  ) {
-    return "confusion";
-  }
-
-  return "general_support";
-}
-
-function selectTeachingStrategy(intent: TeacherIntent): TeachingMove {
-  const moveByIntent: Record<TeacherIntent, TeachingMove> = {
-    application: "ask_guiding_question",
-    confusion: "explain",
-    example_request: "give_example",
-    general_support: "explain",
-    misconception: "correct_misconception",
-    reflection: "reflect",
-  };
-
-  return moveByIntent[intent];
-}
-
-function createMemoryPatch(
-  state: TeacherWorkflowState,
-): LearnerMemoryPatch {
+function createMemoryPatch(state: TeacherWorkflowState) {
   if (!state.memorySignals) {
     throw new Error("Cannot create memory patch before learning signals exist.");
   }
 
-  return {
+  return createTeacherMemoryPatch({
     conceptId: state.input.concept.id,
-    source: "teacher_workflow",
     memorySignals: state.memorySignals,
-    shouldPersistClientSide:
-      state.context?.learnerMemorySnapshot.source !== "server_persistent",
-    rationale:
-      "Memory persistence is currently handled by the local-demo client store; a future LangGraph version can persist this patch server-side.",
-  };
+    memorySnapshot: state.context?.learnerMemorySnapshot,
+  });
 }
 
 function createNextStudyActionHint(
@@ -154,6 +89,7 @@ function createNextStudyActionHint(
 
 export async function runTypeScriptTeacherWorkflow(
   input: TeacherWorkflowInput,
+  runtimeOptions: TeacherWorkflowRuntimeOptions = {},
 ): Promise<TeacherWorkflowResult> {
   let state: TeacherWorkflowState = {
     input,
@@ -168,10 +104,12 @@ export async function runTypeScriptTeacherWorkflow(
       context,
     },
     "build_context",
-    "Loaded static concept, lesson, section, and learner memory snapshot.",
+    context.learnerMemorySnapshot.source === "server_persistent"
+      ? `Loaded server learner memory with ${context.learnerMemorySnapshot.interactionCount ?? 0} prior interactions and ${context.learnerMemorySnapshot.assessmentEvidenceLevel ?? "none"} assessment evidence.`
+      : "Loaded lesson context without server-persistent learner memory.",
   );
 
-  const intent = classifyUserIntent(input);
+  const intent = classifyTeacherIntent(input);
   state = appendTrace(
     {
       ...state,
@@ -181,7 +119,11 @@ export async function runTypeScriptTeacherWorkflow(
     intent,
   );
 
-  const teachingStrategy = selectTeachingStrategy(intent);
+  const teachingStrategy = selectTeachingStrategy(
+    intent,
+    context.learnerMemorySnapshot,
+    input.userMessage,
+  );
   state = appendTrace(
     {
       ...state,
@@ -230,12 +172,13 @@ export async function runTypeScriptTeacherWorkflow(
       : "No curriculum context assembled for this turn.",
   );
 
-  const teacherResponse = await generateTeacherResponse({
+  const generatedResponse = await generateTeacherResponse({
     ...input,
     curriculumContext,
     intent,
     teachingMoveHint: teachingStrategy,
-  });
+  }, runtimeOptions);
+  const teacherResponse = generatedResponse.teacherResponse;
   const citations = filterAllowedCitations({
     allowedCitations: curriculumContext.allowedCitations,
     requestedChunkIds: teacherResponse.citationChunkIds,
@@ -248,6 +191,7 @@ export async function runTypeScriptTeacherWorkflow(
     {
       ...state,
       citations,
+      modelTelemetry: generatedResponse.modelTelemetry,
       teacherResponse: sanitizedTeacherResponse,
     },
     "generate_teaching_response",
@@ -294,6 +238,7 @@ export async function runTypeScriptTeacherWorkflow(
 
   return {
     teacherResponse: sanitizedTeacherResponse,
+    modelTelemetry: generatedResponse.modelTelemetry,
     memorySignals,
     memoryPatch,
     nextStudyAction,

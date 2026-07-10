@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurriculumPacks } from "@/curricula";
-import { buildCurriculumEmbeddingIndex } from "@/features/rag/embedding-indexer";
+import {
+  buildCurriculumEmbeddingIndex,
+  getCurriculumEmbeddingIndexCoverage,
+} from "@/features/rag/embedding-indexer";
 import { EmbeddingProviderError } from "@/features/rag/embedding-provider";
 import { getCurriculumEmbeddingIndexStats } from "@/features/rag/embedding-store";
-import { isDeveloperToolsEnabled } from "@/lib/developer-mode";
+import { hasDeveloperApiAccess } from "@/lib/developer-api-access";
 
 export const dynamic = "force-dynamic";
 
@@ -13,22 +16,8 @@ const buildEmbeddingIndexRequestSchema = z.object({
   locale: z.enum(["all", "en", "zh"]).default("all"),
 });
 
-function isAuthorized(request: Request) {
-  if (!isDeveloperToolsEnabled()) {
-    return false;
-  }
-
-  const secret = process.env.EMBEDDING_INDEX_SECRET;
-
-  if (secret) {
-    return request.headers.get("authorization") === `Bearer ${secret}`;
-  }
-
-  return process.env.NODE_ENV !== "production";
-}
-
-export function GET(request: Request) {
-  if (!isAuthorized(request)) {
+export async function GET(request: Request) {
+  if (!(await hasDeveloperApiAccess(request))) {
     return NextResponse.json(
       {
         error:
@@ -38,14 +27,17 @@ export function GET(request: Request) {
     );
   }
 
+  const curricula = getCurriculumPacks();
+
   return NextResponse.json({
     ok: true,
+    coverage: getCurriculumEmbeddingIndexCoverage({ curricula }),
     stats: getCurriculumEmbeddingIndexStats(),
   });
 }
 
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!(await hasDeveloperApiAccess(request))) {
     return NextResponse.json(
       {
         error:
@@ -76,6 +68,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
+      coverage: getCurriculumEmbeddingIndexCoverage({
+        curricula: getCurriculumPacks(),
+      }),
       stats: getCurriculumEmbeddingIndexStats(),
       summary,
     });
@@ -94,4 +89,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

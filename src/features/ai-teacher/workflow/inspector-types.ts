@@ -1,6 +1,7 @@
 import type {
   LearnerMemoryPatch,
   NextStudyActionHint,
+  TeacherModelTelemetry,
   TeacherWorkflowTraceEvent,
 } from "@/features/ai-teacher/workflow/types";
 import type {
@@ -18,6 +19,7 @@ export type TeacherWorkflowInspectorRun = {
   selectedText?: string;
   assistantMessage: string;
   workflowEngine: string;
+  modelTelemetry?: TeacherModelTelemetry;
   durationMs: number;
   teachingMove: TeachingMove;
   detectedMisconception?: string;

@@ -5,8 +5,19 @@ import {
   runRetrievalEvaluation,
   runRetrievalModeComparison,
 } from "@/features/rag/evaluation/eval-runner";
+import { hasDeveloperApiAccess } from "@/lib/developer-api-access";
 
 export async function GET(request: Request) {
+  if (!(await hasDeveloperApiAccess(request))) {
+    return NextResponse.json(
+      {
+        error:
+          "Developer retrieval evaluation requires developer access or a valid bearer secret.",
+      },
+      { status: 403 },
+    );
+  }
+
   const curricula = getCurriculumPacks();
   const url = new URL(request.url);
   const shouldIncludeModeComparison =

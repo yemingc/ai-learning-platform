@@ -18,6 +18,12 @@ import {
 import { useLanguage } from "@/components/i18n/language-provider";
 import { AiTeacherChatPanel } from "@/components/learning/ai-teacher-chat-panel";
 import { AskAboutSectionButton } from "@/components/learning/ask-about-section-button";
+import {
+  GuidedQuestionCard,
+  MisconceptionCheckCard,
+} from "@/components/learning/guided-learning-cards";
+import { LessonConceptVisualization } from "@/components/learning/lesson-concept-visualization";
+import { FormativeAssessmentCard } from "@/components/learning/formative-assessment-card";
 import { LessonSelectionActions } from "@/components/learning/lesson-selection-actions";
 import { LessonMemorySummary } from "@/components/memory/lesson-memory-summary";
 import { Badge } from "@/components/ui/badge";
@@ -422,7 +428,10 @@ export function LessonPageClient({
 
       <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_23rem] lg:items-start">
         <LessonSelectionActions>
-          <div className="rounded-lg border border-border bg-card px-5 shadow-sm sm:px-8">
+          <div className="space-y-6">
+            <FormativeAssessmentCard concept={concept} phase="diagnostic" />
+
+            <div className="rounded-lg border border-border bg-card px-5 shadow-sm sm:px-8">
             <LessonSection
               eyebrow={pageCopy.sections.why.eyebrow}
               icon={<Sparkles className="size-4 text-primary" />}
@@ -464,6 +473,10 @@ export function LessonPageClient({
                   ))}
                 </div>
               )}
+              <LessonConceptVisualization
+                conceptId={concept.id}
+                language={language}
+              />
             </LessonSection>
 
             <LessonSection
@@ -519,19 +532,12 @@ export function LessonPageClient({
             >
               <div className="grid gap-4">
                 {displayLesson.guidedQuestions.map((question) => (
-                  <Card className="bg-background/70" key={question.prompt}>
-                    <CardHeader>
-                      <CardTitle>{question.prompt}</CardTitle>
-                      <CardDescription>
-                        {pageCopy.hint} {question.hint}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm leading-6 text-muted-foreground">
-                        {pageCopy.targetInsight} {question.targetInsight}
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <GuidedQuestionCard
+                    key={question.prompt}
+                    language={language}
+                    question={question}
+                    section={pageCopy.sections.guided.eyebrow}
+                  />
                 ))}
               </div>
             </LessonSection>
@@ -546,17 +552,12 @@ export function LessonPageClient({
             >
               <div className="grid gap-4">
                 {displayLesson.misconceptionChecks.map((check) => (
-                  <Card className="bg-background/70" key={check.misconception}>
-                    <CardHeader>
-                      <CardTitle>{check.misconception}</CardTitle>
-                      <CardDescription>{check.checkPrompt}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm leading-6 text-muted-foreground">
-                        {check.correction}
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <MisconceptionCheckCard
+                    check={check}
+                    key={check.misconception}
+                    language={language}
+                    section={pageCopy.sections.trap.eyebrow}
+                  />
                 ))}
               </div>
             </LessonSection>
@@ -615,6 +616,9 @@ export function LessonPageClient({
                 ))}
               </ul>
             </LessonSection>
+            </div>
+
+            <FormativeAssessmentCard concept={concept} phase="exit_ticket" />
           </div>
         </LessonSelectionActions>
 

@@ -5,12 +5,14 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Brain,
+  ClipboardCheck,
   Clock,
   Lightbulb,
   MessageSquare,
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
   TriangleAlert,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +32,7 @@ import {
 } from "@/features/memory/memory-api-client";
 import { getStudyRecommendation } from "@/features/memory/study-recommendations";
 import type { ConceptMemory, LearnerMemory } from "@/features/memory/types";
+import { getFormativeAssessmentProgress } from "@/features/assessment/assessment-progress";
 import { cn } from "@/lib/utils";
 
 type MemoryPageClientProps = {
@@ -137,6 +140,21 @@ export function MemoryPageClient({
           ) / studiedConceptCount,
         )
       : 0;
+  const assessmentProgress = conceptMemories.map(({ memory: conceptMemory }) =>
+    getFormativeAssessmentProgress(conceptMemory?.assessmentAttempts),
+  );
+  const exitEvidenceCount = assessmentProgress.filter(
+    (progress) => progress.exitTicketScore !== undefined,
+  ).length;
+  const learningGains = assessmentProgress
+    .map((progress) => progress.learningGain)
+    .filter((gain): gain is number => gain !== undefined);
+  const averageLearningGain = learningGains.length
+    ? Math.round(
+        learningGains.reduce((sum, gain) => sum + gain, 0) /
+          learningGains.length,
+      )
+    : undefined;
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
@@ -161,8 +179,8 @@ export function MemoryPageClient({
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">
             This page shows learning progress for one unit. Each concept keeps
-            its own readiness score, confusion signals, misconceptions, and AI
-            Teacher recommendations.
+            its own server-scored diagnostic and exit evidence, readiness,
+            confusion signals, misconceptions, and AI Teacher recommendations.
           </p>
         </div>
 
@@ -171,7 +189,7 @@ export function MemoryPageClient({
             <Badge className="w-fit" variant="outline">
               Progress source
             </Badge>
-            <CardTitle>{memory?.source ?? "local_demo"}</CardTitle>
+            <CardTitle>{memory?.source ?? "loading"}</CardTitle>
             <CardDescription>
               Updated: {formatDate(memory?.updatedAt)}
             </CardDescription>
@@ -198,7 +216,7 @@ export function MemoryPageClient({
         </div>
       )}
 
-      <section className="mt-10 grid gap-4 md:grid-cols-4">
+      <section className="mt-10 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
         <Card>
           <CardHeader>
             <CardDescription>Studied concepts</CardDescription>
@@ -227,6 +245,24 @@ export function MemoryPageClient({
             </CardTitle>
           </CardHeader>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Exit evidence</CardDescription>
+            <CardTitle>
+              {exitEvidenceCount} / {concepts.length}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Average learning gain</CardDescription>
+            <CardTitle>
+              {averageLearningGain === undefined
+                ? "—"
+                : `${averageLearningGain > 0 ? "+" : ""}${averageLearningGain} pts`}
+            </CardTitle>
+          </CardHeader>
+        </Card>
       </section>
 
       <section className="mt-10 grid gap-5 md:grid-cols-2">
@@ -237,6 +273,9 @@ export function MemoryPageClient({
             conceptMemories: memory?.conceptMemories ?? {},
             concepts,
           });
+          const conceptAssessmentProgress = getFormativeAssessmentProgress(
+            conceptMemory?.assessmentAttempts,
+          );
 
           return (
             <Card key={concept.id}>
@@ -253,7 +292,7 @@ export function MemoryPageClient({
                 <CardDescription>{concept.description}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                   <div className="rounded-lg border border-border bg-background/70 p-3">
                     <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
                       <Brain className="size-3.5" />
@@ -279,6 +318,32 @@ export function MemoryPageClient({
                     </p>
                     <p className="mt-2 text-2xl font-semibold">
                       {conceptMemory?.misconceptions.length ?? 0}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background/70 p-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                      <ClipboardCheck className="size-3.5" />
+                      Diagnostic / exit
+                    </p>
+                    <p className="mt-2 text-sm font-semibold">
+                      {conceptAssessmentProgress.diagnosticScore === undefined
+                        ? "—"
+                        : `${conceptAssessmentProgress.diagnosticScore}%`}{" "}
+                      /{" "}
+                      {conceptAssessmentProgress.exitTicketScore === undefined
+                        ? "—"
+                        : `${conceptAssessmentProgress.exitTicketScore}%`}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background/70 p-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                      <TrendingUp className="size-3.5" />
+                      Learning gain
+                    </p>
+                    <p className="mt-2 text-sm font-semibold">
+                      {conceptAssessmentProgress.learningGain === undefined
+                        ? "—"
+                        : `${conceptAssessmentProgress.learningGain > 0 ? "+" : ""}${conceptAssessmentProgress.learningGain} pts`}
                     </p>
                   </div>
                 </div>

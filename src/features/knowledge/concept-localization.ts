@@ -1,5 +1,9 @@
 ﻿import type { Language } from "@/components/i18n/language-provider";
 import type { Concept, Course, LearningObjective, Topic, Unit } from "@/features/knowledge/types";
+import {
+  unit1ExtensionLocalizedConcepts,
+  unit1ExtensionLocalizedTopics,
+} from "@/curricula/ap-calculus-ab/unit-1-extension-localization";
 
 type LocalizedLearningObjective = Pick<
   LearningObjective,
@@ -24,13 +28,14 @@ const localizedCourses: Record<string, Partial<Course>> = {
 
 const localizedUnits: Record<string, Partial<Unit>> = {
   "ap-calculus-ab-unit-1-limits-continuity": {
-    title: "极限与连续性（Limits and Continuity）",
+    title: "极限与连续性（Limits and Continuity · Unit 1）",
     description:
-      "第 1 单元帮助学生用图像、表格、符号和语言描述函数（function）在某个输入附近的行为。",
+      "第 1 单元从图像、表格、符号和语言中的极限行为出发，延伸到极限法则、夹逼定理、连续性、介值定理与端行为。",
   },
 };
 
 const localizedTopics: Record<string, Partial<Topic>> = {
+  ...unit1ExtensionLocalizedTopics,
   "unit-1-topic-limit-foundations": {
     title: "极限基础（Limit foundations）",
     description: "先理解接近行为，再学习极限符号（limit notation）。",
@@ -48,6 +53,7 @@ const localizedTopics: Record<string, Partial<Topic>> = {
 };
 
 const localizedConcepts: Record<string, LocalizedConcept> = {
+  ...unit1ExtensionLocalizedConcepts,
   "what-is-a-limit": {
     title: "什么是极限（limit）？",
     description:

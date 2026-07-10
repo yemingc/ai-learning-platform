@@ -277,7 +277,7 @@ export function WorkflowInspectorClient() {
         </Card>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <StatCard label={t.recentRuns} value={runs.length} />
         <StatCard
           label={t.engine}
@@ -285,7 +285,21 @@ export function WorkflowInspectorClient() {
         />
         <StatCard
           label={t.duration}
-          value={selectedRun ? formatDuration(selectedRun.durationMs) : "-"}
+          value={
+            selectedRun
+              ? formatDuration(
+                  selectedRun.modelTelemetry?.durationMs ?? selectedRun.durationMs,
+                )
+              : "-"
+          }
+        />
+        <StatCard
+          label="Model"
+          value={selectedRun?.modelTelemetry?.model ?? "-"}
+        />
+        <StatCard
+          label="Tokens"
+          value={selectedRun?.modelTelemetry?.totalTokens ?? "-"}
         />
         <StatCard
           label={t.nextAction}
@@ -368,7 +382,28 @@ export function WorkflowInspectorClient() {
                 <CardHeader>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <Badge variant="secondary">{selectedRun.workflowEngine}</Badge>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary">{selectedRun.workflowEngine}</Badge>
+                        {selectedRun.modelTelemetry && (
+                          <>
+                            <Badge variant="outline">
+                              {selectedRun.modelTelemetry.model}
+                            </Badge>
+                            <Badge variant="outline">
+                              {selectedRun.modelTelemetry.promptVersion}
+                            </Badge>
+                            {selectedRun.modelTelemetry.firstTokenDurationMs !==
+                              undefined && (
+                              <Badge variant="outline">
+                                TTFT {formatDuration(
+                                  selectedRun.modelTelemetry
+                                    .firstTokenDurationMs,
+                                )}
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                      </div>
                       <CardTitle className="mt-3">
                         {selectedRun.conceptTitle}
                       </CardTitle>

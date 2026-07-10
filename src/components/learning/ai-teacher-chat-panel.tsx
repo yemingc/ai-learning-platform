@@ -9,7 +9,16 @@ import {
   useRef,
   useState,
 } from "react";
-import { BookOpenCheck, Bot, ChevronDown, Loader2, Send, Sparkles, X } from "lucide-react";
+import {
+  BookOpenCheck,
+  Bot,
+  ChevronDown,
+  Loader2,
+  Send,
+  Sparkles,
+  Square,
+  X,
+} from "lucide-react";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -29,9 +38,16 @@ import type {
   TeacherMemorySignals,
   TeachingMove,
 } from "@/features/ai-teacher/types";
+import {
+  parseTeacherStreamBuffer,
+  TEACHER_STREAM_MEDIA_TYPE,
+  type TeacherChatStreamEvent,
+  type TeacherStreamStage,
+} from "@/features/ai-teacher/teacher-streaming";
 import type {
   LearnerMemoryPatch,
   NextStudyActionHint,
+  TeacherModelTelemetry,
   TeacherWorkflowTraceEvent,
 } from "@/features/ai-teacher/workflow/types";
 import { saveWorkflowInspectorRun } from "@/features/ai-teacher/workflow/inspector-store";
@@ -45,6 +61,7 @@ type AiTeacherChatPanelProps = {
 
 type LocalMessage = TeacherChatMessage & {
   id: string;
+  deliveryStatus?: "streaming" | "interrupted";
 };
 
 type TeacherChatErrorResponse = {
@@ -60,6 +77,7 @@ type TeacherChatDebugResponse = TeacherChatResponse & {
   nextStudyAction?: NextStudyActionHint;
   workflowEngine?: string;
   workflowTrace?: TeacherWorkflowTraceEvent[];
+  modelTelemetry?: TeacherModelTelemetry;
 };
 
 type CurriculumCitation = {
@@ -114,6 +132,14 @@ const panelCopy = {
     context: "Context",
     memory: "Learning progress context",
     thinking: "AI Teacher is thinking with the lesson context...",
+    cancel: "Stop generating",
+    cancelled: "Response stopped. The partial text was not saved to learning memory.",
+    interrupted: "Interrupted draft",
+    streamStages: {
+      preparing_context: "Preparing lesson and learner context...",
+      generating_response: "Writing the response...",
+      finalizing_learning_state: "Validating the response and updating learning memory...",
+    } satisfies Record<TeacherStreamStage, string>,
     misconception: "Possible misconception:",
     learningSignal: "Learning signal:",
     citations: "Referenced lesson sections",
@@ -156,6 +182,14 @@ const panelCopy = {
     context: "当前上下文",
     memory: "学习进度上下文",
     thinking: "AI 教师正在结合课程内容思考...",
+    cancel: "停止生成",
+    cancelled: "已停止生成；未完成的文字不会写入学习记忆。",
+    interrupted: "未完成草稿",
+    streamStages: {
+      preparing_context: "正在准备课程与学习进度上下文...",
+      generating_response: "正在逐步生成回答...",
+      finalizing_learning_state: "正在校验回答并更新学习记忆...",
+    } satisfies Record<TeacherStreamStage, string>,
     misconception: "可能的误区：",
     learningSignal: "学习信号：",
     citations: "参考课程内容",
@@ -219,11 +253,15 @@ export function AiTeacherChatPanel({
   >();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
+  const [streamStage, setStreamStage] = useState<TeacherStreamStage>(
+    "preparing_context",
+  );
   const [error, setError] = useState<string | undefined>();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const mobileScrollRef = useRef<HTMLDivElement>(null);
+  const activeRequestRef = useRef<AbortController | null>(null);
 
   const contextLabel = useMemo(
     () => `${lesson.title} - ${activeSection}`,
@@ -306,6 +344,15 @@ export function AiTeacherChatPanel({
     return () => window.clearInterval(intervalId);
   }, [isLoading]);
 
+  useEffect(
+    () => () => activeRequestRef.current?.abort("component_unmounted"),
+    [],
+  );
+
+  function cancelActiveRequest() {
+    activeRequestRef.current?.abort("user_cancelled");
+  }
+
   async function sendMessage(
     messageText?: string,
     options?: SendMessageOptions,
@@ -327,9 +374,18 @@ export function AiTeacherChatPanel({
       role: "user",
       content: userMessage,
     };
+    const assistantMessageId = createId();
     const nextMessages = [...messages, nextUserMessage];
 
-    setMessages(nextMessages);
+    setMessages([
+      ...nextMessages,
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        deliveryStatus: "streaming",
+      },
+    ]);
     setInput("");
     setIsLoading(true);
     setError(undefined);
@@ -340,20 +396,25 @@ export function AiTeacherChatPanel({
     setIsWorkflowTraceExpanded(false);
     setNextStudyAction(undefined);
     setLoadingSeconds(0);
+    setStreamStage("preparing_context");
 
     let timeoutId: number | undefined;
+    let streamedContent = "";
+    let controller: AbortController | undefined;
 
     try {
-      const controller = new AbortController();
+      controller = new AbortController();
+      activeRequestRef.current = controller;
       const requestStartedAt = Date.now();
       timeoutId = window.setTimeout(
-        () => controller.abort(),
+        () => controller?.abort("timeout"),
         CHAT_TIMEOUT_MS,
       );
 
       const response = await fetch("/api/teacher-chat", {
         method: "POST",
         headers: {
+          Accept: TEACHER_STREAM_MEDIA_TYPE,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -366,14 +427,15 @@ export function AiTeacherChatPanel({
           selectionAction: options?.selectionAction,
           source: options?.source ?? "direct_chat",
           chatHistory: messages
-            .filter((message) => message.id !== "welcome")
+            .filter(
+              (message) =>
+                message.id !== "welcome" && !message.deliveryStatus,
+            )
             .slice(-8)
             .map(({ role, content }) => ({ role, content })),
         }),
         signal: controller.signal,
       });
-
-      window.clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorBody = (await response
@@ -388,53 +450,136 @@ export function AiTeacherChatPanel({
 
       const responseWorkflowEngine =
         response.headers.get("X-Teacher-Workflow-Engine") ?? undefined;
-      const data = (await response.json()) as TeacherChatDebugResponse;
+      const reader = response.body?.getReader();
 
-      setMessages([
-        ...nextMessages,
-        {
-          id: createId(),
-          role: "assistant",
-          content: data.assistantMessage,
-        },
-      ]);
-      setSuggestedFollowUps(data.suggestedFollowUps);
-      setDetectedMisconception(data.detectedMisconception);
-      setTeachingMove(data.teachingMove);
-      setMemorySignals(data.memorySignals);
-      setWorkflowEngine(responseWorkflowEngine ?? data.workflowEngine);
-      setWorkflowTrace(data.workflowTrace ?? []);
-      setCitations(data.citations ?? []);
+      if (!reader) {
+        throw new Error("AI Teacher streaming response body is unavailable.");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let data: TeacherChatDebugResponse | undefined;
+
+      const handleStreamEvent = (
+        event: TeacherChatStreamEvent<TeacherChatDebugResponse>,
+      ) => {
+        if (event.type === "status") {
+          setStreamStage(event.stage);
+          return;
+        }
+
+        if (event.type === "assistant_delta") {
+          streamedContent += event.delta;
+          setMessages((currentMessages) =>
+            currentMessages.map((message) =>
+              message.id === assistantMessageId
+                ? { ...message, content: streamedContent }
+                : message,
+            ),
+          );
+          return;
+        }
+
+        if (event.type === "error") {
+          throw new Error(event.error.message);
+        }
+
+        data = event.data;
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          buffer += decoder.decode();
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const parsed = parseTeacherStreamBuffer<TeacherChatDebugResponse>(
+          buffer,
+        );
+        buffer = parsed.remainder;
+        parsed.events.forEach(handleStreamEvent);
+      }
+
+      if (buffer.trim()) {
+        const parsed = parseTeacherStreamBuffer<TeacherChatDebugResponse>(
+          `${buffer}\n`,
+        );
+        parsed.events.forEach(handleStreamEvent);
+      }
+
+      if (!data) {
+        throw new Error("AI Teacher stream ended before a validated response.");
+      }
+
+      const completedData = data;
+
+      setMessages((currentMessages) =>
+        currentMessages.map((message) =>
+          message.id === assistantMessageId
+            ? {
+                ...message,
+                content: completedData.assistantMessage,
+                deliveryStatus: undefined,
+              }
+            : message,
+        ),
+      );
+      setSuggestedFollowUps(completedData.suggestedFollowUps);
+      setDetectedMisconception(completedData.detectedMisconception);
+      setTeachingMove(completedData.teachingMove);
+      setMemorySignals(completedData.memorySignals);
+      setWorkflowEngine(responseWorkflowEngine ?? completedData.workflowEngine);
+      setWorkflowTrace(completedData.workflowTrace ?? []);
+      setCitations(completedData.citations ?? []);
       setIsWorkflowTraceExpanded(false);
-      setNextStudyAction(data.nextStudyAction);
+      setNextStudyAction(completedData.nextStudyAction);
 
-      if (data.workflowTrace?.length) {
+      if (completedData.workflowTrace?.length) {
         saveWorkflowInspectorRun({
           id: createId(),
-          assistantMessage: data.assistantMessage,
+          assistantMessage: completedData.assistantMessage,
           conceptId: concept.id,
           conceptTitle: concept.title,
           createdAt: new Date().toISOString(),
-          detectedMisconception: data.detectedMisconception,
+          detectedMisconception: completedData.detectedMisconception,
           durationMs: Date.now() - requestStartedAt,
           locale: language,
-          memoryPatch: data.memoryPatch,
-          memorySignals: data.memorySignals,
-          nextStudyAction: data.nextStudyAction,
+          memoryPatch: completedData.memoryPatch,
+          memorySignals: completedData.memorySignals,
+          modelTelemetry: completedData.modelTelemetry,
+          nextStudyAction: completedData.nextStudyAction,
           section: sectionForRequest,
           selectedText: options?.selectedText,
-          teachingMove: data.teachingMove,
-          trace: data.workflowTrace,
+          teachingMove: completedData.teachingMove,
+          trace: completedData.workflowTrace,
           userMessage,
-          workflowEngine: responseWorkflowEngine ?? data.workflowEngine ?? "unknown",
+          workflowEngine:
+            responseWorkflowEngine ?? completedData.workflowEngine ?? "unknown",
         });
       }
 
       notifyLearnerMemoryUpdated();
     } catch (requestError) {
-      if (requestError instanceof DOMException && requestError.name === "AbortError") {
+      setMessages((currentMessages) =>
+        streamedContent
+          ? currentMessages.map((message) =>
+              message.id === assistantMessageId
+                ? { ...message, deliveryStatus: "interrupted" }
+                : message,
+            )
+          : currentMessages.filter(
+              (message) => message.id !== assistantMessageId,
+            ),
+      );
+
+      if (controller?.signal.aborted) {
         setError(
-          copy.timeout,
+          controller.signal.reason === "user_cancelled"
+            ? copy.cancelled
+            : copy.timeout,
         );
       } else {
         setError(
@@ -446,6 +591,10 @@ export function AiTeacherChatPanel({
     } finally {
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId);
+      }
+
+      if (activeRequestRef.current === controller) {
+        activeRequestRef.current = null;
       }
 
       setIsLoading(false);
@@ -567,13 +716,26 @@ export function AiTeacherChatPanel({
                   )}
                   key={message.id}
                 >
-                  {message.content}
+                  {message.content ||
+                    (message.deliveryStatus === "streaming" ? "…" : "")}
+                  {message.deliveryStatus === "streaming" &&
+                    message.content && (
+                      <span
+                        aria-hidden="true"
+                        className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-current align-middle"
+                      />
+                    )}
+                  {message.deliveryStatus === "interrupted" && (
+                    <span className="mt-2 block text-xs font-semibold text-muted-foreground">
+                      {copy.interrupted}
+                    </span>
+                  )}
                 </div>
               ))}
               {isLoading && (
                 <div className="flex items-center gap-2 rounded-lg bg-card p-3 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
-                  {copy.thinking}
+                  {copy.streamStages[streamStage] ?? copy.thinking}
                   {loadingSeconds > 0 ? ` ${loadingSeconds}s` : ""}
                 </div>
               )}
@@ -742,14 +904,22 @@ export function AiTeacherChatPanel({
               ref={inputRef}
               value={input}
             />
-            <Button className="w-full" disabled={isLoading || !input.trim()}>
-              {isLoading ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
+            {isLoading ? (
+              <Button
+                className="w-full"
+                onClick={cancelActiveRequest}
+                type="button"
+                variant="outline"
+              >
+                <Square className="size-3 fill-current" />
+                {copy.cancel}
+              </Button>
+            ) : (
+              <Button className="w-full" disabled={!input.trim()}>
                 <Send className="size-4" />
-              )}
-              {copy.askTeacher}
-            </Button>
+                {copy.askTeacher}
+              </Button>
+            )}
           </form>
         </CardContent>
       </Card>

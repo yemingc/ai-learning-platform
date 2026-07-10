@@ -1,3 +1,5 @@
+import "server-only";
+
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -11,9 +13,12 @@ import {
 import type {
   ConceptMemory,
   LearnerMemory,
+  RecordFormativeAssessmentInput,
   RecordTeacherInteractionInput,
   TeacherInteractionMemory,
 } from "@/features/memory/types";
+import type { FormativeAssessmentAttempt } from "@/features/assessment/types";
+import { createLearnerMemorySnapshot } from "@/features/memory/learner-memory-snapshot";
 
 type LearnerMemoryRow = {
   id: string;
@@ -70,7 +75,7 @@ function createEmptyMemory(
 }
 
 function createConceptMemory(
-  input: RecordTeacherInteractionInput,
+  input: Pick<RecordTeacherInteractionInput, "conceptId" | "conceptTitle">,
 ): ConceptMemory {
   return {
     conceptId: input.conceptId,
@@ -82,15 +87,81 @@ function createConceptMemory(
     confusionSignals: [],
     memorySignalHistory: [],
     recentInteractions: [],
+    assessmentAttempts: [],
   };
 }
 
 function parseConceptMemory(row: LearnerMemoryRow) {
   try {
-    return JSON.parse(row.payload_json) as ConceptMemory;
+    const parsed = JSON.parse(row.payload_json) as ConceptMemory;
+    const normalized: ConceptMemory = {
+      ...parsed,
+      assessmentAttempts: Array.isArray(parsed.assessmentAttempts)
+        ? parsed.assessmentAttempts
+        : [],
+      confusionSignals: Array.isArray(parsed.confusionSignals)
+        ? parsed.confusionSignals
+        : [],
+      memorySignalHistory: Array.isArray(parsed.memorySignalHistory)
+        ? parsed.memorySignalHistory
+        : [],
+      misconceptions: Array.isArray(parsed.misconceptions)
+        ? parsed.misconceptions
+        : [],
+      recentInteractions: Array.isArray(parsed.recentInteractions)
+        ? parsed.recentInteractions
+        : [],
+    };
+    const readiness = calculateReadiness(normalized);
+
+    return {
+      ...normalized,
+      readiness,
+      status: getConceptMemoryStatus(readiness),
+    };
   } catch {
     return undefined;
   }
+}
+
+function persistConceptMemory({
+  conceptMemory,
+  courseId,
+  existingRow,
+  learnerId,
+  now,
+}: {
+  conceptMemory: ConceptMemory;
+  courseId: CourseId;
+  existingRow?: LearnerMemoryRow;
+  learnerId: string;
+  now: string;
+}) {
+  db.prepare(
+    `
+      INSERT INTO learner_memories (
+        id,
+        learner_id,
+        course_id,
+        concept_id,
+        payload_json,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(learner_id, course_id, concept_id) DO UPDATE SET
+        payload_json = excluded.payload_json,
+        updated_at = excluded.updated_at
+    `,
+  ).run(
+    existingRow?.id ?? randomUUID(),
+    learnerId,
+    courseId,
+    conceptMemory.conceptId,
+    JSON.stringify(conceptMemory),
+    existingRow?.created_at ?? now,
+    now,
+  );
 }
 
 export function getLearnerMemory(
@@ -142,6 +213,19 @@ export function getLearnerMemory(
     createdAt,
     updatedAt,
   };
+}
+
+export function getLearnerMemorySnapshot(
+  learnerId: string,
+  courseId: CourseId,
+  conceptId: string,
+) {
+  const memory = getLearnerMemory(learnerId, courseId);
+
+  return createLearnerMemorySnapshot(
+    memory.conceptMemories[conceptId],
+    conceptId,
+  );
 }
 
 export function resetLearnerMemory(
@@ -275,31 +359,77 @@ export function recordTeacherInteractionInDb(
     status: getConceptMemoryStatus(readiness),
   };
 
-  db.prepare(
-    `
-      INSERT INTO learner_memories (
-        id,
-        learner_id,
-        course_id,
-        concept_id,
-        payload_json,
-        created_at,
-        updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(learner_id, course_id, concept_id) DO UPDATE SET
-        payload_json = excluded.payload_json,
-        updated_at = excluded.updated_at
-    `,
-  ).run(
-    existingRow?.id ?? randomUUID(),
-    input.learnerId,
-    input.courseId,
-    input.conceptId,
-    JSON.stringify(nextConceptMemory),
-    existingRow?.created_at ?? now,
+  persistConceptMemory({
+    conceptMemory: nextConceptMemory,
+    courseId: input.courseId,
+    existingRow,
+    learnerId: input.learnerId,
     now,
-  );
+  });
 
   return nextConceptMemory;
+}
+
+export function recordFormativeAssessmentInDb(
+  input: RecordFormativeAssessmentInput,
+) {
+  const now = new Date().toISOString();
+  const existingRow = db
+    .prepare(
+      `
+        SELECT *
+        FROM learner_memories
+        WHERE learner_id = ? AND course_id = ? AND concept_id = ?
+      `,
+    )
+    .get(input.learnerId, input.courseId, input.conceptId) as
+    | LearnerMemoryRow
+    | undefined;
+  const existingConceptMemory =
+    (existingRow ? parseConceptMemory(existingRow) : undefined) ??
+    createConceptMemory(input);
+  const attempt: FormativeAssessmentAttempt = {
+    id: createId("assessment"),
+    assessmentId: input.assessmentId,
+    assessmentVersion: input.assessmentVersion,
+    conceptId: input.conceptId,
+    phase: input.phase,
+    score: input.score,
+    correctCount: input.correctCount,
+    questionCount: input.questionCount,
+    itemResults: input.feedback.map((item) => ({
+      questionId: item.questionId,
+      selectedOptionId: item.selectedOptionId,
+      isCorrect: item.isCorrect,
+    })),
+    submittedAt: now,
+  };
+  const nextConceptMemoryBase: ConceptMemory = {
+    ...existingConceptMemory,
+    conceptTitle: input.conceptTitle,
+    lastStudiedAt: now,
+    assessmentAttempts: [
+      attempt,
+      ...(existingConceptMemory.assessmentAttempts ?? []),
+    ].slice(0, 12),
+  };
+  const readiness = calculateReadiness(nextConceptMemoryBase);
+  const nextConceptMemory: ConceptMemory = {
+    ...nextConceptMemoryBase,
+    readiness,
+    status: getConceptMemoryStatus(readiness),
+  };
+
+  persistConceptMemory({
+    conceptMemory: nextConceptMemory,
+    courseId: input.courseId,
+    existingRow,
+    learnerId: input.learnerId,
+    now,
+  });
+
+  return {
+    attempt,
+    conceptMemory: nextConceptMemory,
+  };
 }

@@ -1,7 +1,14 @@
 ﻿const baseUrl = process.env.TEST_BASE_URL ?? "http://localhost:3000";
 
 async function main() {
-  const response = await fetch(`${baseUrl}/api/developer/retrieval-check`);
+  const secret = process.env.EMBEDDING_INDEX_SECRET?.trim();
+  const response = await fetch(`${baseUrl}/api/developer/retrieval-check`, {
+    headers: secret
+      ? {
+          authorization: `Bearer ${secret}`,
+        }
+      : undefined,
+  });
 
   if (!response.ok) {
     throw new Error(`RAG retrieval check failed with status ${response.status}.`);

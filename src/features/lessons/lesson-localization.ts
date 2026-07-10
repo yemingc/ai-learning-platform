@@ -1,7 +1,9 @@
 ﻿import type { Language } from "@/components/i18n/language-provider";
 import type { LessonContent } from "@/features/lessons/types";
+import { unit1ExtensionZhLessons } from "@/curricula/ap-calculus-ab/unit-1-extension-lesson-localization";
 
 const zhLessons: Record<string, Partial<LessonContent>> = {
+  ...unit1ExtensionZhLessons,
   "what-is-a-limit": {
     conceptId: "what-is-a-limit",
     title: "什么是极限（limit）？",

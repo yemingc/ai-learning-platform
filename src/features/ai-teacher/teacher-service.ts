@@ -8,12 +8,18 @@ import {
 } from "@/lib/deepseek";
 import type { Concept } from "@/features/knowledge/types";
 import type { LessonContent } from "@/features/lessons/types";
-import type { TeacherIntent } from "@/features/ai-teacher/teacher-runtime-types";
+import type {
+  LearnerMemorySnapshot,
+  TeacherIntent,
+  TeacherModelTelemetry,
+} from "@/features/ai-teacher/workflow/types";
 import type { AssembledCurriculumContext } from "@/features/rag/curriculum-context";
 import {
   buildTeacherSystemPrompt,
   buildTeacherUserPrompt,
+  TEACHER_PROMPT_VERSION,
 } from "@/features/ai-teacher/teacher-prompts";
+import { extractJsonStringProgress } from "@/features/ai-teacher/teacher-streaming";
 import {
   teacherChatResponseSchema,
   type TeacherChatErrorCode,
@@ -35,11 +41,23 @@ type GenerateTeacherResponseInput = {
   intent?: TeacherIntent;
   teachingMoveHint?: TeachingMove;
   curriculumContext?: AssembledCurriculumContext;
+  learnerMemorySnapshot?: LearnerMemorySnapshot;
+};
+
+export type GeneratedTeacherResponse = {
+  teacherResponse: TeacherChatResponse;
+  modelTelemetry: TeacherModelTelemetry;
+};
+
+export type GenerateTeacherResponseOptions = {
+  signal?: AbortSignal;
+  onAssistantMessageDelta?: (delta: string) => void;
 };
 
 const errorMessages: Record<TeacherChatErrorCode, string> = {
   missing_api_key:
     "DeepSeek API key is missing. Please set DEEPSEEK_API_KEY and try again.",
+  request_cancelled: "AI Teacher response was cancelled.",
   api_timeout:
     "DeepSeek response timed out after 3 minutes. Please try again with a shorter question.",
   api_error:
@@ -388,9 +406,31 @@ export function getTeacherChatErrorMessage(code: TeacherChatErrorCode) {
   return errorMessages[code];
 }
 
+function parseValidatedTeacherResponse(
+  content: string,
+  locale: "en" | "zh",
+) {
+  try {
+    return teacherChatResponseSchema.parse(
+      normalizeTeacherResponse(parseJsonObject(content), locale),
+    );
+  } catch (error) {
+    if (error instanceof TeacherChatServiceError) {
+      throw error;
+    }
+
+    if (error instanceof ZodError) {
+      throw new TeacherChatServiceError("schema_validation_failed");
+    }
+
+    throw error;
+  }
+}
+
 export async function generateTeacherResponse(
   input: GenerateTeacherResponseInput,
-): Promise<TeacherChatResponse> {
+  options: GenerateTeacherResponseOptions = {},
+): Promise<GeneratedTeacherResponse> {
   const client = getDeepSeekClient();
 
   if (!client) {
@@ -398,24 +438,129 @@ export async function generateTeacherResponse(
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
+  let didTimeout = false;
+  const handleExternalAbort = () => controller.abort(options.signal?.reason);
+  const timeoutId = setTimeout(() => {
+    didTimeout = true;
+    controller.abort(new Error("DeepSeek request timed out."));
+  }, DEEPSEEK_TIMEOUT_MS);
+  const startedAt = Date.now();
+
+  if (options.signal?.aborted) {
+    handleExternalAbort();
+  } else {
+    options.signal?.addEventListener("abort", handleExternalAbort, {
+      once: true,
+    });
+  }
 
   try {
+    const messages = [
+      {
+        role: "system" as const,
+        content: buildTeacherSystemPrompt(input.locale),
+      },
+      {
+        role: "user" as const,
+        content: buildTeacherUserPrompt(input),
+      },
+    ];
+
+    if (options.onAssistantMessageDelta) {
+      const stream = await client.chat.completions.create(
+        {
+          model: DEEPSEEK_MODEL,
+          response_format: { type: "json_object" },
+          temperature: 0.35,
+          messages,
+          stream: true,
+          stream_options: { include_usage: true },
+        },
+        {
+          signal: controller.signal,
+          timeout: DEEPSEEK_TIMEOUT_MS,
+          maxRetries: 0,
+        },
+      );
+      let content = "";
+      let visibleAssistantMessage = "";
+      let firstTokenDurationMs: number | undefined;
+      let finishReason: string | undefined;
+      let model = DEEPSEEK_MODEL;
+      let usage:
+        | {
+            completion_tokens?: number;
+            prompt_tokens?: number;
+            total_tokens?: number;
+          }
+        | undefined;
+
+      for await (const chunk of stream) {
+        model = chunk.model || model;
+
+        if (chunk.usage) {
+          usage = chunk.usage;
+        }
+
+        const choice = chunk.choices[0];
+
+        if (choice?.finish_reason) {
+          finishReason = choice.finish_reason;
+        }
+
+        const contentDelta = choice?.delta?.content;
+
+        if (!contentDelta) {
+          continue;
+        }
+
+        content += contentDelta;
+        const progress = extractJsonStringProgress(
+          content,
+          "assistantMessage",
+        );
+
+        if (
+          progress &&
+          progress.value.startsWith(visibleAssistantMessage) &&
+          progress.value.length > visibleAssistantMessage.length
+        ) {
+          const visibleDelta = progress.value.slice(
+            visibleAssistantMessage.length,
+          );
+
+          firstTokenDurationMs ??= Date.now() - startedAt;
+          visibleAssistantMessage = progress.value;
+          options.onAssistantMessageDelta(visibleDelta);
+        }
+      }
+
+      if (!content.trim()) {
+        throw new TeacherChatServiceError("empty_response");
+      }
+
+      return {
+        modelTelemetry: {
+          completionTokens: usage?.completion_tokens,
+          durationMs: Date.now() - startedAt,
+          finishReason,
+          firstTokenDurationMs,
+          model,
+          promptTokens: usage?.prompt_tokens,
+          promptVersion: TEACHER_PROMPT_VERSION,
+          provider: "deepseek",
+          totalTokens: usage?.total_tokens,
+        },
+        teacherResponse: parseValidatedTeacherResponse(content, input.locale),
+      };
+    }
+
     const completion = await client.chat.completions.create(
       {
         model: DEEPSEEK_MODEL,
         response_format: { type: "json_object" },
         temperature: 0.35,
-        messages: [
-          {
-            role: "system",
-            content: buildTeacherSystemPrompt(input.locale),
-          },
-          {
-            role: "user",
-            content: buildTeacherUserPrompt(input),
-          },
-        ],
+        messages,
       },
       {
         signal: controller.signal,
@@ -430,27 +575,29 @@ export async function generateTeacherResponse(
       throw new TeacherChatServiceError("empty_response");
     }
 
-    try {
-      return teacherChatResponseSchema.parse(
-        normalizeTeacherResponse(parseJsonObject(content), input.locale),
-      );
-    } catch (error) {
-      if (error instanceof TeacherChatServiceError) {
-        throw error;
-      }
-
-      if (error instanceof ZodError) {
-        throw new TeacherChatServiceError("schema_validation_failed");
-      }
-
-      throw error;
-    }
+    return {
+      modelTelemetry: {
+        completionTokens: completion.usage?.completion_tokens,
+        durationMs: Date.now() - startedAt,
+        finishReason: completion.choices[0]?.finish_reason ?? undefined,
+        model: completion.model || DEEPSEEK_MODEL,
+        promptTokens: completion.usage?.prompt_tokens,
+        promptVersion: TEACHER_PROMPT_VERSION,
+        provider: "deepseek",
+        totalTokens: completion.usage?.total_tokens,
+      },
+      teacherResponse: parseValidatedTeacherResponse(content, input.locale),
+    };
   } catch (error) {
     if (error instanceof TeacherChatServiceError) {
       throw error;
     }
 
-    if (controller.signal.aborted) {
+    if (options.signal?.aborted) {
+      throw new TeacherChatServiceError("request_cancelled");
+    }
+
+    if (didTimeout) {
       throw new TeacherChatServiceError("api_timeout");
     }
 
@@ -463,5 +610,6 @@ export async function generateTeacherResponse(
     throw new TeacherChatServiceError("api_error");
   } finally {
     clearTimeout(timeoutId);
+    options.signal?.removeEventListener("abort", handleExternalAbort);
   }
 }

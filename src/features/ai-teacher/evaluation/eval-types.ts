@@ -5,6 +5,7 @@ import type {
 } from "@/features/ai-teacher/types";
 import type {
   TeacherIntent,
+  TeacherModelTelemetry,
   TeacherWorkflowNode,
 } from "@/features/ai-teacher/workflow/types";
 import type { ConceptId, CourseId } from "@/features/knowledge/types";
@@ -45,6 +46,7 @@ export type TeacherEvaluationResult = {
   durationMs?: number;
   error?: string;
   workflowEngine?: string;
+  modelTelemetry?: TeacherModelTelemetry;
 };
 
 export type TeacherEvaluationSummary = {

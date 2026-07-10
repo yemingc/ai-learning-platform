@@ -10,6 +10,7 @@ import type {
   AssembledCurriculumContext,
   CurriculumCitation,
 } from "@/features/rag/curriculum-context";
+import type { ConceptMemoryStatus } from "@/features/memory/types";
 
 export type TeacherIntent =
   | "confusion"
@@ -39,12 +40,32 @@ export type TeacherWorkflowTraceEvent = {
   createdAt: string;
 };
 
+export type TeacherModelTelemetry = {
+  provider: "deepseek";
+  model: string;
+  promptVersion: string;
+  durationMs: number;
+  firstTokenDurationMs?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  finishReason?: string;
+};
+
 export type LearnerMemorySnapshot = {
-  source: "client_local_demo" | "server_persistent" | "not_available";
+  source: "server_persistent" | "not_available";
   conceptId?: string;
   readiness?: number;
+  status?: ConceptMemoryStatus;
+  interactionCount?: number;
   recentMisconceptions?: string[];
   recentConfusionSections?: string[];
+  latestSuggestedStudyAction?: TeacherMemorySignals["suggestedStudyAction"];
+  latestEvidenceNote?: string;
+  diagnosticScore?: number;
+  exitTicketScore?: number;
+  learningGain?: number;
+  assessmentEvidenceLevel?: "none" | "diagnostic" | "pre_post";
 };
 
 export type LearnerMemoryPatch = {
@@ -72,6 +93,11 @@ export type TeacherWorkflowInput = {
   learnerMemorySnapshot?: LearnerMemorySnapshot;
 };
 
+export type TeacherWorkflowRuntimeOptions = {
+  signal?: AbortSignal;
+  onAssistantMessageDelta?: (delta: string) => void;
+};
+
 export type TeacherWorkflowContext = {
   concept: Concept;
   lesson: LessonContent;
@@ -87,6 +113,7 @@ export type TeacherWorkflowState = {
   curriculumContext?: AssembledCurriculumContext;
   citations?: CurriculumCitation[];
   teacherResponse?: TeacherChatResponse;
+  modelTelemetry?: TeacherModelTelemetry;
   memorySignals?: TeacherMemorySignals;
   memoryPatch?: LearnerMemoryPatch;
   nextStudyAction?: NextStudyActionHint;
@@ -96,6 +123,7 @@ export type TeacherWorkflowState = {
 
 export type TeacherWorkflowResult = {
   teacherResponse: TeacherChatResponse;
+  modelTelemetry: TeacherModelTelemetry;
   memorySignals: TeacherMemorySignals;
   memoryPatch: LearnerMemoryPatch;
   nextStudyAction: NextStudyActionHint;

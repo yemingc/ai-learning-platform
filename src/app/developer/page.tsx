@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  Activity,
   ArrowRight,
   Beaker,
   BookOpenText,
@@ -33,6 +34,13 @@ type DeveloperPageProps = {
 };
 
 const developerTools = [
+  {
+    description:
+      "Inspect model tokens, latency, prompt versions, retrieval modes, success rates, and rolling usage limits without storing raw learner messages.",
+    href: "/developer/ai-runs",
+    icon: Activity,
+    title: "AI Run Observability",
+  },
   {
     description:
       "Inspect recent LangGraph traces, teaching strategies, learning signals, and memory patches.",

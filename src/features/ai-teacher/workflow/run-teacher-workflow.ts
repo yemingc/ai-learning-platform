@@ -6,6 +6,7 @@ import { runTypeScriptTeacherWorkflow } from "@/features/ai-teacher/workflow/typ
 import type {
   TeacherWorkflowInput,
   TeacherWorkflowResult,
+  TeacherWorkflowRuntimeOptions,
 } from "@/features/ai-teacher/workflow/types";
 
 export type TeacherWorkflowEngine = "langgraph" | "typescript";
@@ -18,16 +19,35 @@ export function getTeacherWorkflowEngine(): TeacherWorkflowEngine {
 
 export async function runTeacherWorkflow(
   input: TeacherWorkflowInput,
+  runtimeOptions: TeacherWorkflowRuntimeOptions = {},
 ): Promise<TeacherWorkflowResult> {
+  let hasStreamedAssistantContent = false;
+  const effectiveRuntimeOptions: TeacherWorkflowRuntimeOptions = {
+    ...runtimeOptions,
+    onAssistantMessageDelta: runtimeOptions.onAssistantMessageDelta
+      ? (delta) => {
+          hasStreamedAssistantContent = true;
+          runtimeOptions.onAssistantMessageDelta?.(delta);
+        }
+      : undefined,
+  };
+
   if (getTeacherWorkflowEngine() === "typescript") {
-    return runTypeScriptTeacherWorkflow(input);
+    return runTypeScriptTeacherWorkflow(input, effectiveRuntimeOptions);
   }
 
   try {
-    return await runLangGraphTeacherWorkflow(input);
+    return await runLangGraphTeacherWorkflow(input, effectiveRuntimeOptions);
   } catch (error) {
     if (error instanceof TeacherChatServiceError) {
       throw error;
+    }
+
+    if (hasStreamedAssistantContent) {
+      throw new TeacherChatServiceError(
+        "api_error",
+        "AI Teacher workflow failed after response streaming began.",
+      );
     }
 
     console.warn(
@@ -35,6 +55,6 @@ export async function runTeacherWorkflow(
       error,
     );
 
-    return runTypeScriptTeacherWorkflow(input);
+    return runTypeScriptTeacherWorkflow(input, effectiveRuntimeOptions);
   }
 }

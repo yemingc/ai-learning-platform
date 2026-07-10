@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --experimental-strip-types tests/teacher-policy.test.ts tests/learner-memory-snapshot.test.ts tests/workflow-trace-evaluation.test.ts tests/lesson-visualizations.test.ts tests/curriculum-integrity.test.ts tests/ai-usage-policy.test.ts tests/teacher-streaming.test.ts tests/formative-assessment.test.ts",
     "test:auth": "node scripts/auth-regression.mjs",
     "test:rag": "node scripts/rag-retrieval-check.mjs",
     "embeddings:build": "node scripts/build-embeddings.mjs"

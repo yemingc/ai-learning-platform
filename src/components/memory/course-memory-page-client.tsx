@@ -221,7 +221,7 @@ export function CourseMemoryPageClient({
             <Badge className="w-fit" variant="outline">
               {pageCopy.source}
             </Badge>
-            <CardTitle>{memory?.source ?? "local_demo"}</CardTitle>
+            <CardTitle>{memory?.source ?? "loading"}</CardTitle>
             <CardDescription>
               {pageCopy.updated}: {formatDate(memory?.updatedAt, language)}
             </CardDescription>

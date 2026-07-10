@@ -3,7 +3,7 @@ import { getCurriculumPacks } from "@/curricula";
 import type { LessonSectionType } from "@/features/lessons/types";
 import { getRetrievalMode, searchCurriculumWithMode } from "@/features/rag/retrieval-service";
 import type { CurriculumRetrievalLocale } from "@/features/rag/retrieval-types";
-import { isDeveloperToolsEnabled } from "@/lib/developer-mode";
+import { hasDeveloperApiAccess } from "@/lib/developer-api-access";
 
 export const dynamic = "force-dynamic";
 
@@ -18,20 +18,6 @@ const sectionTypes: LessonSectionType[] = [
   "try_applying_it",
   "key_takeaways",
 ];
-
-function isAuthorized(request: Request) {
-  if (!isDeveloperToolsEnabled()) {
-    return false;
-  }
-
-  const secret = process.env.EMBEDDING_INDEX_SECRET;
-
-  if (secret) {
-    return request.headers.get("authorization") === `Bearer ${secret}`;
-  }
-
-  return process.env.NODE_ENV !== "production";
-}
 
 function getRetrievalLocale(value: string | null): CurriculumRetrievalLocale {
   if (value === "en" || value === "zh" || value === "all") {
@@ -48,7 +34,7 @@ function getSectionType(value: string | null) {
 }
 
 export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!(await hasDeveloperApiAccess(request))) {
     return NextResponse.json(
       {
         error: "Developer retrieval preview API is disabled.",
@@ -82,4 +68,3 @@ export async function GET(request: Request) {
     preview,
   });
 }
-

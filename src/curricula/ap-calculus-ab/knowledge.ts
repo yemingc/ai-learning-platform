@@ -6,6 +6,11 @@ import type {
   Topic,
   Unit,
 } from "@/features/knowledge/types";
+import {
+  apCalculusABUnit1ExtensionConcepts,
+  apCalculusABUnit1ExtensionDependencies,
+  apCalculusABUnit1ExtensionTopics,
+} from "@/curricula/ap-calculus-ab/unit-1-extension-knowledge";
 
 export const AP_CALCULUS_AB_COURSE_ID = "ap-calculus-ab";
 export const AP_CALCULUS_AB_UNIT_1_ID =
@@ -49,18 +54,19 @@ export const apCalculusABUnit1Topics: Topic[] = [
       "Reasoning about one-sided approaches and limits that grow without bound.",
     conceptIds: ["one-sided-limits", "infinite-limits"],
   },
+  ...apCalculusABUnit1ExtensionTopics,
 ];
 
 export const apCalculusABUnit1: Unit = {
   id: AP_CALCULUS_AB_UNIT_1_ID,
   courseId: AP_CALCULUS_AB_COURSE_ID,
   sequence: 1,
-  title: "Limits and Continuity",
+  title: "Limits and Continuity (Unit 1)",
   description:
-    "Unit 1 introduces the language and representations students use to describe function behavior near an input.",
+    "A concept-first Unit 1 sequence covering limit representations, directional and unbounded behavior, limit laws, bounding arguments, continuity, existence theorems, and end behavior.",
   topicIds: apCalculusABUnit1Topics.map((topic) => topic.id),
   conceptIds: apCalculusABUnit1Topics.flatMap((topic) => topic.conceptIds),
-  estimatedMinutes: 92,
+  estimatedMinutes: 204,
 };
 
 export const apCalculusABUnit1Concepts: Concept[] = [
@@ -357,6 +363,7 @@ export const apCalculusABUnit1Concepts: Concept[] = [
     difficulty: "advanced",
     estimatedMinutes: 18,
   },
+  ...apCalculusABUnit1ExtensionConcepts,
 ];
 
 export const apCalculusABUnit1ConceptDependencies: ConceptDependency[] = [
@@ -400,6 +407,7 @@ export const apCalculusABUnit1ConceptDependencies: ConceptDependency[] = [
     rationale:
       "Infinite limits often require directional analysis because each side of a vertical asymptote can behave differently.",
   },
+  ...apCalculusABUnit1ExtensionDependencies,
 ];
 
 export const apCalculusABKnowledgeGraph: KnowledgeGraph = {

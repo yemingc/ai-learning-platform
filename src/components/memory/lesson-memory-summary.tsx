@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Brain, Clock, Sparkles, TriangleAlert } from "lucide-react";
+import {
+  Brain,
+  ClipboardCheck,
+  Clock,
+  Sparkles,
+  TrendingUp,
+  TriangleAlert,
+} from "lucide-react";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -19,6 +26,7 @@ import {
   MEMORY_UPDATED_EVENT,
 } from "@/features/memory/memory-api-client";
 import type { ConceptMemory } from "@/features/memory/types";
+import { getFormativeAssessmentProgress } from "@/features/assessment/assessment-progress";
 
 type LessonMemorySummaryProps = {
   concept: Concept;
@@ -46,7 +54,7 @@ const copy = {
     loadError: "Unable to load learning progress.",
     login: "Log in to save learning progress for this concept.",
     askTeacher: (title: string) =>
-      `Ask the AI Teacher once and this account will start tracking learning signals for ${title}.`,
+      `Complete the diagnostic or ask the AI Teacher to start tracking evidence for ${title}.`,
     accountProgress: "Account learning progress",
     readiness: (value: number) => `${value}% readiness estimate`,
     stored: "Stored securely for the current signed-in account.",
@@ -54,6 +62,9 @@ const copy = {
     misconceptions: "Misconceptions",
     lastStudied: "Last studied",
     notYet: "Not yet",
+    assessments: "Diagnostic / exit",
+    gain: "Learning gain",
+    points: (value: number) => `${value > 0 ? "+" : ""}${value} pts`,
   },
   zh: {
     progress: "学习进度",
@@ -61,7 +72,7 @@ const copy = {
     loadError: "无法加载学习进度。",
     login: "登录后可以保存这个概念的学习进度。",
     askTeacher: (title: string) =>
-      `和 AI 教师互动一次后，这个账号就会开始记录「${title}」的学习信号。`,
+      `完成课前诊断或与 AI 教师互动后，这个账号就会开始记录「${title}」的学习证据。`,
     accountProgress: "当前账号学习进度",
     readiness: (value: number) => `${value}% 应用准备度估计`,
     stored: "记录会绑定到当前登录账号。",
@@ -69,6 +80,9 @@ const copy = {
     misconceptions: "误区",
     lastStudied: "上次学习",
     notYet: "还没有",
+    assessments: "诊断 / 离堂",
+    gain: "学习增量",
+    points: (value: number) => `${value > 0 ? "+" : ""}${value} 分`,
   },
 };
 
@@ -81,6 +95,9 @@ export function LessonMemorySummary({ concept }: LessonMemorySummaryProps) {
   const [memoryError, setMemoryError] = useState<string | undefined>();
   const displayConcept = getLocalizedConcept(concept, language);
   const pageCopy = copy[language];
+  const assessmentProgress = getFormativeAssessmentProgress(
+    conceptMemory?.assessmentAttempts,
+  );
 
   useEffect(() => {
     async function syncMemory() {
@@ -149,7 +166,7 @@ export function LessonMemorySummary({ concept }: LessonMemorySummaryProps) {
         </CardTitle>
         <CardDescription>{pageCopy.stored}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-3">
+      <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-lg border border-border bg-background/70 p-3">
           <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
             <Sparkles className="size-3.5" />
@@ -179,6 +196,32 @@ export function LessonMemorySummary({ concept }: LessonMemorySummaryProps) {
                   language === "zh" ? "zh-CN" : undefined,
                 )
               : pageCopy.notYet}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-background/70 p-3">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+            <ClipboardCheck className="size-3.5" />
+            {pageCopy.assessments}
+          </p>
+          <p className="mt-2 text-sm font-semibold">
+            {assessmentProgress.diagnosticScore === undefined
+              ? "—"
+              : `${assessmentProgress.diagnosticScore}%`}{" "}
+            /{" "}
+            {assessmentProgress.exitTicketScore === undefined
+              ? "—"
+              : `${assessmentProgress.exitTicketScore}%`}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-background/70 p-3">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+            <TrendingUp className="size-3.5" />
+            {pageCopy.gain}
+          </p>
+          <p className="mt-2 text-sm font-semibold">
+            {assessmentProgress.learningGain === undefined
+              ? "—"
+              : pageCopy.points(assessmentProgress.learningGain)}
           </p>
         </div>
       </CardContent>

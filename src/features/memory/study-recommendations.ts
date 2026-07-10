@@ -1,5 +1,6 @@
 ﻿import type { Concept } from "@/features/knowledge/types";
 import type { ConceptMemory } from "@/features/memory/types";
+import { getFormativeAssessmentProgress } from "@/features/assessment/assessment-progress";
 
 export type StudyAction =
   | "start_lesson"
@@ -82,6 +83,30 @@ function getApplicationGate(
       reason: isZh
         ? "先修复当前误区信号，再进入应用练习。"
         : "Resolve active misconception signals before application.",
+    };
+  }
+
+  const assessmentProgress = getFormativeAssessmentProgress(
+    memory.assessmentAttempts,
+  );
+
+  if (assessmentProgress.exitTicketScore === undefined) {
+    return {
+      status: "not_ready" as const,
+      label: isZh ? "等待离堂证据" : "Exit evidence needed",
+      reason: isZh
+        ? "完成离堂检查后，系统才会开放应用准备度判断。"
+        : "Complete the exit ticket before the system certifies application readiness.",
+    };
+  }
+
+  if (assessmentProgress.exitTicketScore < 50) {
+    return {
+      status: "not_ready" as const,
+      label: isZh ? "先修复核心理解" : "Core idea needs repair",
+      reason: isZh
+        ? "离堂检查显示关键概念还没有稳定迁移。"
+        : "Exit-ticket evidence shows that the key idea is not transferring yet.",
     };
   }
 
@@ -188,6 +213,9 @@ export function getStudyRecommendation({
   }
 
   const latestMemorySignal = conceptMemory.memorySignalHistory?.[0];
+  const assessmentProgress = getFormativeAssessmentProgress(
+    conceptMemory.assessmentAttempts,
+  );
   if (
     latestMemorySignal?.suggestedStudyAction === "review_confusing_section" ||
     latestMemorySignal?.confusionLevel === "high"
@@ -251,6 +279,44 @@ export function getStudyRecommendation({
       targetConceptId: concept.id,
       applicationGate,
       ctaLabel: isZh ? "回看这一部分" : "Review section",
+    };
+  }
+
+  if (assessmentProgress.exitTicketScore === undefined) {
+    return {
+      action: "needs_reflection",
+      actionLabel: isZh ? "完成离堂检查" : "Complete exit ticket",
+      title: isZh ? "用一份新证据结束本节课" : "Close the lesson with fresh evidence",
+      rationale: isZh
+        ? "课前诊断和 AI 对话可以帮助个性化，但只有离堂检查才能验证关键理解是否已经迁移。"
+        : "Diagnostics and AI conversations personalize support, but the exit ticket verifies whether the key idea now transfers.",
+      suggestedPrompt: isZh
+        ? `在我完成「${concept.title}」的离堂检查前，请用一个问题帮我总结关键理解。`
+        : `Before I complete the ${concept.title} exit ticket, ask one question that helps me summarize the key idea.`,
+      targetSection: sections.reflection,
+      targetSectionId: "takeaways",
+      targetConceptId: concept.id,
+      applicationGate,
+      ctaLabel: isZh ? "打开课程并完成检查" : "Open lesson and complete check",
+    };
+  }
+
+  if (assessmentProgress.exitTicketScore < 50) {
+    return {
+      action: "continue_learning",
+      actionLabel: isZh ? "根据离堂证据重学" : "Repair from exit evidence",
+      title: isZh ? "关键理解还没有稳定迁移" : "The key idea is not transferring yet",
+      rationale: isZh
+        ? `最近一次离堂检查为 ${assessmentProgress.exitTicketScore}%，先换一种表示方式重学，再重新检查。`
+        : `The latest exit ticket is ${assessmentProgress.exitTicketScore}%. Relearn with a different representation before trying again.`,
+      suggestedPrompt: isZh
+        ? `我的「${concept.title}」离堂检查没有通过。请换一种表示方式讲解，并用一个引导问题检查我。`
+        : `My ${concept.title} exit ticket was weak. Teach it with a different representation and check me with one guiding question.`,
+      targetSection: sections.intuition,
+      targetSectionId: "intuition",
+      targetConceptId: concept.id,
+      applicationGate,
+      ctaLabel: isZh ? "重新学习" : "Relearn concept",
     };
   }
 

@@ -7,8 +7,10 @@ app, and not just a generic AI tutor. It is designed around a learning system:
 
 ```text
 Knowledge Graph
+  -> Server-scored Diagnostic
   -> Static Lesson Content
   -> AI Teacher Chat
+  -> Server-scored Exit Ticket
   -> Learner Memory
   -> Study Recommendations
   -> Application Practice Readiness
@@ -41,13 +43,25 @@ before they move into problem solving.
 - Polished landing page explaining the learning-centric product model.
 - Course library page with AP Calculus AB as one selectable course pack.
 - Course learning page that separates course -> unit -> concept navigation.
-- AP Calculus AB Unit 1 concept cards under the Unit 1 learning map.
-- Static lesson pages for five Unit 1 concepts:
+- AP Calculus AB Unit 1 concept cards organized into six dependency-aware topics.
+- Static lesson pages for ten limits-and-continuity concepts:
   - What is a limit?
   - Limit notation
   - Estimating limits from graphs
   - One-sided limits
   - Infinite limits
+  - Evaluating limits with limit laws
+  - The Squeeze Theorem
+  - Continuity at a point
+  - The Intermediate Value Theorem
+  - Limits at infinity and end behavior
+- Every lesson includes a concept-specific accessible SVG representation and
+  numerical evidence with directional controls.
+- Guided questions and misconception checks use progressive disclosure and can
+  send the learner's written reasoning to the AI Teacher for feedback.
+- Every concept includes a bilingual two-item diagnostic and a distinct
+  two-item exit ticket. Answer keys remain server-side; authenticated attempts
+  are persisted as formative evidence rather than course grades.
 - Lesson flow sections:
   - Why this matters
   - Intuition
@@ -71,7 +85,14 @@ before they move into problem solving.
 - Zod validation for request and response contracts.
 - Explicit error messages for missing API keys, API failures, timeouts, invalid
   JSON, and schema validation failures.
-- 3-minute client timeout with loading state.
+- Progressive NDJSON streaming backed by DeepSeek token streaming while the
+  final structured response remains schema-validated before persistence.
+- Visible preparation, generation, and learning-state finalization stages,
+  with a 3-minute timeout and a user-controlled stop action.
+- Interrupted drafts are labeled in the UI and excluded from subsequent chat
+  context and learner-memory updates.
+- Per-learner burst and rolling daily quotas enforced atomically before model
+  calls, with `429` and `Retry-After` responses when a quota is exceeded.
 - Optional retrieval context for lesson-grounded answers. The workflow retrieves
   only the top curriculum chunks when useful, and the backend filters any
   citation ids returned by the model against the retrieved chunk whitelist.
@@ -86,10 +107,15 @@ before they move into problem solving.
   - confusion signals
   - misconceptions
   - memory signal history
+  - diagnostic and exit-ticket attempts
+  - measured learning gain
 - Student-facing Dashboard navigation split into course selection, unit
   selection, and concept-level progress/recommendations.
 - Study recommendations generated from memory signals rather than raw question
   counts.
+- Readiness combines deterministic assessment evidence with bounded AI Teacher
+  signals. Conversations and a diagnostic alone are capped below `familiar`;
+  an exit ticket is required to certify application readiness.
 - Authenticated memory API with user isolation by `learnerId + courseId`.
 
 ### LangGraph Workflow
@@ -113,6 +139,30 @@ Student Message
 LangGraph is the default workflow engine. A deterministic TypeScript runner is
 kept as a fallback.
 
+### Formative Learning Evidence
+
+The lesson experience closes the learning loop without becoming a question
+bank:
+
+```text
+Diagnostic -> Lesson + AI support -> Exit ticket -> Learning gain
+                                      -> Readiness + recommendation
+                                      -> AI Teacher personalization
+```
+
+- Forty bilingual conceptual items cover all ten Unit 1 concepts: two
+  diagnostic and two exit-ticket items per concept.
+- `GET /api/formative-assessment` returns a minimal public DTO without correct
+  options or explanations.
+- `POST /api/formative-assessment` re-authenticates the learner, validates the
+  course/concept/item/option contract, grades against the server curriculum,
+  and persists the learner's attempt evidence.
+- The AI Teacher memory snapshot receives diagnostic score, exit score,
+  learning gain, and evidence level. Prompt rules treat server-scored evidence
+  as stronger than model-inferred confidence.
+- Application recommendations require exit evidence and block progression when
+  the key idea did not transfer.
+
 ### AI Workflow Inspector
 
 The project includes a developer-facing Workflow Inspector behind Developer
@@ -134,6 +184,8 @@ It shows recent AI Teacher workflow runs, including:
 - memory patch
 - next study action
 - node-by-node workflow trace
+- model, prompt version, token usage, first-token latency, and total model
+  latency for newly captured runs
 
 This is meant to demonstrate AI observability and make the AI layer explainable
 from an engineering/product perspective.
@@ -157,14 +209,29 @@ It runs fixed pedagogical cases that check:
 - guardrails against question-bank or grading language
 - coverage of the graph-ready AI Teacher workflow nodes
 
-This is currently an offline contract and pedagogy evaluation layer. A future
-live evaluation runner can reuse the same case library to call DeepSeek or
-compare multiple models.
+The deterministic runner provides a fast offline contract and pedagogy layer.
 
 The same page also includes **Live Model Evaluation Mode**, which calls the
 real AI Teacher workflow through `/api/teacher-evaluation/live` and scores the
 model response with the same cases. This route is authenticated and intended
 for development or portfolio demos, not for student-facing learning sessions.
+Each live evaluation summary is persisted with aggregate score, pass count,
+duration, workflow engines, and model telemetry.
+
+### Persisted AI Run Observability
+
+Authenticated AI Teacher calls are recorded as privacy-minimized metadata in
+SQLite and exposed behind Developer Mode at:
+
+```text
+/developer/ai-runs
+```
+
+The dashboard reports 24-hour volume, success rate, first-token/total latency, token usage,
+retrieval/fallback behavior, prompt and model versions, recent live evaluation
+summaries, and hashed learner labels. Raw student and assistant messages are
+not stored in the telemetry table. Local retention defaults to 90 days and can
+be configured with `AI_RUN_RETENTION_DAYS`.
 
 ### Curriculum Retrieval Preview
 
@@ -209,6 +276,9 @@ the AI Teacher runtime after retrieval quality is evaluated.
   modes before changing the live teacher workflow.
 - The AI Teacher retrieval node is configurable with `RAG_RETRIEVAL_MODE` and
   falls back to keyword retrieval if embedding or hybrid retrieval fails.
+- Embedding retrieval rejects incomplete, stale-text, or wrong-model records
+  instead of silently searching a partial index; the developer preview reports
+  current/missing/stale coverage and prompts for a rebuild after curriculum changes.
 - Embedding indexing is triggered server-side, so embedding API keys are never
   exposed to the browser.
 - No vector database dependency has been added yet; pgvector, Chroma, or a
@@ -257,6 +327,7 @@ debugging and evaluation story.
 - DeepSeek OpenAI-compatible API
 - LangGraph for workflow orchestration
 - SQLite for authentication and learner memory persistence
+- SQLite for privacy-minimized AI run and live evaluation telemetry
 - SQLite-backed local embedding index for RAG evaluation
 - LocalStorage for developer-only workflow inspection history
 
@@ -274,12 +345,15 @@ debugging and evaluation story.
 | `/dashboard/[courseId]/[unitId]` | Unit-level concept readiness and recommendations |
 | `/memory` | Legacy redirect to `/dashboard` |
 | `/developer` | Developer Mode entry and internal tool launcher |
+| `/developer/ai-runs` | Persisted AI run, usage, latency, and live-evaluation dashboard |
 | `/developer/retrieval-preview` | Retrieval-ready curriculum chunk preview for future RAG |
 | `/dashboard/ai-evaluation` | AI Teacher contract and pedagogy evaluation suite |
 | `/dashboard/workflow-inspector` | AI workflow trace and memory patch inspector |
 | `/api/developer/embedding-index` | Local embedding index status/build endpoint |
+| `/api/developer/ai-runs` | Protected AI run and live-evaluation telemetry API |
 | `/api/developer/retrieval-check` | Deterministic retrieval index health check |
-| `/api/memory` | Authenticated learner memory read/write/reset API |
+| `/api/memory` | Authenticated learner memory read/reset API; writes come from trusted teacher and assessment services |
+| `/api/formative-assessment` | Answer-key-safe assessment reads and authenticated server-scored attempt writes |
 | `/api/teacher-evaluation/live` | Authenticated live AI Teacher evaluation API |
 | `/api/teacher-chat` | Server-side AI Teacher chat API |
 
@@ -289,6 +363,7 @@ debugging and evaluation story.
 src/
   app/
     api/teacher-chat/          Server-side AI Teacher route
+    api/formative-assessment/  Server-scored diagnostic/exit route
     api/memory/                Authenticated learner memory API
     dashboard/                 Student dashboard and developer tools
     learn/                     Course library and lesson pages
@@ -307,6 +382,7 @@ src/
     ap-calculus-ab/            First course implementation
 
   features/
+    assessment/                Bilingual item bank, scoring, and learning gain
     ai-teacher/                AI Teacher schema, prompts, service, workflows
     ai-teacher/evaluation/     Fixed evaluation cases and offline runner
     application/               Application task domain types
@@ -337,6 +413,9 @@ The project defines typed domain models for:
 - LearningPlan
 - LearningPlanStep
 - ApplicationTask
+- FormativeAssessment
+- FormativeAssessmentAttempt
+- FormativeAssessmentProgress
 
 The central entity is `Concept`. Questions and practice tasks are intentionally
 downstream from concept learning.
@@ -399,7 +478,8 @@ The AI Teacher receives:
 - selected text, when available
 - user message
 - recent chat history
-- learner memory placeholder
+- authenticated learner-memory snapshot
+- server-scored diagnostic/exit evidence and learning gain, when available
 
 It must:
 
@@ -477,7 +557,8 @@ NEXT_PUBLIC_SHOW_AI_TRACE=true
 ```
 
 Then restart the server. The Workflow Inspector will collect and display
-workflow runs after AI Teacher conversations.
+workflow runs after AI Teacher conversations. Independently, authenticated
+calls persist privacy-minimized operational metadata for `/developer/ai-runs`.
 
 ## Environment Variables
 
@@ -491,6 +572,10 @@ AUTH_SECRET=change_me_to_a_long_random_secret
 AUTH_TRUST_HOST=true
 
 TEACHER_WORKFLOW_ENGINE=langgraph
+AI_TEACHER_BURST_LIMIT=12
+AI_TEACHER_BURST_WINDOW_SECONDS=600
+AI_TEACHER_DAILY_LIMIT=100
+AI_RUN_RETENTION_DAYS=90
 RAG_RETRIEVAL_MODE=keyword
 NEXT_PUBLIC_SHOW_AI_TRACE=false
 ENABLE_DEVELOPER_TOOLS=true
@@ -539,11 +624,22 @@ Run lint:
 npm run lint
 ```
 
+Run deterministic curriculum, workflow, streaming, retrieval-adjacent, and
+formative-assessment tests:
+
+```bash
+npm test
+```
+
 Run auth regression checks (requires `npm run dev` already running on `http://localhost:3000`):
 
 ```bash
 npm run test:auth
 ```
+
+This regression also verifies the formative-assessment trust boundary,
+server-side grading, diagnostic mastery cap, exit-ticket readiness update,
+attempt readback, and cross-account isolation.
 
 Run the RAG retrieval index check (also requires `npm run dev` already running on `http://localhost:3000`):
 
@@ -574,19 +670,21 @@ npm run start
 
 1. Open `/learn`.
 2. Select `AP Calculus AB`.
-3. Open `Unit 1: Limits and Continuity`.
+3. Open `Limits and Continuity (Unit 1)`.
 4. Select `What is a limit?`.
-5. Read a lesson section.
-6. Use `Ask about this` or select lesson text and ask the AI Teacher.
-7. Ask a misconception-style question, for example:
+5. Log in and complete the two-minute diagnostic.
+6. Read a lesson section.
+7. Use `Ask about this` or select lesson text and ask the AI Teacher.
+8. Ask a misconception-style question, for example:
 
    ```text
    I think the limit is always the same as the function value.
    ```
 
-8. Open `/dashboard`, choose a course, then choose a unit to inspect concept readiness and recommendations.
-9. Open `/dashboard/workflow-inspector` to inspect the AI workflow run.
-10. If prompted, open `/developer` and enable Developer Mode first.
+9. Complete the exit ticket and inspect the learning-gain/readiness update.
+10. Open `/dashboard`, choose a course, then choose a unit to inspect concept evidence and recommendations.
+11. Open `/dashboard/workflow-inspector` to inspect the AI workflow run.
+12. If prompted, open `/developer` and enable Developer Mode first.
 
 ## Auth Flow (Current)
 
@@ -595,7 +693,9 @@ npm run start
 - Auth.js credentials login creates a JWT session with `session.user.id`.
 - Memory is isolated by `learnerId + courseId`, so different accounts do not
   share learner memory.
-- Learner memory is persisted in `data/auth.sqlite` through `/api/memory`.
+- Learner memory is persisted in `data/auth.sqlite`; validated AI Teacher
+  interactions and server-scored formative attempts write it server-side,
+  while `/api/memory` only reads or resets it.
 - The schema keeps `email_verified_at` available for future email verification,
   but the current MVP does not require email ownership verification.
 
@@ -603,7 +703,7 @@ npm run start
 
 The project intentionally does not include:
 
-- quiz grading
+- high-stakes quiz/exam grading
 - review queues
 - full practice question bank
 - AI-generated full lessons
@@ -617,8 +717,9 @@ learning-centric architecture and AI teaching workflow.
 2. Static curriculum for quality and reviewability.
 3. AI as an interactive teacher, not a lesson generator.
 4. Memory as evidence of learning, not just activity tracking.
-5. Practice should happen after readiness, not before understanding.
-6. AI behavior should be observable, structured, and testable.
+5. Deterministic formative evidence outranks AI-inferred confidence.
+6. Practice should happen after readiness, not before understanding.
+7. AI behavior should be observable, structured, and testable.
 
 ## Portfolio Value
 
@@ -634,57 +735,60 @@ go beyond a simple chatbot:
 - fallback workflow engine
 - learner memory extraction
 - account-scoped learner memory persistence
-- AI observability through Workflow Inspector
+- server-authoritative assessment, learning-gain, and readiness gating
+- server-side per-learner usage limits
+- cancellable, progressively rendered structured AI responses
+- AI observability through workflow traces and persisted run telemetry
+- deterministic and live-model evaluation with persisted summaries
 - bilingual learning UX
 
 Potential resume bullet:
 
 ```text
-Built a learning-centric AI education platform for AP Calculus AB using
-Next.js, TypeScript, DeepSeek, Zod, and LangGraph, with static curriculum
-content, an interactive AI Teacher, structured learner memory, and an
-observable teaching workflow inspector.
+Built a learning-centric AI education platform with Next.js, TypeScript,
+DeepSeek, Zod, and LangGraph, featuring grounded curriculum retrieval,
+server-persisted learner memory, schema-validated teaching workflows,
+per-user usage controls, cancellable structured-response streaming,
+server-scored diagnostic-to-exit learning evidence, live/offline evaluations,
+and privacy-minimized model/token/TTFT observability.
 ```
 
 ## Recommended Next Step
 
-Build **RAG Phase 2: Embeddings and Retrieval Quality Evaluation**.
+Build **prompt/model comparison gates with versioned cost budgets**.
 
-The curriculum is now structured into retrieval-ready chunks and can be
-previewed with deterministic search. The next improvement is to add embeddings
-and a vector store, then evaluate retrieval quality before letting the AI
-Teacher cite retrieved chunks in live conversations.
+The learning layer now includes a measurable diagnostic-to-exit evidence loop
+in addition to server-authoritative memory, grounded retrieval, cancellable
+streaming, quotas, persisted live evals, and model telemetry. A future
+engineering step would be to compare prompt/model versions over persisted
+evaluation runs, calculate cost from versioned provider pricing, and block
+prompt releases that regress quality or exceed a configured budget.
 
 ## Roadmap
 
 ### Short Term
 
-- RAG Phase 2: embedding provider and vector store selection
-- Retrieval quality eval cases for lesson citations
-- Persisted eval run history and prompt/model comparison
-- Better memory summaries per concept
-- Application readiness gate
-- More AP Calculus AB Unit 1 lesson polish
+- Larger retrieval and teaching evaluation case libraries
+- Estimated model cost based on versioned provider pricing metadata
 - README screenshots or demo GIFs
 
 ### Medium Term
 
-- Persistent workflow traces
-- Teacher/admin curriculum review tools
-- More AP Calculus AB units
-- Application practice tasks gated by readiness
+- AP Calculus AB Unit 2 derivative foundations
+- Persistent workflow traces and teacher/admin curriculum review tools
+- PostgreSQL/pgvector migration for a multi-instance deployment
 - Email verification or OAuth sign-in if the app moves beyond local demos
 
 ### Long Term
 
 - Adaptive planner using learner memory and concept dependencies
-- LangGraph memory persistence nodes
+- LangGraph checkpointing and bounded conditional tool loops
 - Evaluation dashboard for prompt and model quality
 - Curriculum authoring workflow
 - Deployment-ready observability and analytics
 
 ## Status
 
-This is an active portfolio project. The current version is an MVP that focuses
-on the core learning system, authenticated learner memory, and observable AI
-teaching architecture.
+The current version is a portfolio-ready MVP centered on a complete Unit 1
+learning loop, authenticated evidence-based learner memory, grounded AI
+teaching, and observable/evaluable agent workflows.

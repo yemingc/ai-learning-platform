@@ -7,6 +7,7 @@ import {
   getCurriculumRetrievalChunks,
 } from "@/features/rag/curriculum-retriever";
 import { createEmbeddingProvider } from "@/features/rag/embedding-provider";
+import { getCurriculumEmbeddingTextHash } from "@/features/rag/embedding-indexer";
 import {
   getCurriculumEmbeddingIndexStats,
   getCurriculumEmbeddingRecords,
@@ -85,18 +86,24 @@ export async function searchCurriculumChunksByEmbedding({
 }): Promise<CurriculumRetrievalPreview> {
   const scopedChunks = getScopedChunks({ curricula, query });
   const chunkById = createChunkMap(scopedChunks);
-  const records = getCurriculumEmbeddingRecords(query).filter((record) =>
-    chunkById.has(record.chunkId),
-  );
   const stats = getCurriculumEmbeddingIndexStats();
+  const provider = createEmbeddingProvider();
+  const records = getCurriculumEmbeddingRecords(query).filter((record) => {
+    const chunk = chunkById.get(record.chunkId);
 
-  if (!stats.recordCount || !records.length) {
+    return (
+      Boolean(chunk) &&
+      record.model === provider.model &&
+      record.textHash === getCurriculumEmbeddingTextHash(chunk!)
+    );
+  });
+
+  if (!stats.recordCount || records.length !== scopedChunks.length) {
     throw new Error(
-      "No embedding index is available for this scope. Run npm run embeddings:build first.",
+      `Embedding index is missing or stale for this scope (${records.length}/${scopedChunks.length} current chunks). Run npm run embeddings:build first.`,
     );
   }
 
-  const provider = createEmbeddingProvider();
   const [queryEmbedding] = await provider.embedTexts([query.query]);
 
   if (!queryEmbedding?.length) {
@@ -132,4 +139,3 @@ export async function searchCurriculumChunksByEmbedding({
     totalMatches: scoredResults.length,
   };
 }
-
