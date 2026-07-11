@@ -12,6 +12,11 @@ import {
   Target,
 } from "lucide-react";
 import type { CurriculumPack } from "@/curricula/types";
+import {
+  localizeConcept,
+  localizeCourse,
+  localizeUnit,
+} from "@/curricula/localization";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -22,10 +27,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  getLocalizedCourse,
-  getLocalizedUnit,
-} from "@/features/knowledge/concept-localization";
 import { cn } from "@/lib/utils";
 
 type CourseLearnPageProps = {
@@ -48,7 +49,7 @@ const copy = {
     courseUnits: "Course units",
     selectUnit: "Select a unit learning map",
     layerNote:
-      "This page is intentionally one layer above the concept list, so AP Calculus AB behaves like a replaceable course pack instead of the whole product.",
+      "This page is one layer above the concept list, so every subject remains a replaceable course pack instead of becoming part of the product runtime.",
     unit: "Unit",
     concepts: "concepts",
     min: "min",
@@ -66,40 +67,40 @@ const copy = {
   },
   zh: {
     back: "返回全部课程",
-    badge: "课程包",
-    heading: (title: string) => `${title} 是平台中的一门课程。`,
+    badge: "课程概览",
+    heading: (title: string) => title,
     intro:
-      "选择一个 Unit 进入它的概念图。平台结构保持可复用：课程拥有 Unit，Unit 拥有概念，结构化课程、AI 教师和学习记忆都挂在概念节点上。",
-    unitAvailable: (count: number) => `${count} 个 Unit 可学习`,
-    moreUnits: "之后可以继续添加新的课程模块。",
+      "选择一个单元进入概念图。每个单元包含多个概念，每个概念都配有结构化课程、AI 教师支持和学习记录。",
+    unitAvailable: (count: number) => `${count} 个单元可学习`,
+    moreUnits: "后续将持续补充新的课程单元。",
     structuredLearning: (minutes: number) => `${minutes} 分钟结构化学习`,
     structuredDescription:
-      "先学静态课程，阅读过程中由 AI 教师辅助，准备充分后再进入应用练习。",
-    courseUnits: "课程 Unit",
-    selectUnit: "选择一个 Unit 学习地图",
+      "先学习课程内容，过程中可随时向 AI 教师提问，掌握后再进入应用练习。",
+    courseUnits: "课程单元",
+    selectUnit: "选择学习单元",
     layerNote:
-      "这一页故意放在概念列表上一层，让 AP 微积分 AB（AP Calculus AB）表现为可替换的课程包，而不是整个平台的全部内容。",
-    unit: "Unit",
+      "每个单元都有独立的概念图和学习路径，可以按顺序学习，也可以从需要复习的概念开始。",
+    unit: "单元",
     concepts: "个概念",
     min: "分钟",
     topics: "主题",
     conceptsLabel: "概念",
     minutes: "分钟",
-    conceptsInUnit: "本 Unit 的概念",
-    openUnit: "打开 Unit 概念图",
-    extensible: "可扩展课程位",
-    addUnit: "以后继续添加下一个 Unit",
+    conceptsInUnit: "本单元的概念",
+    openUnit: "打开单元概念图",
+    extensible: "课程扩展",
+    addUnit: "后续课程单元",
     addUnitDescription:
-      "未来课程包可以继续添加更多 Unit，而不用改学习引擎。相同结构也能支持完全不同的学科。",
+      "未来可以继续添加更多课程单元，并沿用同一套学习、练习和复习流程。",
     modelNote:
-      "Course → Unit → Topic → Concept 是稳定领域模型。课程、记忆、AI 教师上下文和应用准备度都挂在概念节点上。",
+      "课程按照“单元 → 主题 → 概念”组织。课程内容、学习记录、AI 教师上下文和应用准备度都与具体概念关联。",
   },
 };
 
 export function CourseLearnPage({ curriculum }: CourseLearnPageProps) {
   const { language } = useLanguage();
   const pageCopy = copy[language];
-  const course = getLocalizedCourse(curriculum.course, language);
+  const course = localizeCourse(curriculum, language);
   const totalMinutes = curriculum.concepts.reduce(
     (sum, concept) => sum + concept.estimatedMinutes,
     0,
@@ -172,7 +173,7 @@ export function CourseLearnPage({ curriculum }: CourseLearnPageProps) {
 
         <div className="grid gap-5 lg:grid-cols-2">
           {curriculum.units.map((unit) => {
-            const displayUnit = getLocalizedUnit(unit, language);
+            const displayUnit = localizeUnit(curriculum, unit, language);
             const unitTopics = curriculum.topics.filter(
               (topic) => topic.unitId === unit.id,
             );
@@ -238,19 +239,7 @@ export function CourseLearnPage({ curriculum }: CourseLearnPageProps) {
                     <div className="mt-3 flex flex-wrap gap-2">
                       {unitConcepts.slice(0, 5).map((concept) => (
                         <Badge key={concept.id} variant="outline">
-                          {language === "zh"
-                            ? concept.id === "what-is-a-limit"
-                              ? "什么是极限（limit）？"
-                              : concept.id === "limit-notation"
-                                ? "极限符号（limit notation）"
-                                : concept.id === "estimating-limits-from-graphs"
-                                  ? "从图像估计极限（estimating limits from graphs）"
-                                  : concept.id === "one-sided-limits"
-                                    ? "单侧极限（one-sided limits）"
-                                    : concept.id === "infinite-limits"
-                                      ? "无穷极限（infinite limits）"
-                                      : concept.title
-                            : concept.title}
+                          {localizeConcept(curriculum, concept, language).title}
                         </Badge>
                       ))}
                     </div>

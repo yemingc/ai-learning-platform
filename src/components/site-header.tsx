@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/learn", label: { en: "Learn", zh: "学习" } },
+  { href: "/plan", label: { en: "Plan", zh: "计划" } },
   { href: "/dashboard", label: { en: "Dashboard", zh: "仪表盘" } },
   { href: "/developer", label: { en: "Developer", zh: "开发者" } },
 ];

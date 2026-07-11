@@ -16,7 +16,7 @@ type LocalizedConcept = Partial<
   learningObjectives?: LocalizedLearningObjective[];
 };
 
-const localizedCourses: Record<string, Partial<Course>> = {
+export const localizedCourses: Record<string, Partial<Course>> = {
   "ap-calculus-ab": {
     title: "AP 微积分 AB（AP Calculus AB）",
     shortTitle: "AP 微积分 AB",
@@ -26,15 +26,15 @@ const localizedCourses: Record<string, Partial<Course>> = {
   },
 };
 
-const localizedUnits: Record<string, Partial<Unit>> = {
+export const localizedUnits: Record<string, Partial<Unit>> = {
   "ap-calculus-ab-unit-1-limits-continuity": {
-    title: "极限与连续性（Limits and Continuity · Unit 1）",
+    title: "第 1 单元：极限与连续性（Limits and Continuity）",
     description:
       "第 1 单元从图像、表格、符号和语言中的极限行为出发，延伸到极限法则、夹逼定理、连续性、介值定理与端行为。",
   },
 };
 
-const localizedTopics: Record<string, Partial<Topic>> = {
+export const localizedTopics: Record<string, Partial<Topic>> = {
   ...unit1ExtensionLocalizedTopics,
   "unit-1-topic-limit-foundations": {
     title: "极限基础（Limit foundations）",
@@ -52,7 +52,7 @@ const localizedTopics: Record<string, Partial<Topic>> = {
   },
 };
 
-const localizedConcepts: Record<string, LocalizedConcept> = {
+export const localizedConcepts: Record<string, LocalizedConcept> = {
   ...unit1ExtensionLocalizedConcepts,
   "what-is-a-limit": {
     title: "什么是极限（limit）？",

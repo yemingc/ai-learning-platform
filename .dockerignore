@@ -1,0 +1,11 @@
+.git
+.github
+.next
+node_modules
+data
+artifacts
+coverage
+.env*
+*.log
+*.tsbuildinfo
+INTERVIEW_PREP.md

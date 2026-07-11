@@ -12,6 +12,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import type { CurriculumPack } from "@/curricula/types";
+import { localizeConcept, localizeCourse } from "@/curricula/localization";
+import { getLessonPath } from "@/curricula/routing";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -22,12 +24,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  getLocalizedConcept,
-  getLocalizedCourse,
-} from "@/features/knowledge/concept-localization";
 import type { Concept } from "@/features/knowledge/types";
 import { fetchLearnerMemory } from "@/features/memory/memory-api-client";
+import { getActiveMisconceptions } from "@/features/memory/misconception-lifecycle";
+import { hasCurrentReviewSignal } from "@/features/memory/current-learning-signals";
 import { getStudyRecommendation } from "@/features/memory/study-recommendations";
 import type { ConceptMemory, LearnerMemory } from "@/features/memory/types";
 import { cn } from "@/lib/utils";
@@ -98,6 +98,7 @@ const copy = {
 
 function getRecommendationHref(
   recommendation: ReturnType<typeof getStudyRecommendation>,
+  concept: Concept,
 ) {
   const params = new URLSearchParams({
     action: recommendation.action,
@@ -107,7 +108,7 @@ function getRecommendationHref(
     source: "dashboard_recommendation",
   });
 
-  return `/learn/${recommendation.targetConceptId}?${params.toString()}`;
+  return `${getLessonPath(concept)}?${params.toString()}`;
 }
 
 function formatDate(value: string | undefined, language: "en" | "zh") {
@@ -177,12 +178,16 @@ export function StudentDashboardSummary({
         const memory = memoriesByCourse[curriculum.course.id];
         const conceptMemories = memory?.conceptMemories ?? {};
         const localizedConcepts = curriculum.concepts.map((concept) =>
-          getLocalizedConcept(concept, language),
+          localizeConcept(curriculum, concept, language),
         );
-        const course = getLocalizedCourse(curriculum.course, language);
+        const course = localizeCourse(curriculum, language);
 
         return curriculum.concepts.map((concept) => {
-          const localizedConcept = getLocalizedConcept(concept, language);
+          const localizedConcept = localizeConcept(
+            curriculum,
+            concept,
+            language,
+          );
           const conceptMemory = conceptMemories[concept.id];
 
           return {
@@ -213,14 +218,12 @@ export function StudentDashboardSummary({
     const readyForApplication = studiedItems.filter(
       (item) =>
         (item.memory?.readiness ?? 0) >= 75 &&
-        (item.memory?.misconceptions.length ?? 0) === 0,
+        getActiveMisconceptions(item.memory?.misconceptions).length === 0,
     ).length;
     const reviewFocusCount = studiedItems.filter(
       (item) =>
-        (item.memory?.misconceptions.length ?? 0) > 0 ||
-        (item.memory?.memorySignalHistory ?? []).some(
-          (signal) => signal.needsReview,
-        ),
+        getActiveMisconceptions(item.memory?.misconceptions).length > 0 ||
+        hasCurrentReviewSignal(item.memory),
     ).length;
     const latestStudy = studiedItems
       .slice()
@@ -231,7 +234,7 @@ export function StudentDashboardSummary({
       )[0];
     const topMisconception = studiedItems
       .flatMap((item) =>
-        (item.memory?.misconceptions ?? []).map((misconception) => ({
+        getActiveMisconceptions(item.memory?.misconceptions).map((misconception) => ({
           ...misconception,
           conceptTitle: item.concept.title,
         })),
@@ -343,7 +346,12 @@ export function StudentDashboardSummary({
             </div>
             {summary.nextAction && (
               <Button asChild variant="outline">
-                <Link href={getRecommendationHref(summary.nextAction.recommendation)}>
+                <Link
+                  href={getRecommendationHref(
+                    summary.nextAction.recommendation,
+                    summary.nextAction.concept,
+                  )}
+                >
                   {summary.nextAction.recommendation.ctaLabel}
                   <ArrowRight className="size-4" />
                 </Link>

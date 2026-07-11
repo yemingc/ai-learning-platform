@@ -16,6 +16,9 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useLanguage } from "@/components/i18n/language-provider";
+import { localizeLesson } from "@/curricula/localization";
+import { getLessonPath } from "@/curricula/routing";
+import type { CurriculumPack } from "@/curricula/types";
 import { AiTeacherChatPanel } from "@/components/learning/ai-teacher-chat-panel";
 import { AskAboutSectionButton } from "@/components/learning/ask-about-section-button";
 import {
@@ -35,14 +38,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { Concept, Course } from "@/features/knowledge/types";
-import { getLocalizedLessonContent } from "@/features/lessons/lesson-localization";
+import type { Concept } from "@/features/knowledge/types";
 import type { LessonContent } from "@/features/lessons/types";
 import { cn } from "@/lib/utils";
 
 type LessonPageClientProps = {
   concept: Concept;
-  course: Course;
+  curriculum: CurriculumPack;
   lesson: LessonContent;
   previousLesson?: LessonContent;
   nextLesson?: LessonContent;
@@ -123,46 +125,46 @@ const copy = {
     badge: "结构化课程 + AI 教师",
     coursePack: "当前课程",
     intro:
-      "这节课是平台维护的结构化课程内容。AI 教师会结合当前课程、概念、阅读位置和学习进度，在你读课时提供解释、追问和纠偏，而不是重新生成一套课。",
+      "这是一节结构化课程。学习过程中，AI 教师会结合当前课程、概念、阅读位置和学习进度，为你提供解释、追问和纠偏。",
     objective: "学习目标",
     lessonFlow: "学习路径",
     hint: "提示：",
-    targetInsight: "你需要抓住的点：",
-    sentenceStarter: "句子开头：",
+    targetInsight: "关键思路：",
+    sentenceStarter: "参考句式：",
     sections: {
       why: {
-        eyebrow: "为什么重要",
-        title: "先知道为什么学，再进入方法。",
+        eyebrow: "学习意义",
+        title: "为什么要学这个概念",
       },
       intuition: {
         eyebrow: "直观理解",
-        title: "先建立脑海里的图像。",
+        title: "从直观认识概念",
       },
       formal: {
-        eyebrow: "正式说法",
-        title: "把直觉说成准确的数学语言。",
+        eyebrow: "概念定义",
+        title: "准确理解概念",
       },
       worked: {
-        eyebrow: "例子拆解",
+        eyebrow: "例题讲解",
       },
       guided: {
-        eyebrow: "一起想一想",
-        title: "先暂停，检查你是否真的理解。",
+        eyebrow: "引导思考",
+        title: "检验你的理解",
       },
       trap: {
-        eyebrow: "常见误区",
-        title: "在错误变成习惯前，把它拆开。",
+        eyebrow: "误区辨析",
+        title: "常见误区",
       },
       reflection: {
-        eyebrow: "反思巩固",
-        title: "把理解用自己的话说出来。",
+        eyebrow: "总结反思",
+        title: "用自己的话总结",
       },
       application: {
-        eyebrow: "尝试应用",
+        eyebrow: "应用练习",
       },
       takeaways: {
-        eyebrow: "关键收获",
-        title: "学完后应该留下什么。",
+        eyebrow: "知识小结",
+        title: "重要知识点",
       },
     },
     fullContext: "整节课上下文",
@@ -261,7 +263,7 @@ function getLessonSectionIdFromHash(hash: string) {
 
 export function LessonPageClient({
   concept,
-  course,
+  curriculum,
   lesson,
   previousLesson,
   nextLesson,
@@ -273,12 +275,13 @@ export function LessonPageClient({
     LessonSectionId | undefined
   >();
   const pageCopy = copy[language];
-  const displayLesson = getLocalizedLessonContent(lesson, language);
+  const course = curriculum.course;
+  const displayLesson = localizeLesson(curriculum, lesson, language);
   const displayPreviousLesson = previousLesson
-    ? getLocalizedLessonContent(previousLesson, language)
+    ? localizeLesson(curriculum, previousLesson, language)
     : undefined;
   const displayNextLesson = nextLesson
-    ? getLocalizedLessonContent(nextLesson, language)
+    ? localizeLesson(curriculum, nextLesson, language)
     : undefined;
   const primaryExample = displayLesson.workedExamples[0];
 
@@ -398,7 +401,7 @@ export function LessonPageClient({
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">
             {pageCopy.intro}
           </p>
-          <LessonMemorySummary concept={concept} />
+          <LessonMemorySummary concept={concept} curriculum={curriculum} />
         </div>
 
         <Card>
@@ -429,7 +432,9 @@ export function LessonPageClient({
       <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_23rem] lg:items-start">
         <LessonSelectionActions>
           <div className="space-y-6">
-            <FormativeAssessmentCard concept={concept} phase="diagnostic" />
+            {curriculum.capabilities.formativeAssessments && (
+              <FormativeAssessmentCard concept={concept} phase="diagnostic" />
+            )}
 
             <div className="rounded-lg border border-border bg-card px-5 shadow-sm sm:px-8">
             <LessonSection
@@ -473,10 +478,11 @@ export function LessonPageClient({
                   ))}
                 </div>
               )}
-              <LessonConceptVisualization
-                conceptId={concept.id}
-                language={language}
-              />
+                <LessonConceptVisualization
+                  conceptId={concept.id}
+                  language={language}
+                  visualization={curriculum.visualizations?.[concept.id]}
+                />
             </LessonSection>
 
             <LessonSection
@@ -618,7 +624,9 @@ export function LessonPageClient({
             </LessonSection>
             </div>
 
-            <FormativeAssessmentCard concept={concept} phase="exit_ticket" />
+            {curriculum.capabilities.formativeAssessments && (
+              <FormativeAssessmentCard concept={concept} phase="exit_ticket" />
+            )}
           </div>
         </LessonSelectionActions>
 
@@ -635,7 +643,11 @@ export function LessonPageClient({
           {previousLesson && displayPreviousLesson && (
             <Link
               className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
-              href={`/learn/${previousLesson.conceptId}`}
+              href={getLessonPath({
+                courseId: previousLesson.courseId,
+                unitId: previousLesson.unitId,
+                id: previousLesson.conceptId,
+              })}
             >
               <ArrowLeft className="size-4" />
               {displayPreviousLesson.title}
@@ -644,7 +656,11 @@ export function LessonPageClient({
           {nextLesson && displayNextLesson && (
             <Link
               className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
-              href={`/learn/${nextLesson.conceptId}`}
+              href={getLessonPath({
+                courseId: nextLesson.courseId,
+                unitId: nextLesson.unitId,
+                id: nextLesson.conceptId,
+              })}
             >
               {displayNextLesson.title}
               <ArrowRight className="size-4" />

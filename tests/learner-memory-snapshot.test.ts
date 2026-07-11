@@ -146,3 +146,38 @@ test("includes server-scored pre/post evidence for AI Teacher personalization", 
   assert.equal(snapshot.learningGain, 50);
   assert.equal(snapshot.assessmentEvidenceLevel, "pre_post");
 });
+
+test("does not repeat resolved misconceptions as active AI Teacher context", () => {
+  const conceptMemory: ConceptMemory = {
+    conceptId: "what-is-a-limit",
+    conceptTitle: "What is a limit?",
+    confusionSignals: [],
+    interactionCount: 2,
+    memorySignalHistory: [],
+    misconceptions: [
+      {
+        conceptId: "what-is-a-limit",
+        count: 1,
+        firstSeenAt: "2026-01-01T00:00:00.000Z",
+        id: "resolved-misconception",
+        lastSeenAt: "2026-01-01T00:00:00.000Z",
+        resolutionEvidenceId: "exit-1",
+        resolutionSource: "exit_ticket",
+        resolvedAt: "2026-01-02T00:00:00.000Z",
+        sourceSection: "Common trap",
+        text: "The limit must equal the function value.",
+      },
+    ],
+    readiness: 82,
+    recentInteractions: [],
+    assessmentAttempts: [],
+    status: "familiar",
+  };
+
+  const snapshot = createLearnerMemorySnapshot(
+    conceptMemory,
+    conceptMemory.conceptId,
+  );
+
+  assert.deepEqual(snapshot.recentMisconceptions, []);
+});

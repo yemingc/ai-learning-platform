@@ -2,6 +2,7 @@
 import type { LessonContent } from "@/features/lessons/types";
 import type { LessonRetrievalChunk } from "@/features/lessons/retrieval-chunks";
 import { getCurriculumPacks } from "@/curricula";
+import { getLessonPath } from "@/curricula/routing";
 import { searchCurriculumChunks } from "@/features/rag/curriculum-retriever";
 import type { CurriculumRetrievalMode } from "@/features/rag/embedding-types";
 import {
@@ -197,7 +198,11 @@ export async function assembleCurriculumContext({
     allowedCitations: retrievedChunks.map((chunk) => ({
       chunkId: chunk.id,
       conceptId: chunk.conceptId,
-      href: `/learn/${chunk.conceptId}#lesson-section-${chunk.sectionId}`,
+      href: `${getLessonPath({
+        courseId: chunk.courseId,
+        unitId: chunk.unitId,
+        id: chunk.conceptId,
+      })}#lesson-section-${chunk.sectionId}`,
       locale: chunk.locale,
       sectionId: chunk.sectionId,
       sectionTitle: chunk.title,

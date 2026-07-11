@@ -91,7 +91,7 @@ export type LessonVisualization =
   | IntermediateValueVisualization
   | EndBehaviorVisualization;
 
-const lessonVisualizations: Record<string, LessonVisualization> = {
+export const lessonVisualizations: Record<string, LessonVisualization> = {
   "what-is-a-limit": {
     kind: "finite_hole",
     functionValueY: 1,

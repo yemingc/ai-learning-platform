@@ -7,9 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --experimental-strip-types tests/teacher-policy.test.ts tests/learner-memory-snapshot.test.ts tests/workflow-trace-evaluation.test.ts tests/lesson-visualizations.test.ts tests/curriculum-integrity.test.ts tests/ai-usage-policy.test.ts tests/teacher-streaming.test.ts tests/formative-assessment.test.ts",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --experimental-strip-types tests/teacher-policy.test.ts tests/learner-memory-snapshot.test.ts tests/workflow-trace-evaluation.test.ts tests/lesson-visualizations.test.ts tests/curriculum-integrity.test.ts tests/curriculum-registry.test.ts tests/ai-usage-policy.test.ts tests/teacher-streaming.test.ts tests/formative-assessment.test.ts tests/adaptive-learning-plan.test.ts tests/misconception-lifecycle.test.ts tests/current-learning-signals.test.ts tests/evaluation-release-gate.test.ts tests/evaluation-text-matching.test.ts tests/evaluation-trends.test.ts tests/human-evaluation-calibration.test.ts tests/evaluation-governance-report.test.ts tests/demo-account.test.ts tests/auth-input.test.ts",
     "test:auth": "node scripts/auth-regression.mjs",
     "test:rag": "node scripts/rag-retrieval-check.mjs",
+    "report:evaluation": "node scripts/export-evaluation-report.mjs",
+    "demo:seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/seed-demo-learning.mjs",
     "embeddings:build": "node scripts/build-embeddings.mjs"
   },
   "dependencies": {

@@ -3,11 +3,12 @@ import type {
   FormativeAssessmentFeedback,
   FormativeAssessmentLocale,
   FormativeAssessmentPhase,
+  FormativeAssessmentProvider,
 } from "@/features/assessment/types";
 
-type LocalizedText = Record<FormativeAssessmentLocale, string>;
+export type LocalizedText = Record<FormativeAssessmentLocale, string>;
 
-type AssessmentQuestionDefinition = {
+export type AssessmentQuestionDefinition = {
   id: string;
   prompt: LocalizedText;
   options: Array<{
@@ -18,9 +19,14 @@ type AssessmentQuestionDefinition = {
   explanation: LocalizedText;
 };
 
-type ConceptAssessmentDefinition = Record<
+export type ConceptAssessmentDefinition = Record<
   FormativeAssessmentPhase,
   AssessmentQuestionDefinition[]
+>;
+
+export type FormativeAssessmentBank = Record<
+  string,
+  ConceptAssessmentDefinition
 >;
 
 const COURSE_ID = "ap-calculus-ab";
@@ -46,7 +52,7 @@ function question(
   };
 }
 
-const assessmentBank: Record<string, ConceptAssessmentDefinition> = {
+const assessmentBank: FormativeAssessmentBank = {
   "what-is-a-limit": {
     diagnostic: [
       question(
@@ -850,162 +856,195 @@ export class FormativeAssessmentError extends Error {
   }
 }
 
-function getDefinition(
-  conceptId: string,
-  phase: FormativeAssessmentPhase,
-) {
-  const definition = assessmentBank[conceptId]?.[phase];
-
-  if (!definition) {
-    throw new FormativeAssessmentError(
-      `No ${phase} assessment is registered for concept ${conceptId}.`,
-      "assessment_not_found",
-    );
-  }
-
-  return definition;
-}
-
-export function getFormativeAssessment({
-  conceptId,
-  locale,
-  phase,
+export function createFormativeAssessmentProvider({
+  bank,
+  courseId,
+  version,
 }: {
-  conceptId: string;
-  locale: FormativeAssessmentLocale;
-  phase: FormativeAssessmentPhase;
-}): FormativeAssessment {
-  const definition = getDefinition(conceptId, phase);
-  const localizedPhase = phaseCopy[locale][phase];
-
-  return {
-    id: `${conceptId}-${phase}`,
-    version: ASSESSMENT_VERSION,
-    courseId: COURSE_ID,
-    conceptId,
-    phase,
-    title: localizedPhase.title,
-    description: localizedPhase.description,
-    questions: definition.map((item) => ({
-      id: item.id,
-      prompt: item.prompt[locale],
-      options: item.options.map((option) => ({
-        id: option.id,
-        label: option.label[locale],
-      })),
-    })),
-  };
-}
-
-export function gradeFormativeAssessment({
-  answers,
-  conceptId,
-  locale,
-  phase,
-}: {
-  answers: Array<{ questionId: string; selectedOptionId: string }>;
-  conceptId: string;
-  locale: FormativeAssessmentLocale;
-  phase: FormativeAssessmentPhase;
-}) {
-  const definition = getDefinition(conceptId, phase);
-  const answersByQuestion = new Map(
-    answers.map((answer) => [answer.questionId, answer.selectedOptionId]),
-  );
-
-  if (
-    answers.length !== definition.length ||
-    definition.some((item) => !answersByQuestion.has(item.id))
+  bank: FormativeAssessmentBank;
+  courseId: string;
+  version: string;
+}): FormativeAssessmentProvider {
+  function getDefinition(
+    conceptId: string,
+    phase: FormativeAssessmentPhase,
   ) {
-    throw new FormativeAssessmentError(
-      "Submit exactly one answer for every assessment question.",
-      "incomplete_submission",
-    );
-  }
+    const definition = bank[conceptId]?.[phase];
 
-  const feedback: FormativeAssessmentFeedback[] = definition.map((item) => {
-    const selectedOptionId = answersByQuestion.get(item.id) ?? "";
-
-    if (!item.options.some((option) => option.id === selectedOptionId)) {
+    if (!definition) {
       throw new FormativeAssessmentError(
-        `Option ${selectedOptionId} is not valid for question ${item.id}.`,
-        "invalid_answer",
+        `No ${phase} assessment is registered for concept ${conceptId}.`,
+        "assessment_not_found",
       );
     }
 
-    return {
-      questionId: item.id,
-      selectedOptionId,
-      correctOptionId: item.correctOptionId,
-      isCorrect: selectedOptionId === item.correctOptionId,
-      explanation: item.explanation[locale],
-    };
-  });
-  const correctCount = feedback.filter((item) => item.isCorrect).length;
+    return definition;
+  }
 
-  return {
-    assessment: getFormativeAssessment({ conceptId, locale, phase }),
-    correctCount,
-    questionCount: definition.length,
-    score: Math.round((correctCount / definition.length) * 100),
-    feedback,
-  };
-}
-
-export function getFormativeAssessmentCoverage() {
-  return Object.entries(assessmentBank).map(([conceptId, phases]) => ({
+  function getAssessment({
     conceptId,
-    diagnosticQuestionCount: phases.diagnostic.length,
-    exitTicketQuestionCount: phases.exit_ticket.length,
-  }));
-}
+    locale,
+    phase,
+  }: {
+    conceptId: string;
+    locale: FormativeAssessmentLocale;
+    phase: FormativeAssessmentPhase;
+  }): FormativeAssessment {
+    const definition = getDefinition(conceptId, phase);
+    const localizedPhase = phaseCopy[locale][phase];
 
-export function getFormativeAssessmentIntegrityIssues() {
-  const issues: string[] = [];
-  const questionIds = new Set<string>();
+    return {
+      id: `${courseId}-${conceptId}-${phase}`,
+      version,
+      courseId,
+      conceptId,
+      phase,
+      title: localizedPhase.title,
+      description: localizedPhase.description,
+      questions: definition.map((item) => ({
+        id: item.id,
+        prompt: item.prompt[locale],
+        options: item.options.map((option) => ({
+          id: option.id,
+          label: option.label[locale],
+        })),
+      })),
+    };
+  }
 
-  for (const [conceptId, phases] of Object.entries(assessmentBank)) {
-    for (const phase of ["diagnostic", "exit_ticket"] as const) {
-      for (const item of phases[phase]) {
-        if (questionIds.has(item.id)) {
-          issues.push(`Duplicate question id: ${item.id}`);
-        }
-        questionIds.add(item.id);
+  function gradeAssessment({
+    answers,
+    conceptId,
+    locale,
+    phase,
+  }: {
+    answers: Array<{ questionId: string; selectedOptionId: string }>;
+    conceptId: string;
+    locale: FormativeAssessmentLocale;
+    phase: FormativeAssessmentPhase;
+  }) {
+    const definition = getDefinition(conceptId, phase);
+    const answersByQuestion = new Map(
+      answers.map((answer) => [answer.questionId, answer.selectedOptionId]),
+    );
 
-        if (!item.prompt.en.trim() || !item.prompt.zh.trim()) {
-          issues.push(`${item.id} is missing a localized prompt.`);
-        }
-        if (item.prompt.en === item.prompt.zh) {
-          issues.push(`${item.id} does not provide a distinct Chinese prompt.`);
-        }
-        if (!item.explanation.en.trim() || !item.explanation.zh.trim()) {
-          issues.push(`${item.id} is missing localized feedback.`);
-        }
+    if (
+      answers.length !== definition.length ||
+      definition.some((item) => !answersByQuestion.has(item.id))
+    ) {
+      throw new FormativeAssessmentError(
+        "Submit exactly one answer for every assessment question.",
+        "incomplete_submission",
+      );
+    }
 
-        const optionIds = item.options.map((option) => option.id);
-        if (item.options.length < 2) {
-          issues.push(`${item.id} needs at least two options.`);
+    const feedback: FormativeAssessmentFeedback[] = definition.map((item) => {
+      const selectedOptionId = answersByQuestion.get(item.id) ?? "";
+
+      if (!item.options.some((option) => option.id === selectedOptionId)) {
+        throw new FormativeAssessmentError(
+          `Option ${selectedOptionId} is not valid for question ${item.id}.`,
+          "invalid_answer",
+        );
+      }
+
+      return {
+        questionId: item.id,
+        selectedOptionId,
+        correctOptionId: item.correctOptionId,
+        isCorrect: selectedOptionId === item.correctOptionId,
+        explanation: item.explanation[locale],
+      };
+    });
+    const correctCount = feedback.filter((item) => item.isCorrect).length;
+
+    return {
+      assessment: getAssessment({ conceptId, locale, phase }),
+      correctCount,
+      questionCount: definition.length,
+      score: Math.round((correctCount / definition.length) * 100),
+      feedback,
+    };
+  }
+
+  function getCoverage() {
+    return Object.entries(bank).map(([conceptId, phases]) => ({
+      conceptId,
+      diagnosticQuestionCount: phases.diagnostic.length,
+      exitTicketQuestionCount: phases.exit_ticket.length,
+    }));
+  }
+
+  function getIntegrityIssues() {
+    const issues: string[] = [];
+    const questionIds = new Set<string>();
+
+    for (const [conceptId, phases] of Object.entries(bank)) {
+      for (const phase of ["diagnostic", "exit_ticket"] as const) {
+        for (const item of phases[phase]) {
+          if (questionIds.has(item.id)) {
+            issues.push(`Duplicate question id: ${item.id}`);
+          }
+          questionIds.add(item.id);
+
+          if (!item.prompt.en.trim() || !item.prompt.zh.trim()) {
+            issues.push(`${item.id} is missing a localized prompt.`);
+          }
+          if (item.prompt.en === item.prompt.zh) {
+            issues.push(`${item.id} does not provide a distinct Chinese prompt.`);
+          }
+          if (!item.explanation.en.trim() || !item.explanation.zh.trim()) {
+            issues.push(`${item.id} is missing localized feedback.`);
+          }
+
+          const optionIds = item.options.map((option) => option.id);
+          if (item.options.length < 2) {
+            issues.push(`${item.id} needs at least two options.`);
+          }
+          if (new Set(optionIds).size !== optionIds.length) {
+            issues.push(`${item.id} has duplicate option ids.`);
+          }
+          if (!optionIds.includes(item.correctOptionId)) {
+            issues.push(`${item.id} has an invalid correct option.`);
+          }
+          if (
+            item.options.some(
+              (option) => !option.label.en.trim() || !option.label.zh.trim(),
+            )
+          ) {
+            issues.push(`${item.id} has an option without bilingual labels.`);
+          }
         }
-        if (new Set(optionIds).size !== optionIds.length) {
-          issues.push(`${item.id} has duplicate option ids.`);
-        }
-        if (!optionIds.includes(item.correctOptionId)) {
-          issues.push(`${item.id} has an invalid correct option.`);
-        }
-        if (
-          item.options.some(
-            (option) => !option.label.en.trim() || !option.label.zh.trim(),
-          )
-        ) {
-          issues.push(`${item.id} has an option without bilingual labels.`);
-        }
+      }
+
+      if (!phases.diagnostic.length || !phases.exit_ticket.length) {
+        issues.push(`${conceptId} is missing an assessment phase.`);
       }
     }
 
-    if (!phases.diagnostic.length || !phases.exit_ticket.length) {
-      issues.push(`${conceptId} is missing an assessment phase.`);
-    }
+    return issues;
   }
 
-  return issues;
+  return {
+    getAssessment,
+    gradeAssessment,
+    getCoverage,
+    getIntegrityIssues,
+  };
 }
+
+export const apCalculusABFormativeAssessments =
+  createFormativeAssessmentProvider({
+    bank: assessmentBank,
+    courseId: COURSE_ID,
+    version: ASSESSMENT_VERSION,
+  });
+
+export const getFormativeAssessment =
+  apCalculusABFormativeAssessments.getAssessment;
+export const gradeFormativeAssessment =
+  apCalculusABFormativeAssessments.gradeAssessment;
+export const getFormativeAssessmentCoverage =
+  apCalculusABFormativeAssessments.getCoverage;
+export const getFormativeAssessmentIntegrityIssues =
+  apCalculusABFormativeAssessments.getIntegrityIssues;

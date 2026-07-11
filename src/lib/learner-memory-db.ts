@@ -1,9 +1,6 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
-import Database from "better-sqlite3";
 import { DEFAULT_COURSE_ID } from "@/curricula";
 import type { CourseId } from "@/features/knowledge/types";
 import {
@@ -19,6 +16,8 @@ import type {
 } from "@/features/memory/types";
 import type { FormativeAssessmentAttempt } from "@/features/assessment/types";
 import { createLearnerMemorySnapshot } from "@/features/memory/learner-memory-snapshot";
+import { resolveMisconceptionsFromAssessment } from "@/features/memory/misconception-lifecycle";
+import { openApplicationDatabase } from "@/lib/application-db";
 
 type LearnerMemoryRow = {
   id: string;
@@ -30,14 +29,7 @@ type LearnerMemoryRow = {
   updated_at: string;
 };
 
-const dataDir = join(process.cwd(), "data");
-const dbPath = join(dataDir, "auth.sqlite");
-
-if (!existsSync(dataDir)) {
-  mkdirSync(dataDir, { recursive: true });
-}
-
-const db = new Database(dbPath);
+const db = openApplicationDatabase();
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS learner_memories (
@@ -316,11 +308,14 @@ export function recordTeacherInteractionInDb(
     ? matchingMisconception
       ? existingConceptMemory.misconceptions.map((misconception) =>
           misconception.id === matchingMisconception.id
-            ? {
-                ...misconception,
-                count: misconception.count + 1,
-                lastSeenAt: now,
-              }
+          ? {
+              ...misconception,
+              count: misconception.count + 1,
+              lastSeenAt: now,
+              resolutionEvidenceId: undefined,
+              resolutionSource: undefined,
+              resolvedAt: undefined,
+            }
             : misconception,
         )
       : [
@@ -412,6 +407,13 @@ export function recordFormativeAssessmentInDb(
       attempt,
       ...(existingConceptMemory.assessmentAttempts ?? []),
     ].slice(0, 12),
+    misconceptions: resolveMisconceptionsFromAssessment({
+      assessmentId: attempt.id,
+      misconceptions: existingConceptMemory.misconceptions,
+      phase: input.phase,
+      resolvedAt: now,
+      score: input.score,
+    }),
   };
   const readiness = calculateReadiness(nextConceptMemoryBase);
   const nextConceptMemory: ConceptMemory = {

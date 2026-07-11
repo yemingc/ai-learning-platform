@@ -1,7 +1,10 @@
 import "server-only";
 
 import { teacherEvaluationCases } from "@/features/ai-teacher/evaluation/eval-cases";
-import type { LiveTeacherEvaluationSummary } from "@/features/ai-teacher/evaluation/eval-types";
+import {
+  TEACHER_EVALUATION_SUITE_VERSION,
+  type LiveTeacherEvaluationSummary,
+} from "@/features/ai-teacher/evaluation/eval-types";
 import {
   evaluateTeacherResponse,
   summarizeEvaluationResults,
@@ -42,14 +45,17 @@ export async function runLiveTeacherEvaluationSuite(): Promise<LiveTeacherEvalua
         concept,
         currentSection: testCase.currentSection,
         learnerMemorySnapshot: {
-          conceptId: concept.id,
-          recentConfusionSections: [],
-          recentMisconceptions: [],
-          source: "not_available",
+          ...(testCase.learnerMemorySnapshot ?? {
+            conceptId: concept.id,
+            recentConfusionSections: [],
+            recentMisconceptions: [],
+            source: "not_available" as const,
+          }),
         },
         lesson,
         locale: testCase.locale,
         selectedText: testCase.selectedText,
+        selectionAction: testCase.selectionAction,
         userMessage: testCase.userMessage,
       });
 
@@ -57,6 +63,10 @@ export async function runLiveTeacherEvaluationSuite(): Promise<LiveTeacherEvalua
         evaluateTeacherResponse({
           durationMs: Date.now() - caseStartedAt,
           response: workflowResult.teacherResponse,
+          allowedCitationChunkIds:
+            workflowResult.state.curriculumContext?.allowedCitations.map(
+              (citation) => citation.chunkId,
+            ) ?? [],
           modelTelemetry: workflowResult.modelTelemetry,
           testCase,
           workflowEngine,
@@ -88,5 +98,6 @@ export async function runLiveTeacherEvaluationSuite(): Promise<LiveTeacherEvalua
     mode: "live_model",
     results,
     startedAt,
+    suiteVersion: TEACHER_EVALUATION_SUITE_VERSION,
   };
 }

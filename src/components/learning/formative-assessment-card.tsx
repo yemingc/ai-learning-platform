@@ -33,6 +33,7 @@ import type { Concept } from "@/features/knowledge/types";
 import { notifyLearnerMemoryUpdated } from "@/features/memory/memory-api-client";
 import type { ConceptMemoryStatus } from "@/features/memory/types";
 import { cn } from "@/lib/utils";
+import { getLessonPath } from "@/curricula/routing";
 
 type FormativeAssessmentCardProps = {
   concept: Concept;
@@ -458,7 +459,7 @@ export function FormativeAssessmentCard({
               </p>
               <Link
                 className={buttonVariants({ variant: "outline", size: "sm" })}
-                href={`/login?callbackUrl=${encodeURIComponent(`/learn/${concept.id}`)}`}
+                href={`/login?callbackUrl=${encodeURIComponent(getLessonPath(concept))}`}
               >
                 {pageCopy.loginAction}
               </Link>

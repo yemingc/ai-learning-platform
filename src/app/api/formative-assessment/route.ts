@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCurriculumPack } from "@/curricula";
-import {
-  FormativeAssessmentError,
-  getFormativeAssessment,
-  gradeFormativeAssessment,
-} from "@/features/assessment/formative-assessments";
+import { getCurriculumAssessmentProvider } from "@/curricula/server-resources";
+import { FormativeAssessmentError } from "@/features/assessment/formative-assessments";
 import {
   getFormativeAssessmentProgress,
   getLatestAssessmentAttempt,
@@ -85,6 +82,7 @@ export async function GET(request: Request) {
 
   const { conceptId, courseId, locale, phase } = parsedQuery.data;
   const { concept, curriculum } = resolveConcept(courseId, conceptId);
+  const assessments = getCurriculumAssessmentProvider(courseId);
 
   if (!curriculum || !concept) {
     return errorResponse(
@@ -94,8 +92,20 @@ export async function GET(request: Request) {
     );
   }
 
+  if (!curriculum.capabilities.formativeAssessments || !assessments) {
+    return errorResponse(
+      "assessment_not_available",
+      "This curriculum does not provide formative assessments yet.",
+      404,
+    );
+  }
+
   try {
-    const assessment = getFormativeAssessment({ conceptId, locale, phase });
+    const assessment = assessments.getAssessment({
+      conceptId,
+      locale,
+      phase,
+    });
     const session = await auth();
     const conceptMemory = session?.user?.id
       ? getLearnerMemory(session.user.id, curriculum.course.id)
@@ -146,6 +156,7 @@ export async function POST(request: Request) {
   const { answers, conceptId, courseId, locale, phase } =
     parsedSubmission.data;
   const { concept, curriculum } = resolveConcept(courseId, conceptId);
+  const assessments = getCurriculumAssessmentProvider(courseId);
 
   if (!curriculum || !concept) {
     return errorResponse(
@@ -155,8 +166,16 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!curriculum.capabilities.formativeAssessments || !assessments) {
+    return errorResponse(
+      "assessment_not_available",
+      "This curriculum does not provide formative assessments yet.",
+      404,
+    );
+  }
+
   try {
-    const graded = gradeFormativeAssessment({
+    const graded = assessments.gradeAssessment({
       answers,
       conceptId,
       locale,

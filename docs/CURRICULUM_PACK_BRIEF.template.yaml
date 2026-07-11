@@ -1,0 +1,79 @@
+# 复制本文件并填写。未确定的字段写 null，不要猜测。
+
+course:
+  title: null
+  course_id: null # kebab-case，例如 javascript-foundations
+  short_title: null
+  subject: null
+  description: null
+  level: null
+  status: preview # available | preview | archived
+  tags: []
+
+learners:
+  audience: null
+  assumed_prior_knowledge: []
+  age_or_stage: null
+  learning_context: null # 自学、校内补充、考试准备、职业培训等
+
+scope:
+  included_topics: []
+  excluded_topics: []
+  final_learning_outcomes: []
+  estimated_total_minutes: null
+
+language:
+  canonical_language: en
+  localization_languages:
+    - zh
+  terminology_policy: null
+
+teaching_profile:
+  role: null
+  tone: null
+  learning_priorities: []
+  example_style: null
+  misconception_strategy: null
+
+units:
+  - title: null
+    unit_id: null
+    description: null
+    estimated_minutes: null
+    topics:
+      - title: null
+        topic_id: null
+        description: null
+        concepts:
+          - title: null
+            concept_id: null
+            description: null
+            difficulty: foundational # foundational | developing | advanced
+            estimated_minutes: null
+            prerequisite_concept_ids: []
+            learning_outcomes: []
+            common_misconceptions: []
+
+assessment:
+  enabled: true
+  questions_per_phase: 2
+  phases:
+    - diagnostic
+    - exit_ticket
+  localization_required: true
+
+visualization:
+  enabled: false
+  required_concept_ids: []
+  notes: null
+
+content_constraints:
+  required_sources_or_standards: []
+  prohibited_claims_or_topics: []
+  citation_requirements: null
+  accessibility_requirements: []
+
+delivery:
+  target_release: null
+  reviewer: null
+  notes: null

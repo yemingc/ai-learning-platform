@@ -5,11 +5,38 @@ import {
 } from "@/curricula/ap-calculus-ab/knowledge";
 import { apCalculusABUnit1Lessons } from "@/curricula/ap-calculus-ab/lessons";
 import type { CurriculumPack } from "@/curricula/types";
+import {
+  localizedConcepts,
+  localizedCourses,
+  localizedTopics,
+  localizedUnits,
+} from "@/features/knowledge/concept-localization";
+import { zhLessons } from "@/features/lessons/lesson-localization";
+import { lessonVisualizations } from "@/features/lessons/lesson-visualizations";
 
 export const apCalculusABCurriculum: CurriculumPack = {
   id: AP_CALCULUS_AB_COURSE_ID,
   defaultUnitId: AP_CALCULUS_AB_UNIT_1_ID,
   lessons: apCalculusABUnit1Lessons,
+  catalog: {
+    status: "available",
+    level: "Advanced high school",
+    tags: ["mathematics", "calculus", "AP"],
+  },
+  capabilities: {
+    formativeAssessments: true,
+    conceptVisualizations: true,
+  },
+  localizations: {
+    zh: {
+      course: localizedCourses[AP_CALCULUS_AB_COURSE_ID],
+      units: localizedUnits,
+      topics: localizedTopics,
+      concepts: localizedConcepts,
+      lessons: zhLessons,
+    },
+  },
+  visualizations: lessonVisualizations,
   teachingProfile: {
     role: "AP Calculus AB concept-first teacher",
     audience: "High school students preparing for AP Calculus AB",

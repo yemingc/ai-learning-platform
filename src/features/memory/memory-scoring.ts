@@ -3,6 +3,8 @@ import type {
   ConceptMemoryStatus,
 } from "@/features/memory/types";
 import { getFormativeAssessmentProgress } from "../assessment/assessment-progress.ts";
+import { getActiveMisconceptions } from "./misconception-lifecycle.ts";
+import { getCurrentLearningSignals } from "./current-learning-signals.ts";
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.max(minimum, Math.min(maximum, value));
@@ -10,7 +12,7 @@ function clamp(value: number, minimum: number, maximum: number) {
 
 function getConversationEvidenceModifier(memory: ConceptMemory) {
   const interactionScore = Math.min(memory.interactionCount * 3, 12);
-  const latestSignals = (memory.memorySignalHistory ?? []).slice(0, 4);
+  const latestSignals = getCurrentLearningSignals(memory);
   const teachingMoveScore = memory.recentInteractions.some(
     (interaction) =>
       interaction.teachingMove === "reflect" ||
@@ -23,7 +25,10 @@ function getConversationEvidenceModifier(memory: ConceptMemory) {
   )
     ? 5
     : 0;
-  const misconceptionPenalty = Math.min(memory.misconceptions.length * 6, 18);
+  const misconceptionPenalty = Math.min(
+    getActiveMisconceptions(memory.misconceptions).length * 6,
+    18,
+  );
   const confidenceDeltaScore = clamp(
     latestSignals.reduce((sum, signal) => sum + signal.confidenceDelta, 0),
     -12,
@@ -76,7 +81,7 @@ export function calculateReadiness(memory: ConceptMemory) {
           diagnosticScore * 0.15 +
           assessmentProgress.exitTicketScore * 0.55 +
           Math.min(positiveGain * 0.1, 5) +
-          conversationModifier,
+          clamp(conversationModifier, -10, 18),
         5,
         95,
       ),

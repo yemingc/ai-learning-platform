@@ -11,6 +11,8 @@ import type {
 
 export type TeacherWorkflowInspectorRun = {
   id: string;
+  courseId?: string;
+  unitId?: string;
   conceptId: string;
   conceptTitle: string;
   section: string;

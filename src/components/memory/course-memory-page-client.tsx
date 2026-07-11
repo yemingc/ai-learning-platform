@@ -12,6 +12,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import type { CurriculumPack } from "@/curricula/types";
+import { localizeCourse, localizeUnit } from "@/curricula/localization";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -23,15 +24,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  getLocalizedCourse,
-  getLocalizedUnit,
-} from "@/features/knowledge/concept-localization";
-import {
   fetchLearnerMemory,
   MEMORY_UPDATED_EVENT,
   resetLearnerMemory,
 } from "@/features/memory/memory-api-client";
 import type { LearnerMemory } from "@/features/memory/types";
+import { getActiveMisconceptions } from "@/features/memory/misconception-lifecycle";
+import { getCurrentLearningSignals } from "@/features/memory/current-learning-signals";
 import { cn } from "@/lib/utils";
 
 type CourseMemoryPageClientProps = {
@@ -50,6 +49,12 @@ const copy = {
     source: "Progress source",
     updated: "Updated",
     reset: "Reset course progress",
+    resetQuestion: "Reset all course progress?",
+    resetWarning:
+      "This permanently removes assessments, AI interactions, readiness, and misconception history for this course.",
+    cancel: "Cancel",
+    confirmReset: "Yes, reset progress",
+    resetting: "Resetting...",
     units: "Units",
     studiedConcepts: "Studied concepts",
     aiInteractions: "AI interactions",
@@ -73,6 +78,12 @@ const copy = {
     source: "进度来源",
     updated: "更新时间",
     reset: "重置本课程进度",
+    resetQuestion: "确认重置整门课程的进度？",
+    resetWarning:
+      "这会永久删除本课程的测评、AI 互动、准备度和误区历史，且无法撤销。",
+    cancel: "取消",
+    confirmReset: "确认清空进度",
+    resetting: "正在重置...",
     units: "Unit",
     studiedConcepts: "已学习概念",
     aiInteractions: "AI 互动",
@@ -106,9 +117,11 @@ export function CourseMemoryPageClient({
 }: CourseMemoryPageClientProps) {
   const { language } = useLanguage();
   const pageCopy = copy[language];
-  const course = getLocalizedCourse(curriculum.course, language);
+  const course = localizeCourse(curriculum, language);
   const [memory, setMemory] = useState<LearnerMemory | undefined>();
   const [memoryError, setMemoryError] = useState<string | undefined>();
+  const [isResetConfirming, setIsResetConfirming] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const courseIdRef = useRef(curriculum.course.id);
 
   useEffect(() => {
@@ -147,14 +160,14 @@ export function CourseMemoryPageClient({
       const reviewSignalCount = unitMemories.reduce(
         (sum, conceptMemory) =>
           sum +
-          (conceptMemory?.memorySignalHistory ?? []).filter(
+          getCurrentLearningSignals(conceptMemory).filter(
             (signal) => signal.needsReview,
           ).length,
         0,
       );
       const trapCount = unitMemories.reduce(
         (sum, conceptMemory) =>
-          sum + (conceptMemory?.misconceptions.length ?? 0),
+          sum + getActiveMisconceptions(conceptMemory?.misconceptions).length,
         0,
       );
       const averageReadiness =
@@ -227,17 +240,68 @@ export function CourseMemoryPageClient({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button
-              className="w-full"
-              onClick={async () => {
-                setMemory(await resetLearnerMemory(curriculum.course.id));
-              }}
-              type="button"
-              variant="outline"
-            >
-              <RotateCcw className="size-4" />
-              {pageCopy.reset}
-            </Button>
+            {isResetConfirming ? (
+              <div
+                aria-live="polite"
+                className="rounded-lg border border-destructive/30 bg-destructive/10 p-3"
+              >
+                <p className="text-sm font-semibold">
+                  {pageCopy.resetQuestion}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {pageCopy.resetWarning}
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <Button
+                    disabled={isResetting}
+                    onClick={() => setIsResetConfirming(false)}
+                    type="button"
+                    variant="outline"
+                  >
+                    {pageCopy.cancel}
+                  </Button>
+                  <Button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      setIsResetting(true);
+
+                      try {
+                        setMemory(
+                          await resetLearnerMemory(curriculum.course.id),
+                        );
+                        setMemoryError(undefined);
+                        setIsResetConfirming(false);
+                      } catch (error) {
+                        setMemoryError(
+                          error instanceof Error
+                            ? error.message
+                            : pageCopy.loadError,
+                        );
+                      } finally {
+                        setIsResetting(false);
+                      }
+                    }}
+                    type="button"
+                    variant="destructive"
+                  >
+                    <RotateCcw className="size-4" />
+                    {isResetting
+                      ? pageCopy.resetting
+                      : pageCopy.confirmReset}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                className="w-full"
+                onClick={() => setIsResetConfirming(true)}
+                type="button"
+                variant="outline"
+              >
+                <RotateCcw className="size-4" />
+                {pageCopy.reset}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </section>
@@ -279,7 +343,7 @@ export function CourseMemoryPageClient({
 
       <section className="mt-12 grid gap-5 lg:grid-cols-2">
         {unitSummaries.map((summary) => {
-          const displayUnit = getLocalizedUnit(summary.unit, language);
+          const displayUnit = localizeUnit(curriculum, summary.unit, language);
 
           return (
             <Card key={summary.unit.id}>

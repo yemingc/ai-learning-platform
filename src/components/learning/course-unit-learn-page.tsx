@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Clock, Network, Target } from "lucide-react";
 import type { CurriculumPack } from "@/curricula/types";
+import {
+  localizeConcept,
+  localizeCourse,
+  localizeTopic,
+  localizeUnit,
+} from "@/curricula/localization";
+import { getLessonPath } from "@/curricula/routing";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -17,12 +24,6 @@ import {
   getConceptsByUnit,
   getPrerequisiteConcepts,
 } from "@/features/knowledge/get-concepts";
-import {
-  getLocalizedConcept,
-  getLocalizedCourse,
-  getLocalizedTopic,
-  getLocalizedUnit,
-} from "@/features/knowledge/concept-localization";
 import type { ConceptDifficulty } from "@/features/knowledge/types";
 import { cn } from "@/lib/utils";
 
@@ -34,8 +35,8 @@ const difficultyLabels = {
   },
   zh: {
     foundational: "基础",
-    developing: "进阶中",
-    advanced: "挑战",
+    developing: "进阶",
+    advanced: "高阶",
   },
 } satisfies Record<string, Record<ConceptDifficulty, string>>;
 
@@ -74,28 +75,28 @@ const copy = {
     openLesson: "Open structured lesson",
   },
   zh: {
-    back: (courseTitle: string) => `返回 ${courseTitle} 的 Unit 列表`,
-    unit: "Unit",
+    back: (courseTitle: string) => `返回 ${courseTitle} 的单元列表`,
+    unit: "单元",
     heading: (unitTitle: string) => `${unitTitle} 概念图`,
     intro: (courseTitle: string) =>
-      `这个 Unit 是 ${courseTitle} 课程包中的一个模块。学生会沿着概念、先修关系、结构化课程、AI 教师支持和学习记忆逐步推进，准备好后再进入应用练习。`,
+      `这是 ${courseTitle} 的一个学习单元。你可以按照概念之间的先修关系逐步学习，并结合结构化课程、AI 教师和学习记录巩固理解。`,
     conceptNodes: (count: number) => `${count} 个概念节点`,
     topicsInUnit: (count: number, unitTitle: string) => `${unitTitle} 中有 ${count} 个主题。`,
     minutePath: (minutes: number) => `${minutes} 分钟学习路径`,
     estimate: "这是进入应用练习前的预计学习时间。",
-    moduleBadge: (unitTitle: string) => `${unitTitle} - 课程模块`,
+    moduleBadge: (unitTitle: string) => `${unitTitle} · 课程单元`,
     conceptList: "概念列表",
     conceptListIntro:
-      "每张卡片都围绕学习状态设计：这个概念是什么意思、学生应该会做什么、容易错在哪里，以及需要哪些先修概念。",
+      "每张卡片会说明概念含义、学习目标、常见误区和先修要求，帮助你安排学习顺序。",
     concept: "概念",
     min: "分钟",
     topic: "主题",
     prerequisites: "先修概念",
-    entry: "入口概念",
+    entry: "起始概念",
     learningObjectives: "学习目标",
     commonMisconception: "常见误区",
     example: "例子",
-    openLesson: "进入结构化课程",
+    openLesson: "进入课程学习",
   },
 };
 
@@ -110,14 +111,14 @@ export function CourseUnitLearnPage({
 }: CourseUnitLearnPageProps) {
   const { language } = useLanguage();
   const pageCopy = copy[language];
-  const course = getLocalizedCourse(curriculum.course, language);
+  const course = localizeCourse(curriculum, language);
   const activeUnit = curriculum.units.find((unit) => unit.id === unitId);
 
   if (!activeUnit) {
     throw new Error(`Unit ${unitId} does not exist in ${course.id}.`);
   }
 
-  const displayUnit = getLocalizedUnit(activeUnit, language);
+  const displayUnit = localizeUnit(curriculum, activeUnit, language);
   const activeUnitTopics = curriculum.topics.filter(
     (topic) => topic.unitId === activeUnit.id,
   );
@@ -198,16 +199,18 @@ export function CourseUnitLearnPage({
 
         <div className="grid gap-5 md:grid-cols-2">
           {concepts.map((concept, index) => {
-            const displayConcept = getLocalizedConcept(concept, language);
+            const displayConcept = localizeConcept(curriculum, concept, language);
             const prerequisites = getPrerequisiteConcepts(
               concept.id,
               curriculum.course.id,
-            ).map((prerequisite) => getLocalizedConcept(prerequisite, language));
+            ).map((prerequisite) =>
+              localizeConcept(curriculum, prerequisite, language),
+            );
             const topic = activeUnitTopics.find(
               (unitTopic) => unitTopic.id === concept.topicId,
             );
             const displayTopic = topic
-              ? getLocalizedTopic(topic, language)
+              ? localizeTopic(curriculum, topic, language)
               : displayUnit;
 
             return (
@@ -302,7 +305,7 @@ export function CourseUnitLearnPage({
                       buttonVariants({ variant: "outline", size: "lg" }),
                       "w-full justify-between px-4",
                     )}
-                    href={`/learn/${concept.id}`}
+                    href={getLessonPath(concept)}
                   >
                     {pageCopy.openLesson}
                     <Target className="size-4" />

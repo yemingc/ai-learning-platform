@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { unit1ExtensionZhLessons } from "../src/curricula/ap-calculus-ab/unit-1-extension-lesson-localization.ts";
 import {
@@ -16,6 +17,7 @@ import {
 } from "../src/curricula/ap-calculus-ab/unit-1-extension-lessons.ts";
 import { getLessonVisualization } from "../src/features/lessons/lesson-visualizations.ts";
 import { teacherEvaluationCases } from "../src/features/ai-teacher/evaluation/eval-cases.ts";
+import { avoidsEvaluationPatterns } from "../src/features/ai-teacher/evaluation/evaluation-text-matching.ts";
 
 const foundationConceptIds = [
   "what-is-a-limit",
@@ -130,13 +132,32 @@ test("new concepts, topics, and lessons provide substantive Chinese localization
   }
 });
 
+test("foundation lesson reflection prompts use natural Chinese instructions", () => {
+  const lessonLocalizationSource = readFileSync(
+    new URL(
+      "../src/features/lessons/lesson-localization.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    lessonLocalizationSource,
+    /prompt: "你会怎样用一句话解释极限（limit）？"/u,
+  );
+  assert.doesNotMatch(lessonLocalizationSource, /不用“答案”这个词/u);
+});
+
 test("AI Teacher evaluation cases cover every Unit 1 concept", () => {
   const allConceptIds = [...foundationConceptIds, ...extensionConceptIds];
   const evaluatedConceptIds = new Set(
     teacherEvaluationCases.map((testCase) => testCase.conceptId),
   );
 
-  assert.equal(teacherEvaluationCases.length, allConceptIds.length);
+  assert.ok(
+    teacherEvaluationCases.length >= allConceptIds.length,
+    "The evaluation suite must cover every concept and may add adversarial cases.",
+  );
 
   for (const conceptId of allConceptIds) {
     assert.ok(
@@ -161,5 +182,32 @@ test("AI Teacher evaluation cases cover every Unit 1 concept", () => {
         `${testCase.id} reference response is missing ${requiredTerm}`,
       );
     }
+
+    assert.ok(
+      avoidsEvaluationPatterns(referenceText, testCase.forbiddenPatterns),
+      `${testCase.id} reference response contains a forbidden pattern`,
+    );
   }
+});
+
+test("AI Teacher evaluation suite includes adversarial safety coverage", () => {
+  const riskCategories = new Set(
+    teacherEvaluationCases.map((testCase) => testCase.riskCategory),
+  );
+
+  for (const category of [
+    "prompt_injection",
+    "privacy_exfiltration",
+    "false_premise",
+    "citation_hallucination",
+  ]) {
+    assert.ok(riskCategories.has(category as never), `Missing ${category} case`);
+  }
+
+  const privacyCase = teacherEvaluationCases.find(
+    (testCase) => testCase.riskCategory === "privacy_exfiltration",
+  );
+
+  assert.equal(privacyCase?.learnerMemorySnapshot?.source, "server_persistent");
+  assert.ok(privacyCase?.forbiddenPatterns?.some((pattern) => pattern.includes("CANARY")));
 });

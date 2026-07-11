@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Play, Timer, TriangleAlert } from "lucide-react";
+import {
+  Loader2,
+  Play,
+  ShieldCheck,
+  Timer,
+  TriangleAlert,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +17,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { LiveTeacherEvaluationSummary } from "@/features/ai-teacher/evaluation/eval-types";
+import type { LiveTeacherEvaluationResponse } from "@/features/ai-teacher/evaluation/eval-types";
+import { HumanEvaluationReviewForm } from "@/components/dashboard/human-evaluation-review-form";
 
 function formatDuration(durationMs?: number) {
   if (durationMs === undefined) {
@@ -26,7 +33,7 @@ function formatDuration(durationMs?: number) {
 }
 
 export function LiveAiEvaluationPanel() {
-  const [summary, setSummary] = useState<LiveTeacherEvaluationSummary>();
+  const [summary, setSummary] = useState<LiveTeacherEvaluationResponse>();
   const [error, setError] = useState<string>();
   const [isRunning, setIsRunning] = useState(false);
 
@@ -50,7 +57,7 @@ export function LiveAiEvaluationPanel() {
         );
       }
 
-      setSummary((await response.json()) as LiveTeacherEvaluationSummary);
+      setSummary((await response.json()) as LiveTeacherEvaluationResponse);
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -101,7 +108,7 @@ export function LiveAiEvaluationPanel() {
 
         {summary && (
           <div className="space-y-5">
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-lg border border-border bg-background/80 p-4">
                 <p className="text-xs font-semibold uppercase text-muted-foreground">
                   Passed
@@ -125,6 +132,90 @@ export function LiveAiEvaluationPanel() {
                 <p className="mt-2 text-sm font-semibold">
                   {new Date(summary.completedAt).toLocaleString()}
                 </p>
+              </div>
+              <div className="rounded-lg border border-border bg-background/80 p-4">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                  <ShieldCheck className="size-3.5" />
+                  Release gate
+                </p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {summary.releaseGate?.status.replaceAll("_", " ") ??
+                    "not persisted"}
+                </p>
+              </div>
+            </div>
+
+            {summary.releaseGate && (
+              <div
+                className={
+                  summary.releaseGate.approved
+                    ? "rounded-lg border border-learning-mint/40 bg-learning-mint/10 p-4"
+                    : "rounded-lg border border-destructive/30 bg-destructive/10 p-4"
+                }
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={
+                      summary.releaseGate.approved ? "secondary" : "outline"
+                    }
+                  >
+                    {summary.releaseGate.approved
+                      ? "Approved for release"
+                      : "Release blocked"}
+                  </Badge>
+                  <Badge variant="outline">
+                    {summary.releaseGate.policyVersion}
+                  </Badge>
+                  <Badge variant="outline">
+                    {summary.releaseGate.pricingVersion}
+                  </Badge>
+                  <Badge variant="outline">{summary.suiteVersion}</Badge>
+                </div>
+                <p className="mt-3 text-sm leading-6">
+                  {summary.releaseGate.summary}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {summary.releaseGate.checks.map((check) => (
+                    <Badge
+                      className={
+                        check.passed
+                          ? undefined
+                          : "border-destructive/40 text-destructive"
+                      }
+                      key={check.id}
+                      variant="outline"
+                    >
+                      {check.passed ? "Pass" : "Block"}: {check.label}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm font-semibold">Quality dimensions</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                {Object.entries(summary.dimensionScores).map(
+                  ([dimension, dimensionScore]) => (
+                    <div
+                      className="rounded-lg border border-border bg-background/80 p-3"
+                      key={dimension}
+                    >
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">
+                        {dimension}
+                      </p>
+                      <p className="mt-2 text-xl font-semibold">
+                        {dimensionScore.score === null
+                          ? "Not run"
+                          : `${dimensionScore.score}%`}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {dimensionScore.passedChecks}/
+                        {dimensionScore.totalChecks} checks
+                      </p>
+                    </div>
+                  ),
+                )}
               </div>
             </div>
 
@@ -160,13 +251,21 @@ export function LiveAiEvaluationPanel() {
                       .filter((check) => !check.passed)
                       .map((check) => (
                         <Badge key={check.id} variant="outline">
-                          {check.label}
+                          {check.dimension}: {check.label}
                         </Badge>
                       ))}
                   </div>
                 </div>
               ))}
             </div>
+
+            {summary.releaseGate?.evaluationRunId && (
+              <HumanEvaluationReviewForm
+                evaluationRunId={summary.releaseGate.evaluationRunId}
+                key={summary.releaseGate.evaluationRunId}
+                totalCases={summary.totalCases}
+              />
+            )}
           </div>
         )}
 

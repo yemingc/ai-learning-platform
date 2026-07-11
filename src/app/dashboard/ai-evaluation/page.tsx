@@ -100,6 +100,41 @@ export default async function AiEvaluationPage() {
         </Card>
       </section>
 
+      <section className="mt-10">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold">Quality dimensions</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Safety and grounding stay visible instead of disappearing inside
+              a single average score.
+            </p>
+          </div>
+          <Badge variant="outline">Six release dimensions</Badge>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {Object.entries(summary.dimensionScores).map(
+            ([dimension, dimensionScore]) => (
+              <Card key={dimension}>
+                <CardHeader>
+                  <CardDescription className="capitalize">
+                    {dimension}
+                  </CardDescription>
+                  <CardTitle>
+                    {dimensionScore.score === null
+                      ? "Not run"
+                      : `${dimensionScore.score}%`}
+                  </CardTitle>
+                  <CardDescription>
+                    {dimensionScore.passedChecks}/{dimensionScore.totalChecks}{" "}
+                    checks
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ),
+          )}
+        </div>
+      </section>
+
       <section className="mt-10 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
         <Card>
           <CardHeader>
@@ -166,6 +201,9 @@ export default async function AiEvaluationPage() {
                         <p className="mt-1 text-muted-foreground">
                           {check.detail}
                         </p>
+                        <Badge className="mt-2" variant="outline">
+                          {check.dimension}
+                        </Badge>
                       </div>
                     </div>
                   ))}

@@ -109,14 +109,39 @@ before they move into problem solving.
   - memory signal history
   - diagnostic and exit-ticket attempts
   - measured learning gain
+- Misconceptions have an evidence-backed lifecycle: they remain active until a
+  strong server-scored exit ticket marks them repaired, retain their audit
+  history, and reopen if the same misconception is detected again later.
 - Student-facing Dashboard navigation split into course selection, unit
   selection, and concept-level progress/recommendations.
+- Destructive course-progress resets use an explicit, cancellable confirmation
+  step and preserve the current view when the reset request fails.
 - Study recommendations generated from memory signals rather than raw question
   counts.
 - Readiness combines deterministic assessment evidence with bounded AI Teacher
   signals. Conversations and a diagnostic alone are capped below `familiar`;
   an exit ticket is required to certify application readiness.
+- Strong exit evidence can outweigh stale negative conversation signals, while
+  weak exit evidence still keeps the learner in a repair loop.
+- Review signals are time-ordered against the latest exit ticket: newer AI
+  interactions can reopen a review need, but older inferred signals no longer
+  override stronger assessment evidence forever.
 - Authenticated memory API with user isolation by `learnerId + courseId`.
+
+### Adaptive Study Plan
+
+- Authenticated `/plan` route turns the concept graph and learner memory into a
+  concrete next-learning queue.
+- The planner ranks up to three unlocked concepts using server-scored
+  diagnostic/exit evidence, readiness, misconceptions, recent review signals,
+  and prerequisite stability.
+- Downstream concepts remain visibly blocked until their prerequisites are
+  stable, while active misconceptions and weak exit evidence move ahead of new
+  content.
+- Every recommendation explains why it was selected and links directly into
+  the relevant lesson and AI Teacher prompt.
+- A concept is only marked complete when exit evidence, readiness, and recent
+  learning signals all meet the completion standard.
 
 ### LangGraph Workflow
 
@@ -208,6 +233,15 @@ It runs fixed pedagogical cases that check:
 - bilingual Chinese responses with English terms in parentheses
 - guardrails against question-bank or grading language
 - coverage of the graph-ready AI Teacher workflow nodes
+- prompt-injection resistance without abandoning the learning task
+- learner-memory privacy using non-production canary values
+- confident false-premise correction instead of user-agreement bias
+- citation allowlist compliance under explicit hallucination pressure
+
+Checks are grouped into six independently visible quality dimensions:
+`contract`, `pedagogy`, `grounding`, `safety`, `localization`, and `workflow`.
+Dimensions with no executed checks are shown as not run rather than receiving a
+misleading perfect score.
 
 The deterministic runner provides a fast offline contract and pedagogy layer.
 
@@ -216,7 +250,24 @@ real AI Teacher workflow through `/api/teacher-evaluation/live` and scores the
 model response with the same cases. This route is authenticated and intended
 for development or portfolio demos, not for student-facing learning sessions.
 Each live evaluation summary is persisted with aggregate score, pass count,
-duration, workflow engines, and model telemetry.
+duration, workflow engines, and model telemetry. A release-governance layer then:
+
+- estimates cost from per-case input/output tokens using a versioned pricing snapshot
+- uses cache-miss input pricing as a conservative upper-bound estimate
+- establishes the first qualifying run as an approved baseline
+- compares later prompt/model candidates against the latest approved baseline
+- blocks releases on absolute quality failures, quality regressions, cost-budget
+  overruns, unknown model prices, or incomplete token evidence
+- persists the policy version, pricing version, checks, baseline id, and decision
+  so historical approvals remain auditable
+- requires safety and contract dimensions to score 100%, with explicit minimums
+  for pedagogy, grounding, localization, and workflow
+
+The current `deepseek-official-usd-2026-07-11` snapshot is sourced from the
+[official DeepSeek model pricing documentation](https://api-docs.deepseek.com/quick_start/pricing).
+Because the SDK telemetry does not currently separate cache-hit and cache-miss
+prompt tokens, the estimate deliberately prices all input as cache misses rather
+than presenting a falsely precise lower cost.
 
 ### Persisted AI Run Observability
 
@@ -227,11 +278,64 @@ SQLite and exposed behind Developer Mode at:
 /developer/ai-runs
 ```
 
-The dashboard reports 24-hour volume, success rate, first-token/total latency, token usage,
-retrieval/fallback behavior, prompt and model versions, recent live evaluation
-summaries, and hashed learner labels. Raw student and assistant messages are
-not stored in the telemetry table. Local retention defaults to 90 days and can
-be configured with `AI_RUN_RETENTION_DAYS`.
+The dashboard reports 24-hour volume, success rate, first-token/total latency,
+token usage, retrieval/fallback behavior, prompt and model versions, recent live
+evaluation summaries, versioned cost estimates, release-gate decisions, and
+hashed learner labels. Raw student and assistant messages are not stored in the
+telemetry table. Local retention defaults to 90 days and can be configured with
+`AI_RUN_RETENTION_DAYS`.
+
+The same dashboard includes accessible SVG small-multiple trends for average
+score, case pass rate, all six quality dimensions, estimated cost per case, and
+suite latency. It compares only the newest evaluation-suite version, marks older
+or legacy runs as excluded, and keeps prompt/model/gate metadata attached to
+each timeline point. With zero or one real run it shows an explicit empty or
+single-run state instead of fabricating a trend.
+
+Human reviewers can score a just-completed live suite with the versioned
+`teacher-human-review-v1` rubric across pedagogy, grounding, safety, and
+localization. The review endpoint re-authenticates Developer Mode, validates all
+four 1–5 ratings plus complete-case confirmation, and upserts one review per
+reviewer/run. SQLite stores normalized audit data and an optional 600-character
+note, but not assistant response text. The dashboard reports mean absolute
+error, signed bias, and agreement within 20 points for each dimension and
+overall. It remains `insufficient_samples` until three distinct runs have human
+reviews, avoiding a premature claim that automated teaching scores are calibrated.
+
+### Evaluation Governance Artifacts
+
+Developer Mode and CI can export the same privacy-safe governance report from:
+
+```text
+/api/developer/evaluation-report?format=json|markdown
+```
+
+The versioned `ai-evaluation-governance-report-v1` contract includes the
+deterministic suite, six dimensions, latest matching live release gate,
+suite-aware trends, human-calibration summary, requirement policy, evidence
+level, and final decision. It excludes assistant messages, learner identifiers,
+and human-review note bodies.
+
+Browser downloads use the authenticated Developer Mode cookie. CI uses a
+dedicated `AI_EVALUATION_REPORT_SECRET`; the embedding-index secret is not
+accepted for this endpoint. Export locally or in CI with:
+
+```bash
+npm run report:evaluation
+npm run report:evaluation -- --format markdown
+npm run report:evaluation -- --require-live
+npm run report:evaluation -- --require-live --require-human-calibration
+```
+
+The default report can pass at `deterministic_only` evidence without making a
+live-model claim. If a matching live run exists and its release gate failed, the
+report fails even when live evidence was optional. Requirement flags fail closed
+when their evidence is absent. The CLI writes to `artifacts/`, reads the gate and
+evidence level from response headers, and exits non-zero on a failed gate.
+
+`.github/workflows/ci.yml` runs install, tests, lint, and production build; starts
+the production server with an ephemeral report secret; exports JSON and Markdown
+without calling the model; and uploads both files as a CI artifact.
 
 ### Curriculum Retrieval Preview
 
@@ -339,8 +443,10 @@ debugging and evaluation story.
 | `/learn` | Course library / course pack selection |
 | `/courses/[courseId]/learn` | Course unit overview |
 | `/courses/[courseId]/learn/[unitId]` | Unit-specific concept graph and lesson list |
-| `/learn/[conceptId]` | Static lesson plus AI Teacher chat |
+| `/courses/[courseId]/learn/[unitId]/[conceptId]` | Course-scoped static lesson plus AI Teacher chat |
+| `/learn/[conceptId]` | Legacy AP Calculus lesson URL redirected to the course-scoped route |
 | `/dashboard` | Student course progress dashboard |
+| `/plan` | Evidence-aware adaptive learning plan and next-session queue |
 | `/dashboard/[courseId]` | Course-level progress and unit selection |
 | `/dashboard/[courseId]/[unitId]` | Unit-level concept readiness and recommendations |
 | `/memory` | Legacy redirect to `/dashboard` |
@@ -349,12 +455,15 @@ debugging and evaluation story.
 | `/developer/retrieval-preview` | Retrieval-ready curriculum chunk preview for future RAG |
 | `/dashboard/ai-evaluation` | AI Teacher contract and pedagogy evaluation suite |
 | `/dashboard/workflow-inspector` | AI workflow trace and memory patch inspector |
+| `/api/health` | Public, uncached application and SQLite readiness probe |
 | `/api/developer/embedding-index` | Local embedding index status/build endpoint |
 | `/api/developer/ai-runs` | Protected AI run and live-evaluation telemetry API |
+| `/api/developer/evaluation-report` | Protected JSON/Markdown governance report and CI gate artifact |
 | `/api/developer/retrieval-check` | Deterministic retrieval index health check |
 | `/api/memory` | Authenticated learner memory read/reset API; writes come from trusted teacher and assessment services |
 | `/api/formative-assessment` | Answer-key-safe assessment reads and authenticated server-scored attempt writes |
 | `/api/teacher-evaluation/live` | Authenticated live AI Teacher evaluation API |
+| `/api/teacher-evaluation/review` | Developer-authorized, schema-validated human calibration review API |
 | `/api/teacher-chat` | Server-side AI Teacher chat API |
 
 ## Architecture
@@ -368,6 +477,7 @@ src/
     dashboard/                 Student dashboard and developer tools
     learn/                     Course library and lesson pages
     memory/                    Legacy redirects to dashboard
+    plan/                      Authenticated adaptive study plan
 
   components/
     dashboard/                 Workflow Inspector UI
@@ -378,8 +488,12 @@ src/
 
   curricula/
     index.ts                   Curriculum pack registry
+    integrity.ts               Shared graph/content/assessment validation
+    localization.ts            Course-owned localization resolver
+    routing.ts                 Collision-safe course lesson URLs
     types.ts                   Reusable curriculum pack contract
     ap-calculus-ab/            First course implementation
+    javascript-foundations/    Small second course proving reuse
 
   features/
     assessment/                Bilingual item bank, scoring, and learning gain
@@ -389,13 +503,35 @@ src/
     knowledge/                 Course-agnostic graph types and getters
     lessons/                   Structured lesson assets, getters, and retrieval chunk helpers
     memory/                    Learner memory model, API client, scoring, recommendations
-    planner/                   Planner domain types
+    planner/                   Adaptive planning rules and domain types
 ```
 
-AP Calculus AB now lives as a curriculum pack. The platform services read from
-the curriculum registry, so a future course can be added by creating another
-pack with its own course metadata, knowledge graph, lessons, and teaching
-profile.
+AP Calculus AB and JavaScript Foundations live as independent curriculum packs.
+The registry validates every pack and platform services select resources by
+`courseId`, so concept ids, localizations, assessments, and visualizations do
+not leak between subjects.
+
+### Adding a course
+
+Use the Chinese [Curriculum Pack Generation Guide](docs/CURRICULUM_PACK_GUIDE.md)
+and fill in the reusable
+[course brief template](docs/CURRICULUM_PACK_BRIEF.template.yaml) before
+generating curriculum content.
+
+1. Create `src/curricula/<course-id>/index.ts` and implement
+   `CurriculumPack`.
+2. Include course catalog metadata, the unit/topic/concept graph, structured
+   lessons, a teaching profile, and any course-owned localizations,
+   assessments, or visualizations.
+3. Register the pack in `src/curricula/index.ts`.
+4. Run `npm test`, `npx tsc --noEmit`, `npm run lint`, and `npm run build`.
+5. Rebuild the embedding index with `npm run embeddings:build` when localized
+   lesson content changes.
+
+The course-pack and assessment checks reject invalid parent references,
+missing lessons, duplicate lesson attachments, malformed lesson schemas,
+incomplete assessment phases, and visualizations that point to unknown
+concepts.
 
 ## Domain Model
 
@@ -580,6 +716,14 @@ RAG_RETRIEVAL_MODE=keyword
 NEXT_PUBLIC_SHOW_AI_TRACE=false
 ENABLE_DEVELOPER_TOOLS=true
 DEVELOPER_MODE_PASSWORD=
+AI_EVALUATION_REPORT_SECRET=
+AI_EVALUATION_REPORT_BASE_URL=http://localhost:3000
+
+ENABLE_PUBLIC_DEMO_ACCOUNT=false
+DEMO_ACCOUNT_EMAIL=demo.learner@example.com
+DEMO_ACCOUNT_PASSWORD=change_me_to_a_unique_demo_password
+DEMO_ACCOUNT_NAME=Portfolio Demo Learner
+DEMO_BASE_URL=http://localhost:3000
 
 EMBEDDING_PROVIDER=openai-compatible
 EMBEDDING_BASE_URL=
@@ -596,7 +740,8 @@ See `.env.example` for the current template.
 
 `EMBEDDING_INDEX_SECRET` is optional for local development. Set it for
 production or shared demos, then send it as a bearer token when triggering
-index builds.
+index builds. `AI_EVALUATION_REPORT_SECRET` is a separate CI credential with no
+embedding-index authority.
 
 ## Getting Started
 
@@ -622,6 +767,12 @@ Run lint:
 
 ```bash
 npm run lint
+```
+
+Audit production dependencies and fail on high/critical advisories:
+
+```bash
+npm run audit:prod
 ```
 
 Run deterministic curriculum, workflow, streaming, retrieval-adjacent, and
@@ -666,6 +817,71 @@ Start the production build:
 npm run start
 ```
 
+### Run the production image with Docker
+
+The repository includes a Next.js standalone image and a Compose configuration
+for a reproducible single-instance portfolio deployment. Copy the example file,
+replace every `change_me` value, and start the service:
+
+```bash
+cp docker.env.example .env.docker.local
+docker compose --env-file .env.docker.local up --build
+```
+
+On PowerShell, use `Copy-Item docker.env.example .env.docker.local` for the
+first command. Open `http://localhost:3000`; container and platform probes can
+use `GET /api/health`. The health response checks SQLite readiness without
+exposing credentials, provider configuration, user data, or model names.
+
+The named `ai-learning-data` volume persists accounts, learner evidence, AI run
+telemetry, evaluation summaries, and human reviews under `/app/data`. Back up
+that volume before replacing a production host.
+
+This deployment profile intentionally runs one application instance. SQLite,
+the local Next.js cache, and in-process coordination are not a multi-instance
+architecture. Before horizontal scaling, migrate state to a shared database
+(the roadmap targets PostgreSQL/pgvector), configure a shared cache, and follow
+the Next.js multi-instance requirements for Server Action encryption and cache
+invalidation.
+
+### Seed a recruiter-friendly demo learner
+
+The demo bootstrap uses the same registration, Auth.js session, learner-memory,
+and server-scored formative-assessment APIs as the product. It does not write
+SQLite directly and does not create fake live-model evaluations or fake human
+reviews.
+
+Set a dedicated reserved identity and unique password in your local environment
+or Compose env file:
+
+```env
+ENABLE_PUBLIC_DEMO_ACCOUNT=true
+DEMO_ACCOUNT_EMAIL=demo.learner@example.com
+DEMO_ACCOUNT_PASSWORD=use_a_unique_12_plus_character_password
+DEMO_ACCOUNT_NAME=Portfolio Demo Learner
+DEMO_BASE_URL=http://localhost:3000
+```
+
+Then, while the application is running, seed the account:
+
+```bash
+npm run demo:seed -- --env-file .env.docker.local
+```
+
+The command is idempotent: it creates or reuses only the named demo account,
+resets that account's AP Calculus learning memory, and writes five final
+assessment attempts across three concepts. The resulting evidence intentionally
+shows a strong learning gain, a partial-understanding case, and a diagnostic-only
+case so `/dashboard` and `/plan` are meaningful immediately. Temporary answer-key
+discovery attempts are removed before the final scenario is written.
+
+When `ENABLE_PUBLIC_DEMO_ACCOUNT=true`, `/login` displays a one-click shared-demo
+button. This intentionally makes the demo credentials public. The application
+therefore accepts only an `example.com` identity, rejects placeholder passwords,
+and rejects reuse of auth, Developer Mode, model-provider, evaluation-report,
+embedding-provider, or embedding-index secrets. Keep the feature disabled for
+private or real learner accounts. A remote `DEMO_BASE_URL` must use HTTPS.
+
 ## How To Try The Core Flow
 
 1. Open `/learn`.
@@ -683,8 +899,9 @@ npm run start
 
 9. Complete the exit ticket and inspect the learning-gain/readiness update.
 10. Open `/dashboard`, choose a course, then choose a unit to inspect concept evidence and recommendations.
-11. Open `/dashboard/workflow-inspector` to inspect the AI workflow run.
-12. If prompted, open `/developer` and enable Developer Mode first.
+11. Open `/plan` to see the updated evidence-aware next-learning queue.
+12. Open `/dashboard/workflow-inspector` to inspect the AI workflow run.
+13. If prompted, open `/developer` and enable Developer Mode first.
 
 ## Auth Flow (Current)
 
@@ -707,6 +924,7 @@ The project intentionally does not include:
 - review queues
 - full practice question bank
 - AI-generated full lessons
+- horizontally scaled or serverless SQLite deployment
 
 The current goal is to keep the backend thin while preserving the
 learning-centric architecture and AI teaching workflow.
@@ -740,6 +958,13 @@ go beyond a simple chatbot:
 - cancellable, progressively rendered structured AI responses
 - AI observability through workflow traces and persisted run telemetry
 - deterministic and live-model evaluation with persisted summaries
+- adversarial prompt-injection, privacy, false-premise, and citation tests
+- versioned model-cost estimation and baseline-aware prompt/model release gates
+- suite-version-aware quality, cost, and latency trend reporting
+- versioned human-review rubric with automated-score agreement calibration
+- privacy-safe JSON/Markdown governance reports with CI exit semantics
+- non-root Next.js standalone container with SQLite volume and health probe
+- idempotent API-driven synthetic learner bootstrap and opt-in one-click demo login
 - bilingual learning UX
 
 Potential resume bullet:
@@ -750,27 +975,34 @@ DeepSeek, Zod, and LangGraph, featuring grounded curriculum retrieval,
 server-persisted learner memory, schema-validated teaching workflows,
 per-user usage controls, cancellable structured-response streaming,
 server-scored diagnostic-to-exit learning evidence, live/offline evaluations,
-and privacy-minimized model/token/TTFT observability.
+privacy-minimized model/token/TTFT observability, adversarial six-dimension AI
+evaluation, auditable quality/cost release gates, and version-aware evaluation
+trend reporting plus privacy-minimized human-review calibration for prompt/model
+changes, exported as CI-ready JSON/Markdown governance artifacts.
 ```
 
 ## Recommended Next Step
 
-Build **prompt/model comparison gates with versioned cost budgets**.
+Deploy the containerized portfolio build and add **reviewed screenshots or a
+short demo GIF** from the seeded learner journey.
 
-The learning layer now includes a measurable diagnostic-to-exit evidence loop
-in addition to server-authoritative memory, grounded retrieval, cancellable
-streaming, quotas, persisted live evals, and model telemetry. A future
-engineering step would be to compare prompt/model versions over persisted
-evaluation runs, calculate cost from versioned provider pricing, and block
-prompt releases that regress quality or exceed a configured budget.
+The suite now combines concept coverage with prompt injection, private-memory
+canaries, false premises, bilingual behavior, and citation hallucination
+pressure. Historical dimension, latency, and cost trends now compare only runs
+from the same suite version, human reviews measure per-dimension agreement, and
+CI now exports a stable privacy-safe governance artifact; the standalone Docker
+image makes the build reproducible outside a developer workstation; and the
+API-driven seed flow creates clearly labeled, non-sensitive learner evidence
+without inventing live-model results. The next useful step is to make this depth
+immediately visible through an actual hosted demo and reviewed visuals.
 
 ## Roadmap
 
 ### Short Term
 
-- Larger retrieval and teaching evaluation case libraries
-- Estimated model cost based on versioned provider pricing metadata
-- README screenshots or demo GIFs
+- Deploy the verified standalone image to a single-instance container host
+- Collect at least three real human-reviewed live runs for the calibration sample
+- README screenshots or demo GIFs backed by a deployed portfolio instance
 
 ### Medium Term
 
@@ -781,9 +1013,8 @@ prompt releases that regress quality or exceed a configured budget.
 
 ### Long Term
 
-- Adaptive planner using learner memory and concept dependencies
 - LangGraph checkpointing and bounded conditional tool loops
-- Evaluation dashboard for prompt and model quality
+- Multi-reviewer adjudication and inter-rater reliability
 - Curriculum authoring workflow
 - Deployment-ready observability and analytics
 

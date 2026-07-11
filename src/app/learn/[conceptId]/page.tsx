@@ -1,15 +1,9 @@
-import { notFound } from "next/navigation";
-import { LessonPageClient } from "@/components/learning/lesson-page-client";
-import { getConceptById, getCourseById } from "@/features/knowledge/get-concepts";
-import {
-  getAllLessons,
-  getLessonByConceptId,
-  getNextLesson,
-  getPreviousLesson,
-} from "@/features/lessons/get-lessons";
+import { notFound, redirect } from "next/navigation";
+import { getDefaultCurriculumPack } from "@/curricula";
+import { getLessonPath } from "@/curricula/routing";
 
 export function generateStaticParams() {
-  return getAllLessons().map((lesson) => ({
+  return getDefaultCurriculumPack().lessons.map((lesson) => ({
     conceptId: lesson.conceptId,
   }));
 }
@@ -24,21 +18,13 @@ export default async function ConceptLearningPage({
   params,
 }: ConceptLearningPageProps) {
   const { conceptId } = await params;
-  const concept = getConceptById(conceptId);
-  const lesson = getLessonByConceptId(conceptId, concept?.courseId);
-  const course = concept ? getCourseById(concept.courseId) : undefined;
+  const concept = getDefaultCurriculumPack().concepts.find(
+    (candidate) => candidate.id === conceptId,
+  );
 
-  if (!concept || !lesson || !course) {
+  if (!concept) {
     notFound();
   }
 
-  return (
-    <LessonPageClient
-      concept={concept}
-      course={course}
-      lesson={lesson}
-      nextLesson={getNextLesson(conceptId, course.id)}
-      previousLesson={getPreviousLesson(conceptId, course.id)}
-    />
-  );
+  redirect(getLessonPath(concept));
 }

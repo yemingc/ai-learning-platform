@@ -115,3 +115,34 @@ export type FormativeAssessmentProgress = {
   learningGain?: number;
   evidenceLevel: "none" | "diagnostic" | "pre_post";
 };
+
+export type FormativeAssessmentQuery = {
+  conceptId: ConceptId;
+  locale: FormativeAssessmentLocale;
+  phase: FormativeAssessmentPhase;
+};
+
+export type FormativeAssessmentGradeInput = FormativeAssessmentQuery & {
+  answers: Array<{ questionId: string; selectedOptionId: string }>;
+};
+
+export type FormativeAssessmentGrade = {
+  assessment: FormativeAssessment;
+  correctCount: number;
+  questionCount: number;
+  score: number;
+  feedback: FormativeAssessmentFeedback[];
+};
+
+export type FormativeAssessmentProvider = {
+  getAssessment: (query: FormativeAssessmentQuery) => FormativeAssessment;
+  gradeAssessment: (
+    input: FormativeAssessmentGradeInput,
+  ) => FormativeAssessmentGrade;
+  getCoverage: () => Array<{
+    conceptId: ConceptId;
+    diagnosticQuestionCount: number;
+    exitTicketQuestionCount: number;
+  }>;
+  getIntegrityIssues: () => string[];
+};

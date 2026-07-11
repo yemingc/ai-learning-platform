@@ -28,9 +28,9 @@ const learningLoop = [
   },
   {
     step: "02",
-    title: "AI-generated learning sessions",
+    title: "AI-guided learning sessions",
     description:
-      "Turn a concept into guided explanation, checks for understanding, and targeted examples before practice begins.",
+      "Pair reviewed concept lessons with guided explanations, checks for understanding, and targeted AI support before practice begins.",
   },
   {
     step: "03",

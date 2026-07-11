@@ -25,6 +25,9 @@ export type MisconceptionMemory = {
   count: number;
   firstSeenAt: string;
   lastSeenAt: string;
+  resolvedAt?: string;
+  resolutionSource?: "exit_ticket";
+  resolutionEvidenceId?: string;
 };
 
 export type ConfusionSignal = {

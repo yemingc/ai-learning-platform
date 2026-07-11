@@ -2,7 +2,7 @@
 import type { LessonContent } from "@/features/lessons/types";
 import { unit1ExtensionZhLessons } from "@/curricula/ap-calculus-ab/unit-1-extension-lesson-localization";
 
-const zhLessons: Record<string, Partial<LessonContent>> = {
+export const zhLessons: Record<string, Partial<LessonContent>> = {
   ...unit1ExtensionZhLessons,
   "what-is-a-limit": {
     conceptId: "what-is-a-limit",
@@ -70,7 +70,7 @@ const zhLessons: Record<string, Partial<LessonContent>> = {
       },
     ],
     reflectionPrompt: {
-      prompt: "不用“答案”这个词，你会怎样用一句话解释极限（limit）？",
+      prompt: "你会怎样用一句话解释极限（limit）？",
       sentenceStarter:
         "极限（limit）描述的是当 ____ 时，函数值（function values）正在靠近 ____。",
     },

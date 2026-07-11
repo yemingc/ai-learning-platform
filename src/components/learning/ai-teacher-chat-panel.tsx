@@ -541,6 +541,7 @@ export function AiTeacherChatPanel({
         saveWorkflowInspectorRun({
           id: createId(),
           assistantMessage: completedData.assistantMessage,
+          courseId: concept.courseId,
           conceptId: concept.id,
           conceptTitle: concept.title,
           createdAt: new Date().toISOString(),
@@ -556,6 +557,7 @@ export function AiTeacherChatPanel({
           teachingMove: completedData.teachingMove,
           trace: completedData.workflowTrace,
           userMessage,
+          unitId: concept.unitId,
           workflowEngine:
             responseWorkflowEngine ?? completedData.workflowEngine ?? "unknown",
         });

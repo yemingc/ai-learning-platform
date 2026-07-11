@@ -32,9 +32,10 @@ export async function POST() {
   }
 
   const summary = await runLiveTeacherEvaluationSuite();
+  let releaseGate;
 
   try {
-    recordLiveTeacherEvaluation(summary);
+    releaseGate = recordLiveTeacherEvaluation(summary);
   } catch (observabilityError) {
     console.warn("Unable to persist live AI Teacher evaluation.", {
       error:
@@ -44,5 +45,5 @@ export async function POST() {
     });
   }
 
-  return NextResponse.json(summary);
+  return NextResponse.json({ ...summary, releaseGate });
 }

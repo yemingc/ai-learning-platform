@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { ArrowRight, BookOpen, Clock, Layers3, Network } from "lucide-react";
 import { getCurriculumPacks } from "@/curricula";
+import { localizeCourse, localizeUnit } from "@/curricula/localization";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -24,7 +25,7 @@ export default function LearnPage() {
             选择一门课程，开始概念驱动学习。
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">
-            这个平台不是只服务一门课。每个课程包都可以拥有自己的知识图谱、结构化课程、AI 教师策略和学习记忆。当前先提供 AP 微积分 AB（AP Calculus AB），后续可以替换或新增其他学科。
+            每个课程包都拥有自己的知识图谱、结构化课程、AI 教师策略、形成性评估和学习记忆，并复用同一套学习引擎。
           </p>
         </div>
 
@@ -43,10 +44,13 @@ export default function LearnPage() {
 
       <section className="mt-10 grid gap-5 md:grid-cols-2">
         {curricula.map((curriculum) => {
-          const course = curriculum.course;
+          const course = localizeCourse(curriculum, "zh");
           const activeUnit =
             curriculum.units.find((unit) => unit.id === curriculum.defaultUnitId) ??
             curriculum.units[0];
+          const displayUnit = activeUnit
+            ? localizeUnit(curriculum, activeUnit, "zh")
+            : undefined;
           const conceptCount = curriculum.concepts.length;
           const lessonCount = curriculum.lessons.length;
           const totalMinutes = curriculum.concepts.reduce(
@@ -58,13 +62,15 @@ export default function LearnPage() {
             <Card key={course.id}>
               <CardHeader>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">当前可用</Badge>
-                  <Badge variant="outline">微积分（Calculus）</Badge>
+                  <Badge variant="secondary">
+                    {curriculum.catalog.status === "available"
+                      ? "当前可用"
+                      : "课程预览"}
+                  </Badge>
+                  <Badge variant="outline">{course.subject}</Badge>
                 </div>
-                <CardTitle className="text-2xl">AP 微积分 AB（AP Calculus AB）</CardTitle>
-                <CardDescription>
-                  一门围绕概念理解搭建的 AP 微积分 AB 学习路径，先学清楚概念，再进入应用练习。
-                </CardDescription>
+                <CardTitle className="text-2xl">{course.title}</CardTitle>
+                <CardDescription>{course.description}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -102,12 +108,10 @@ export default function LearnPage() {
                     当前模块
                   </p>
                   <p className="mt-2 text-sm font-semibold">
-                    {activeUnit
-                      ? "极限与连续性（Limits and Continuity · Unit 1）"
-                      : "暂无模块"}
+                    {displayUnit ? displayUnit.title : "暂无模块"}
                   </p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    第 1 单元覆盖极限表示、极限法则、夹逼定理、连续性、介值定理与端行为，并把每个概念连接到可视化证据和 AI 教师。
+                    {displayUnit?.description ?? "课程模块正在准备中。"}
                   </p>
                 </div>
 

@@ -11,6 +11,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useLanguage } from "@/components/i18n/language-provider";
+import { localizeConcept } from "@/curricula/localization";
+import type { CurriculumPack } from "@/curricula/types";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -19,7 +21,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getLocalizedConcept } from "@/features/knowledge/concept-localization";
 import type { Concept } from "@/features/knowledge/types";
 import {
   fetchLearnerMemory,
@@ -27,9 +28,14 @@ import {
 } from "@/features/memory/memory-api-client";
 import type { ConceptMemory } from "@/features/memory/types";
 import { getFormativeAssessmentProgress } from "@/features/assessment/assessment-progress";
+import {
+  getActiveMisconceptions,
+  getResolvedMisconceptions,
+} from "@/features/memory/misconception-lifecycle";
 
 type LessonMemorySummaryProps = {
   concept: Concept;
+  curriculum: CurriculumPack;
 };
 
 const statusLabels = {
@@ -59,7 +65,8 @@ const copy = {
     readiness: (value: number) => `${value}% readiness estimate`,
     stored: "Stored securely for the current signed-in account.",
     interactions: "Interactions",
-    misconceptions: "Misconceptions",
+    misconceptions: "Active misconceptions",
+    repaired: "repaired",
     lastStudied: "Last studied",
     notYet: "Not yet",
     assessments: "Diagnostic / exit",
@@ -77,7 +84,8 @@ const copy = {
     readiness: (value: number) => `${value}% 应用准备度估计`,
     stored: "记录会绑定到当前登录账号。",
     interactions: "互动次数",
-    misconceptions: "误区",
+    misconceptions: "活跃误区",
+    repaired: "个已修复",
     lastStudied: "上次学习",
     notYet: "还没有",
     assessments: "诊断 / 离堂",
@@ -86,17 +94,26 @@ const copy = {
   },
 };
 
-export function LessonMemorySummary({ concept }: LessonMemorySummaryProps) {
+export function LessonMemorySummary({
+  concept,
+  curriculum,
+}: LessonMemorySummaryProps) {
   const { language } = useLanguage();
   const { data: session } = useSession();
   const [conceptMemory, setConceptMemory] = useState<
     ConceptMemory | undefined
   >();
   const [memoryError, setMemoryError] = useState<string | undefined>();
-  const displayConcept = getLocalizedConcept(concept, language);
+  const displayConcept = localizeConcept(curriculum, concept, language);
   const pageCopy = copy[language];
   const assessmentProgress = getFormativeAssessmentProgress(
     conceptMemory?.assessmentAttempts,
+  );
+  const activeMisconceptions = getActiveMisconceptions(
+    conceptMemory?.misconceptions,
+  );
+  const resolvedMisconceptions = getResolvedMisconceptions(
+    conceptMemory?.misconceptions,
   );
 
   useEffect(() => {
@@ -182,8 +199,13 @@ export function LessonMemorySummary({ concept }: LessonMemorySummaryProps) {
             {pageCopy.misconceptions}
           </p>
           <p className="mt-2 text-2xl font-semibold">
-            {conceptMemory.misconceptions.length}
+            {activeMisconceptions.length}
           </p>
+          {resolvedMisconceptions.length > 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {resolvedMisconceptions.length} {pageCopy.repaired}
+            </p>
+          )}
         </div>
         <div className="rounded-lg border border-border bg-background/70 p-3">
           <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">

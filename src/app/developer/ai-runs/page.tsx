@@ -6,12 +6,16 @@ import {
   Beaker,
   Clock3,
   Coins,
+  Download,
   Gauge,
   RefreshCw,
   Route,
+  ShieldCheck,
   Zap,
 } from "lucide-react";
 import { auth } from "@/auth";
+import { EvaluationTrendPanel } from "@/components/developer/evaluation-trend-panel";
+import { HumanCalibrationPanel } from "@/components/developer/human-calibration-panel";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -41,6 +45,10 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "medium",
   }).format(new Date(value));
+}
+
+function formatEstimatedCost(value: number | null) {
+  return value === null ? "cost unavailable" : `$${(value / 1_000_000).toFixed(6)}`;
 }
 
 export default async function AiRunsPage() {
@@ -100,6 +108,20 @@ export default async function AiRunsPage() {
           <RefreshCw />
           Refresh
         </Link>
+        <Link
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          href="/api/developer/evaluation-report?format=json"
+        >
+          <Download />
+          JSON report
+        </Link>
+        <Link
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          href="/api/developer/evaluation-report?format=markdown"
+        >
+          <Download />
+          Markdown report
+        </Link>
       </div>
 
       <section className="mt-8 max-w-4xl">
@@ -155,6 +177,10 @@ export default async function AiRunsPage() {
         </CardContent>
       </Card>
 
+      <EvaluationTrendPanel report={dashboard.evaluationTrends} />
+
+      <HumanCalibrationPanel report={dashboard.humanCalibration} />
+
       <section className="mt-10">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -188,6 +214,23 @@ export default async function AiRunsPage() {
                     <Badge variant="outline">
                       {evaluation.passedCases}/{evaluation.totalCases} passed
                     </Badge>
+                    {evaluation.releaseGateStatus && (
+                      <Badge
+                        className={
+                          evaluation.releaseGate?.approved
+                            ? undefined
+                            : "border-destructive/40 text-destructive"
+                        }
+                        variant={
+                          evaluation.releaseGate?.approved
+                            ? "secondary"
+                            : "outline"
+                        }
+                      >
+                        <ShieldCheck className="size-3" />
+                        {evaluation.releaseGateStatus.replaceAll("_", " ")}
+                      </Badge>
+                    )}
                   </div>
                   <CardTitle>{evaluation.averageScore}% average</CardTitle>
                   <CardDescription>
@@ -197,10 +240,32 @@ export default async function AiRunsPage() {
                 <CardContent className="space-y-2 text-sm text-muted-foreground">
                   <p>{evaluation.models ?? "model unavailable"}</p>
                   <p>{evaluation.promptVersion ?? "prompt unavailable"}</p>
+                  <p>{evaluation.suiteVersion ?? "legacy evaluation suite"}</p>
                   <p>
                     {evaluation.totalTokens.toLocaleString()} tokens ·{" "}
                     {formatDuration(evaluation.durationMs)}
                   </p>
+                  <p>
+                    {formatEstimatedCost(evaluation.estimatedCostMicroUsd)} ·{" "}
+                    {evaluation.pricingVersion ?? "pricing unavailable"}
+                  </p>
+                  {evaluation.releaseGate && (
+                    <p>{evaluation.releaseGate.summary}</p>
+                  )}
+                  {evaluation.dimensionScores && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {Object.entries(evaluation.dimensionScores).map(
+                        ([dimension, dimensionScore]) => (
+                          <Badge key={dimension} variant="outline">
+                            {dimension}{" "}
+                            {dimensionScore.score === null
+                              ? "not run"
+                              : `${dimensionScore.score}%`}
+                          </Badge>
+                        ),
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))

@@ -31,6 +31,19 @@ import type {
   TeacherWorkflowTraceEvent,
 } from "@/features/ai-teacher/workflow/types";
 import { cn } from "@/lib/utils";
+import { getLessonPath } from "@/curricula/routing";
+
+function getInspectorLessonHref(run: TeacherWorkflowInspectorRun) {
+  if (run.courseId && run.unitId) {
+    return getLessonPath({
+      courseId: run.courseId,
+      unitId: run.unitId,
+      id: run.conceptId,
+    });
+  }
+
+  return `/learn/${run.conceptId}`;
+}
 
 const nodeLabels: Record<
   TeacherWorkflowNode,
@@ -315,7 +328,9 @@ export function WorkflowInspectorClient() {
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link href="/learn/what-is-a-limit">{t.followLesson}</Link>
+              <Link href="/courses/ap-calculus-ab/learn/ap-calculus-ab-unit-1-limits-continuity/what-is-a-limit">
+                {t.followLesson}
+              </Link>
             </Button>
           </CardContent>
         </Card>
@@ -412,7 +427,7 @@ export function WorkflowInspectorClient() {
                       </CardDescription>
                     </div>
                     <Button asChild variant="outline">
-                      <Link href={`/learn/${selectedRun.conceptId}`}>
+                      <Link href={getInspectorLessonHref(selectedRun)}>
                         {t.followLesson}
                       </Link>
                     </Button>

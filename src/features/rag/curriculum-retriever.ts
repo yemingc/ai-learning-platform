@@ -5,10 +5,10 @@ import {
   type LessonRetrievalLocale,
 } from "@/features/lessons/retrieval-chunks";
 import {
-  getLocalizedConcept,
-  getLocalizedCourse,
-  getLocalizedUnit,
-} from "@/features/knowledge/concept-localization";
+  localizeConcept,
+  localizeCourse,
+  localizeUnit,
+} from "@/curricula/localization";
 import type {
   CurriculumRetrievalMatchReason,
   CurriculumRetrievalPreview,
@@ -118,10 +118,12 @@ function getChunkCitation(curriculum: CurriculumPack, chunk: LessonRetrievalChun
   const unit = curriculum.units.find((item) => item.id === chunk.unitId);
   const concept = curriculum.concepts.find((item) => item.id === chunk.conceptId);
   const locale = chunk.locale;
-  const courseTitle = getLocalizedCourse(curriculum.course, locale).title;
-  const unitTitle = unit ? getLocalizedUnit(unit, locale).title : chunk.unitId;
+  const courseTitle = localizeCourse(curriculum, locale).title;
+  const unitTitle = unit
+    ? localizeUnit(curriculum, unit, locale).title
+    : chunk.unitId;
   const conceptTitle = concept
-    ? getLocalizedConcept(concept, locale).title
+    ? localizeConcept(curriculum, concept, locale).title
     : chunk.conceptId;
 
   return {

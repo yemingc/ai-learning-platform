@@ -1,6 +1,8 @@
 import type { LearnerMemorySnapshot } from "@/features/ai-teacher/workflow/types";
 import type { ConceptMemory } from "@/features/memory/types";
 import { getFormativeAssessmentProgress } from "../assessment/assessment-progress.ts";
+import { getActiveMisconceptions } from "./misconception-lifecycle.ts";
+import { getCurrentLearningSignals } from "./current-learning-signals.ts";
 
 const MAX_RECENT_ITEMS = 3;
 
@@ -19,11 +21,13 @@ export function createLearnerMemorySnapshot(
     };
   }
 
-  const latestSignal = conceptMemory.memorySignalHistory?.[0];
+  const latestSignal = getCurrentLearningSignals(conceptMemory, 1)[0];
   const assessmentProgress = getFormativeAssessmentProgress(
     conceptMemory.assessmentAttempts,
   );
-  const recentMisconceptions = conceptMemory.misconceptions
+  const recentMisconceptions = getActiveMisconceptions(
+    conceptMemory.misconceptions,
+  )
     .slice()
     .sort(
       (a, b) =>

@@ -1,6 +1,8 @@
 ﻿import type { Concept } from "@/features/knowledge/types";
 import type { ConceptMemory } from "@/features/memory/types";
 import { getFormativeAssessmentProgress } from "@/features/assessment/assessment-progress";
+import { getActiveMisconceptions } from "@/features/memory/misconception-lifecycle";
+import { getCurrentLearningSignals } from "@/features/memory/current-learning-signals";
 
 export type StudyAction =
   | "start_lesson"
@@ -76,7 +78,7 @@ function getApplicationGate(
     };
   }
 
-  if (memory.misconceptions.length > 0) {
+  if (getActiveMisconceptions(memory.misconceptions).length > 0) {
     return {
       status: "not_ready" as const,
       label: isZh ? "还不适合应用" : "Not ready yet",
@@ -146,7 +148,7 @@ function findWeakPrerequisite(
         item &&
         (!item.memory ||
           item.memory.readiness < 55 ||
-          item.memory.misconceptions.length > 0),
+          getActiveMisconceptions(item.memory.misconceptions).length > 0),
     );
 }
 
@@ -212,7 +214,7 @@ export function getStudyRecommendation({
     };
   }
 
-  const latestMemorySignal = conceptMemory.memorySignalHistory?.[0];
+  const latestMemorySignal = getCurrentLearningSignals(conceptMemory, 1)[0];
   const assessmentProgress = getFormativeAssessmentProgress(
     conceptMemory.assessmentAttempts,
   );
@@ -238,7 +240,9 @@ export function getStudyRecommendation({
     };
   }
 
-  const topMisconception = conceptMemory.misconceptions[0];
+  const topMisconception = getActiveMisconceptions(
+    conceptMemory.misconceptions,
+  )[0];
   if (topMisconception) {
     return {
       action: "repair_misconception",
@@ -340,7 +344,7 @@ export function getStudyRecommendation({
   }
 
   if (conceptMemory.readiness >= 55) {
-    const latestSignal = conceptMemory.memorySignalHistory?.[0];
+    const latestSignal = getCurrentLearningSignals(conceptMemory, 1)[0];
 
     return {
       action: "needs_reflection",

@@ -3,7 +3,8 @@
   LessonSection,
   LessonSectionType,
 } from "@/features/lessons/types";
-import { getLocalizedLessonContent } from "@/features/lessons/lesson-localization";
+import { getCurriculumPack } from "@/curricula";
+import { localizeLesson } from "@/curricula/localization";
 
 export type LessonRetrievalLocale = "en" | "zh";
 
@@ -196,7 +197,10 @@ function createEnglishChunks(lesson: LessonContent, locale: LessonRetrievalLocal
 }
 
 function createLocalizedChunks(lesson: LessonContent, locale: LessonRetrievalLocale) {
-  const localizedLesson = getLocalizedLessonContent(lesson, locale);
+  const curriculum = getCurriculumPack(lesson.courseId);
+  const localizedLesson = curriculum
+    ? localizeLesson(curriculum, lesson, locale)
+    : lesson;
 
   return createLocalizedLessonSections(localizedLesson).map((section) => ({
     id: createChunkId(lesson, section, locale),

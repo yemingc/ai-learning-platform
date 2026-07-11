@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Layers3, Network, Sparkles } from "lucide-react";
 import type { CurriculumPack } from "@/curricula/types";
+import { localizeCourse } from "@/curricula/localization";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { StudentDashboardSummary } from "@/components/dashboard/student-dashboard-summary";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getLocalizedCourse } from "@/features/knowledge/concept-localization";
 import { cn } from "@/lib/utils";
 
 type MemoryCourseListPageProps = {
@@ -32,7 +32,7 @@ const copy = {
     modelDescription:
       "Progress follows the same hierarchy as the curriculum graph.",
     modelNotes: [
-      "Course progress separates AP Calculus from future subjects.",
+      "Course progress keeps every subject and course version separate.",
       "Unit progress shows readiness before drilling into concepts.",
       "Concept signals power recommendations and AI Teacher context.",
     ],
@@ -55,7 +55,7 @@ const copy = {
     modelTitle: "课程 → Unit → 概念",
     modelDescription: "学习进度和课程知识图谱使用同一套层级结构。",
     modelNotes: [
-      "课程级进度把 AP 微积分和未来其他学科分开。",
+      "课程级进度会把不同学科和课程版本彼此隔离。",
       "Unit 级进度先看模块整体状态，再下钻到概念。",
       "概念级信号会进入 AI 教师上下文和后续学习建议。",
     ],
@@ -117,7 +117,7 @@ export function MemoryCourseListPage({
 
       <section className="mt-12 grid gap-5 lg:grid-cols-2">
         {curricula.map((curriculum) => {
-          const course = getLocalizedCourse(curriculum.course, language);
+          const course = localizeCourse(curriculum, language);
 
           return (
             <Card key={curriculum.id}>

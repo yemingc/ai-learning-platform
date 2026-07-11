@@ -1,6 +1,13 @@
 "use client";
 
-import { useId, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  useId,
+  useState,
+} from "react";
 import { ArrowLeft, ArrowRight, BetweenHorizontalEnd, ChartNoAxesCombined, Table2 } from "lucide-react";
 import type { Language } from "@/components/i18n/language-provider";
 import { Badge } from "@/components/ui/badge";
@@ -13,12 +20,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  getLessonVisualization,
   type LessonVisualization,
   type LimitSample,
+  type SqueezeSample,
 } from "@/features/lessons/lesson-visualizations";
 
 type ApproachSide = "both" | "left" | "right";
+type InteractiveSample = LimitSample &
+  Partial<Pick<SqueezeSample, "lowerY" | "upperY">>;
 
 const copy = {
   en: {
@@ -27,6 +36,8 @@ const copy = {
     fromLeft: "from left",
     fromRight: "from right",
     graph: "Graphical representation",
+    graphViewport: "Interactive graph. Scroll horizontally on a narrow screen.",
+    hoverHint: "Hover to inspect x and f(x). Use the left and right arrow keys on the graph to move between data points.",
     left: "Left",
     noTwoSided: "The one-sided values disagree, so there is no two-sided limit.",
     numerical: "Numerical representation",
@@ -43,6 +54,8 @@ const copy = {
     fromLeft: "从左侧",
     fromRight: "从右侧",
     graph: "图像表示",
+    graphViewport: "交互式图表；窄屏时可横向滚动查看。",
+    hoverHint: "将鼠标移到图表上查看 x 与 f(x)；聚焦图表后可用左右方向键切换数据点。",
     left: "左侧",
     noTwoSided: "两个单侧值不同，所以双侧极限不存在。",
     numerical: "数值表示",
@@ -51,7 +64,7 @@ const copy = {
     positiveInfinity: "x → +∞",
     right: "右侧",
     tableCaption: "目标点附近的输入值与输出值",
-    title: "先看见极限，再读懂证据。",
+    title: "图像与数值证据",
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -132,6 +145,173 @@ function GraphAxes({ targetX }: { targetX: number }) {
         {targetX}
       </text>
     </g>
+  );
+}
+
+function InteractiveSampleGraph({
+  activeCopy,
+  activeSide,
+  children,
+  isEndBehavior,
+  samples,
+  targetX,
+}: {
+  activeCopy: (typeof copy)[Language];
+  activeSide: ApproachSide;
+  children: ReactNode;
+  isEndBehavior: boolean;
+  samples: InteractiveSample[];
+  targetX: number;
+}) {
+  const [activeSampleIndex, setActiveSampleIndex] = useState<number | null>(null);
+  const sortedSamples = [...samples].sort((left, right) => left.x - right.x);
+  const visibleSamples = sortedSamples.filter((sample) => {
+    if (activeSide === "both") {
+      return true;
+    }
+
+    return getSampleSide(sample, targetX) === activeSide;
+  });
+  const safeActiveIndex =
+    activeSampleIndex === null || visibleSamples.length === 0
+      ? null
+      : Math.min(activeSampleIndex, visibleSamples.length - 1);
+  const activeSample =
+    safeActiveIndex === null ? undefined : visibleSamples[safeActiveIndex];
+  const minimumX = sortedSamples[0]?.x ?? targetX - 1;
+  const maximumX = sortedSamples.at(-1)?.x ?? targetX + 1;
+  const domainWidth = maximumX - minimumX || 1;
+  const plotStart = 45 / 520;
+  const plotEnd = 475 / 520;
+  const samplePosition = activeSample
+    ? plotStart + ((activeSample.x - minimumX) / domainWidth) * (plotEnd - plotStart)
+    : 0.5;
+  const tooltipPosition = Math.min(0.8, Math.max(0.2, samplePosition));
+
+  function selectNearestSample(
+    event:
+      | ReactMouseEvent<HTMLDivElement>
+      | ReactPointerEvent<HTMLDivElement>,
+  ) {
+    if (visibleSamples.length === 0) {
+      return;
+    }
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const pointerRatio = Math.min(
+      1,
+      Math.max(0, (event.clientX - bounds.left) / bounds.width),
+    );
+    const plotRatio = Math.min(
+      1,
+      Math.max(0, (pointerRatio - plotStart) / (plotEnd - plotStart)),
+    );
+    const pointerX = minimumX + plotRatio * domainWidth;
+    let nearestIndex = 0;
+
+    for (let index = 1; index < visibleSamples.length; index += 1) {
+      if (
+        Math.abs(visibleSamples[index].x - pointerX) <
+        Math.abs(visibleSamples[nearestIndex].x - pointerX)
+      ) {
+        nearestIndex = index;
+      }
+    }
+
+    setActiveSampleIndex(nearestIndex);
+  }
+
+  function handleFocus() {
+    if (visibleSamples.length === 0 || activeSampleIndex !== null) {
+      return;
+    }
+
+    let nearestTargetIndex = 0;
+
+    for (let index = 1; index < visibleSamples.length; index += 1) {
+      if (
+        Math.abs(visibleSamples[index].x - targetX) <
+        Math.abs(visibleSamples[nearestTargetIndex].x - targetX)
+      ) {
+        nearestTargetIndex = index;
+      }
+    }
+
+    setActiveSampleIndex(nearestTargetIndex);
+  }
+
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+      return;
+    }
+
+    event.preventDefault();
+    const direction = event.key === "ArrowLeft" ? -1 : 1;
+    const currentIndex = safeActiveIndex ?? 0;
+    setActiveSampleIndex(
+      Math.min(visibleSamples.length - 1, Math.max(0, currentIndex + direction)),
+    );
+  }
+
+  const sampleSide = activeSample
+    ? getSampleSide(activeSample, targetX)
+    : undefined;
+
+  return (
+    <>
+      <p className="mb-2 text-xs leading-5 text-muted-foreground">
+        {activeCopy.hoverHint}
+      </p>
+      <div
+        aria-label={activeCopy.hoverHint}
+        className="relative rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        data-lesson-graph="interactive"
+        onBlur={() => setActiveSampleIndex(null)}
+        onFocus={handleFocus}
+        onKeyDown={handleKeyDown}
+        onMouseLeave={() => setActiveSampleIndex(null)}
+        onMouseMove={selectNearestSample}
+        onPointerDown={selectNearestSample}
+        tabIndex={0}
+      >
+        {children}
+        {activeSample && sampleSide && (
+          <div aria-live="polite" className="pointer-events-none absolute inset-0">
+            <div
+              className="absolute inset-y-5 border-l border-dashed border-learning-amber/80"
+              style={{ left: `${samplePosition * 100}%` }}
+            />
+            <div
+              className="absolute top-3 z-10 min-w-36 -translate-x-1/2 rounded-lg border border-learning-amber/40 bg-background/95 px-3 py-2 text-xs shadow-lg backdrop-blur-sm"
+              data-graph-tooltip="true"
+              style={{ left: `${tooltipPosition * 100}%` }}
+            >
+              <p className="font-mono font-semibold">
+                x = {formatNumber(activeSample.x)}
+              </p>
+              <p className="mt-1 font-mono">
+                f(x) = {formatNumber(activeSample.y)}
+              </p>
+              {typeof activeSample.lowerY === "number" &&
+                typeof activeSample.upperY === "number" && (
+                <p className="mt-1 text-muted-foreground">
+                  {formatNumber(activeSample.lowerY)} ≤ f(x) ≤ {formatNumber(activeSample.upperY)}
+                </p>
+                )}
+              <p className="mt-1 text-muted-foreground">
+                {sampleSide === "left"
+                  ? isEndBehavior
+                    ? activeCopy.negativeInfinity
+                    : activeCopy.fromLeft
+                  : isEndBehavior
+                    ? activeCopy.positiveInfinity
+                    : activeCopy.fromRight}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -678,13 +858,14 @@ function getObservation(spec: LessonVisualization, language: Language) {
 export function LessonConceptVisualization({
   conceptId,
   language,
+  visualization,
 }: {
   conceptId: string;
   language: Language;
+  visualization?: LessonVisualization;
 }) {
   const titleId = useId();
   const [activeSide, setActiveSide] = useState<ApproachSide>("both");
-  const visualization = getLessonVisualization(conceptId);
 
   if (!visualization) {
     return null;
@@ -712,7 +893,7 @@ export function LessonConceptVisualization({
   ];
 
   return (
-    <Card className="mt-6 overflow-hidden border-learning-blue/25 bg-learning-blue/5">
+    <Card className="mt-6 w-full min-w-0 max-w-full overflow-hidden border-learning-blue/25 bg-learning-blue/5">
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">
@@ -746,37 +927,51 @@ export function LessonConceptVisualization({
           })}
         </div>
       </CardHeader>
-      <CardContent className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(15rem,0.65fr)]">
-        <div className="rounded-lg border border-border bg-background/80 p-3">
-          {visualization.kind === "finite_hole" && (
-            <FiniteHoleGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
-          )}
-          {visualization.kind === "notation_mapping" && (
-            <NotationMappingGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
-          )}
-          {visualization.kind === "one_sided_jump" && (
-            <OneSidedGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
-          )}
-          {visualization.kind === "infinite_asymptote" && (
-            <InfiniteGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
-          )}
-          {visualization.kind === "limit_law_combination" && (
-            <LimitLawGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
-          )}
-          {visualization.kind === "squeeze_bounds" && (
-            <SqueezeGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
-          )}
-          {visualization.kind === "continuity_point" && (
-            <ContinuityGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
-          )}
-          {visualization.kind === "intermediate_value" && (
-            <IntermediateValueGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
-          )}
-          {visualization.kind === "end_behavior" && (
-            <EndBehaviorGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
-          )}
+      <CardContent className="min-w-0 space-y-5">
+        <div
+          aria-label={activeCopy.graphViewport}
+          className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border border-border bg-background/80 p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          role="region"
+        >
+          <div className="min-w-[32.5rem] sm:min-w-0">
+            <InteractiveSampleGraph
+              activeCopy={activeCopy}
+              activeSide={activeSide}
+              isEndBehavior={isEndBehavior}
+              samples={visualization.samples}
+              targetX={visualization.targetX}
+            >
+              {visualization.kind === "finite_hole" && (
+                <FiniteHoleGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
+              )}
+              {visualization.kind === "notation_mapping" && (
+                <NotationMappingGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
+              )}
+              {visualization.kind === "one_sided_jump" && (
+                <OneSidedGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
+              )}
+              {visualization.kind === "infinite_asymptote" && (
+                <InfiniteGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
+              )}
+              {visualization.kind === "limit_law_combination" && (
+                <LimitLawGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
+              )}
+              {visualization.kind === "squeeze_bounds" && (
+                <SqueezeGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
+              )}
+              {visualization.kind === "continuity_point" && (
+                <ContinuityGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
+              )}
+              {visualization.kind === "intermediate_value" && (
+                <IntermediateValueGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
+              )}
+              {visualization.kind === "end_behavior" && (
+                <EndBehaviorGraph activeSide={activeSide} description={description} spec={visualization} titleId={titleId} />
+              )}
+            </InteractiveSampleGraph>
+          </div>
         </div>
-        <div className="space-y-4">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)]">
           <SampleTable
             activeSide={activeSide}
             isEndBehavior={isEndBehavior}

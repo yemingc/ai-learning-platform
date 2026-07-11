@@ -32,8 +32,14 @@ import {
 } from "@/features/memory/memory-api-client";
 import { getStudyRecommendation } from "@/features/memory/study-recommendations";
 import type { ConceptMemory, LearnerMemory } from "@/features/memory/types";
+import {
+  getActiveMisconceptions,
+  getResolvedMisconceptions,
+} from "@/features/memory/misconception-lifecycle";
+import { getCurrentLearningSignals } from "@/features/memory/current-learning-signals";
 import { getFormativeAssessmentProgress } from "@/features/assessment/assessment-progress";
 import { cn } from "@/lib/utils";
+import { getLessonPath } from "@/curricula/routing";
 
 type MemoryPageClientProps = {
   concepts: Concept[];
@@ -50,6 +56,7 @@ const statusLabels: Record<ConceptMemory["status"], string> = {
 
 function getRecommendationHref(
   recommendation: ReturnType<typeof getStudyRecommendation>,
+  concept: Concept,
 ) {
   const params = new URLSearchParams({
     action: recommendation.action,
@@ -59,7 +66,7 @@ function getRecommendationHref(
     source: "memory_recommendation",
   });
 
-  return `/learn/${recommendation.targetConceptId}?${params.toString()}`;
+  return `${getLessonPath(concept)}?${params.toString()}`;
 }
 
 function formatDate(value?: string) {
@@ -80,6 +87,8 @@ export function MemoryPageClient({
 }: MemoryPageClientProps) {
   const [memory, setMemory] = useState<LearnerMemory | undefined>();
   const [memoryError, setMemoryError] = useState<string | undefined>();
+  const [isResetConfirming, setIsResetConfirming] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const courseId = course.id;
   const courseIdRef = useRef(courseId);
 
@@ -120,13 +129,14 @@ export function MemoryPageClient({
     0,
   );
   const totalMisconceptions = conceptMemories.reduce(
-    (sum, item) => sum + (item.memory?.misconceptions.length ?? 0),
+    (sum, item) =>
+      sum + getActiveMisconceptions(item.memory?.misconceptions).length,
     0,
   );
   const reviewSignals = conceptMemories.reduce(
     (sum, item) =>
       sum +
-      (item.memory?.memorySignalHistory ?? []).filter(
+      getCurrentLearningSignals(item.memory).filter(
         (signal) => signal.needsReview,
       ).length,
     0,
@@ -195,17 +205,65 @@ export function MemoryPageClient({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button
-              className="w-full"
-              onClick={async () => {
-                setMemory(await resetLearnerMemory(courseId));
-              }}
-              type="button"
-              variant="outline"
-            >
-              <RotateCcw className="size-4" />
-              Reset course progress
-            </Button>
+            {isResetConfirming ? (
+              <div
+                aria-live="polite"
+                className="rounded-lg border border-destructive/30 bg-destructive/10 p-3"
+              >
+                <p className="text-sm font-semibold">
+                  Reset all course progress?
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  This permanently removes assessments, AI interactions,
+                  readiness, and misconception history for this course.
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <Button
+                    disabled={isResetting}
+                    onClick={() => setIsResetConfirming(false)}
+                    type="button"
+                    variant="outline"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      setIsResetting(true);
+
+                      try {
+                        setMemory(await resetLearnerMemory(courseId));
+                        setMemoryError(undefined);
+                        setIsResetConfirming(false);
+                      } catch (error) {
+                        setMemoryError(
+                          error instanceof Error
+                            ? error.message
+                            : "Unable to reset course progress.",
+                        );
+                      } finally {
+                        setIsResetting(false);
+                      }
+                    }}
+                    type="button"
+                    variant="destructive"
+                  >
+                    <RotateCcw className="size-4" />
+                    {isResetting ? "Resetting..." : "Yes, reset progress"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                className="w-full"
+                onClick={() => setIsResetConfirming(true)}
+                type="button"
+                variant="outline"
+              >
+                <RotateCcw className="size-4" />
+                Reset course progress
+              </Button>
+            )}
           </CardContent>
         </Card>
       </section>
@@ -267,12 +325,21 @@ export function MemoryPageClient({
 
       <section className="mt-10 grid gap-5 md:grid-cols-2">
         {conceptMemories.map(({ concept, memory: conceptMemory }) => {
+          const currentLearningSignal = getCurrentLearningSignals(
+            conceptMemory,
+            1,
+          )[0];
           const recommendation = getStudyRecommendation({
             concept,
             conceptMemory,
             conceptMemories: memory?.conceptMemories ?? {},
             concepts,
           });
+          const recommendationConcept =
+            concepts.find(
+              (candidate) =>
+                candidate.id === recommendation.targetConceptId,
+            ) ?? concept;
           const conceptAssessmentProgress = getFormativeAssessmentProgress(
             conceptMemory?.assessmentAttempts,
           );
@@ -314,11 +381,17 @@ export function MemoryPageClient({
                   <div className="rounded-lg border border-border bg-background/70 p-3">
                     <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
                       <TriangleAlert className="size-3.5" />
-                      Traps
+                      Active traps
                     </p>
                     <p className="mt-2 text-2xl font-semibold">
-                      {conceptMemory?.misconceptions.length ?? 0}
+                      {getActiveMisconceptions(conceptMemory?.misconceptions).length}
                     </p>
+                    {getResolvedMisconceptions(conceptMemory?.misconceptions)
+                      .length > 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {getResolvedMisconceptions(conceptMemory?.misconceptions).length} repaired
+                      </p>
+                    )}
                   </div>
                   <div className="rounded-lg border border-border bg-background/70 p-3">
                     <p className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
@@ -348,27 +421,26 @@ export function MemoryPageClient({
                   </div>
                 </div>
 
-                {conceptMemory?.memorySignalHistory?.[0] ? (
+                {currentLearningSignal ? (
                   <div className="rounded-lg border border-border bg-background/70 p-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">
                         Confusion:{" "}
-                        {conceptMemory.memorySignalHistory[0].confusionLevel}
+                        {currentLearningSignal.confusionLevel}
                       </Badge>
                       <Badge variant="outline">
                         Confidence{" "}
-                        {conceptMemory.memorySignalHistory[0].confidenceDelta >
-                        0
+                        {currentLearningSignal.confidenceDelta > 0
                           ? "+"
                           : ""}
-                        {conceptMemory.memorySignalHistory[0].confidenceDelta}
+                        {currentLearningSignal.confidenceDelta}
                       </Badge>
-                      {conceptMemory.memorySignalHistory[0].needsReview && (
+                      {currentLearningSignal.needsReview && (
                         <Badge variant="secondary">Needs review</Badge>
                       )}
                     </div>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      {conceptMemory.memorySignalHistory[0].evidenceNote}
+                      {currentLearningSignal.evidenceNote}
                     </p>
                   </div>
                 ) : null}
@@ -409,7 +481,10 @@ export function MemoryPageClient({
                         buttonVariants({ variant: "outline", size: "sm" }),
                         "w-full lg:w-auto",
                       )}
-                      href={getRecommendationHref(recommendation)}
+                      href={getRecommendationHref(
+                        recommendation,
+                        recommendationConcept,
+                      )}
                     >
                       {recommendation.ctaLabel}
                     </Link>
@@ -422,14 +497,16 @@ export function MemoryPageClient({
                   </div>
                 </div>
 
-                {conceptMemory?.misconceptions.length ? (
+                {getActiveMisconceptions(conceptMemory?.misconceptions).length ? (
                   <div>
                     <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
                       <TriangleAlert className="size-4 text-primary" />
                       Misconceptions noticed
                     </p>
                     <div className="grid gap-2">
-                      {conceptMemory.misconceptions.slice(0, 2).map((item) => (
+                      {getActiveMisconceptions(conceptMemory?.misconceptions)
+                        .slice(0, 2)
+                        .map((item) => (
                         <div
                           className="rounded-lg border border-border bg-muted p-3 text-sm leading-6"
                           key={item.id}
@@ -439,7 +516,7 @@ export function MemoryPageClient({
                             x{item.count}
                           </span>
                         </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 ) : null}
@@ -469,7 +546,7 @@ export function MemoryPageClient({
                     className={cn(
                       buttonVariants({ variant: "outline", size: "sm" }),
                     )}
-                    href={`/learn/${concept.id}`}
+                    href={getLessonPath(concept)}
                   >
                     Open lesson
                   </Link>

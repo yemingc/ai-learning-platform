@@ -1,13 +1,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
+import { signInInputSchema } from "@/features/application/auth-input";
 import { getUserByEmail } from "@/lib/user-db";
-
-const signInSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-});
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET,
@@ -24,7 +19,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const parsed = signInSchema.safeParse(credentials);
+        const parsed = signInInputSchema.safeParse(credentials);
 
         if (!parsed.success) {
           return null;

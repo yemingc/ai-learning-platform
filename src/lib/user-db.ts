@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
-import Database from "better-sqlite3";
+import {
+  ensureDatabaseColumn,
+  openApplicationDatabase,
+} from "@/lib/application-db";
 
 type UserRow = {
   id: string;
@@ -18,14 +19,7 @@ type CreateUserInput = {
   passwordHash: string;
 };
 
-const dataDir = join(process.cwd(), "data");
-const dbPath = join(dataDir, "auth.sqlite");
-
-if (!existsSync(dataDir)) {
-  mkdirSync(dataDir, { recursive: true });
-}
-
-const db = new Database(dbPath);
+const db = openApplicationDatabase();
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
@@ -38,18 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 `);
 
-function ensureColumn(columnName: string, sqlType: string) {
-  const columns = db
-    .prepare("PRAGMA table_info(users)")
-    .all() as Array<{ name: string }>;
-  const exists = columns.some((column) => column.name === columnName);
-
-  if (!exists) {
-    db.exec(`ALTER TABLE users ADD COLUMN ${columnName} ${sqlType}`);
-  }
-}
-
-ensureColumn("email_verified_at", "TEXT");
+ensureDatabaseColumn(db, "users", "email_verified_at", "TEXT");
 
 function mapUser(row: UserRow | undefined) {
   if (!row) {
