@@ -21,7 +21,11 @@ export function getCurrentLearningSignals(
   }
 
   return (memory.recentInteractions ?? [])
-    .filter((interaction) => interaction.createdAt > latestExit.submittedAt)
+    .filter(
+      (interaction) =>
+        interaction.evidenceMode !== "audit_only" &&
+        interaction.createdAt > latestExit.submittedAt,
+    )
     .slice(0, limit)
     .map((interaction) => interaction.memorySignals);
 }

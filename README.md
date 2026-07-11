@@ -152,17 +152,23 @@ Student Message
   -> Build Context
   -> Classify Intent
   -> Select Teaching Strategy
-  -> Retrieve Curriculum Chunks
-  -> Assemble Curriculum Context
-  -> Generate Teaching Response
-  -> Validate Structured Output
+  -> Decide Curriculum Retrieval
+      -> Lightweight: Use Reviewed Lesson Context
+      -> Substantive: Retrieve Curriculum Context
+          -> Assess Retrieval Quality
+          -> Retry Once With Current-Concept Scope, Or Fall Back To Lesson
+  -> Generate And Validate Teaching Response
   -> Extract Learning Signals
-  -> Update Learner Memory
+  -> Decide Memory Update
+      -> Persist Learning Evidence
+      -> Record Audit-Only Interaction
+      -> Skip Lightweight Interaction
   -> Return Next Study Action
 ```
 
-LangGraph is the default workflow engine. A deterministic TypeScript runner is
-kept as a fallback.
+LangGraph is the default workflow engine and is compiled once as a bounded,
+conditional state machine. A deterministic TypeScript runner shares the same
+retrieval, validation, and memory-write policies as a fallback.
 
 ### Formative Learning Evidence
 
@@ -677,6 +683,13 @@ The fallback is designed for workflow orchestration failures. DeepSeek API
 errors, missing API keys, invalid JSON, schema validation failures, and timeouts
 are surfaced to the UI instead of being hidden behind a fake answer.
 
+Both engines skip retrieval for lightweight turns, require active-concept
+context for grounded turns, retry retrieval at most once with a narrowed
+concept scope, and fall back to the reviewed static lesson when retrieval is
+still insufficient. AI-inferred learning signals pass through a separate
+memory-write gate so audit-only or lightweight turns cannot silently change
+readiness.
+
 ## AI Observability
 
 The API returns the active workflow engine in the response header:
@@ -1013,7 +1026,7 @@ immediately visible through an actual hosted demo and reviewed visuals.
 
 ### Long Term
 
-- LangGraph checkpointing and bounded conditional tool loops
+- Durable LangGraph checkpointing and release-review interrupts
 - Multi-reviewer adjudication and inter-rater reliability
 - Curriculum authoring workflow
 - Deployment-ready observability and analytics

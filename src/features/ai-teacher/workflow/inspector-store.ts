@@ -3,7 +3,7 @@
 import type { TeacherWorkflowInspectorRun } from "@/features/ai-teacher/workflow/inspector-types";
 
 export const WORKFLOW_INSPECTOR_STORAGE_KEY =
-  "ai-learning-platform:teacher-workflow-inspector:v1";
+  "ai-learning-platform:teacher-workflow-inspector:v2";
 export const WORKFLOW_INSPECTOR_UPDATED_EVENT =
   "ai-teacher:workflow-inspector-updated";
 

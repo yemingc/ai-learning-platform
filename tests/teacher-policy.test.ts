@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assessCurriculumRetrievalQuality,
   classifyTeacherIntent,
   createTeacherMemoryPatch,
+  decideCurriculumRetrieval,
+  decideTeacherMemoryUpdate,
   selectTeachingStrategy,
 } from "../src/features/ai-teacher/workflow/teacher-policy.ts";
 
@@ -81,4 +84,122 @@ test("marks authenticated workflow patches for server persistence", () => {
 
   assert.equal(patch.shouldPersistClientSide, false);
   assert.match(patch.rationale, /server-side learner memory/);
+});
+
+test("routes lightweight messages around retrieval and grounds substantive requests", () => {
+  assert.equal(
+    decideCurriculumRetrieval({
+      input: { userMessage: "谢谢" },
+      intent: "general_support",
+    }),
+    "skip",
+  );
+  assert.equal(
+    decideCurriculumRetrieval({
+      input: { userMessage: "Why can the limit differ from the value?" },
+      intent: "general_support",
+    }),
+    "retrieve",
+  );
+  assert.equal(
+    decideCurriculumRetrieval({
+      input: {
+        selectedText: "Nearby values approach 4.",
+        userMessage: "Explain this",
+      },
+      intent: "confusion",
+    }),
+    "retrieve",
+  );
+});
+
+test("requires retrieval context from the active concept", () => {
+  const createContext = (conceptId?: string) => ({
+    actualMode: "keyword" as const,
+    allowedCitations: [],
+    contextText: "",
+    requestedMode: "keyword" as const,
+    retrievedChunks: conceptId
+      ? [
+          {
+            conceptId,
+            courseId: "ap-calculus-ab",
+            id: `chunk-${conceptId}`,
+            lessonId: `lesson-${conceptId}`,
+            locale: "en" as const,
+            retrievalTags: [],
+            sectionId: "intuition",
+            sectionType: "intuition" as const,
+            sourceLabel: conceptId,
+            text: "Lesson context",
+            title: "Intuition",
+            unitId: "unit-1",
+          },
+        ]
+      : [],
+    shouldRetrieve: true,
+  });
+
+  assert.equal(
+    assessCurriculumRetrievalQuality({
+      context: createContext("what-is-a-limit"),
+      currentConceptId: "what-is-a-limit",
+    }),
+    "sufficient",
+  );
+  assert.equal(
+    assessCurriculumRetrievalQuality({
+      context: createContext("limit-notation"),
+      currentConceptId: "what-is-a-limit",
+    }),
+    "insufficient",
+  );
+  assert.equal(
+    assessCurriculumRetrievalQuality({
+      context: createContext(),
+      currentConceptId: "what-is-a-limit",
+    }),
+    "unavailable",
+  );
+});
+
+test("gates learner-memory writes by evidence strength", () => {
+  const baseResponse = {
+    assistantMessage: "Nearby behavior determines the limit.",
+    citationChunkIds: [],
+    memorySignals: {
+      confidenceDelta: 1,
+      confusionLevel: "low" as const,
+      evidenceNote: "A general informational turn.",
+      needsReview: false,
+      suggestedStudyAction: "continue_learning" as const,
+    },
+    suggestedFollowUps: ["Show me an example"],
+    teachingMove: "explain" as const,
+  };
+
+  assert.equal(
+    decideTeacherMemoryUpdate({
+      input: { userMessage: "thanks" },
+      intent: "general_support",
+      response: baseResponse,
+    }),
+    "skip",
+  );
+  assert.equal(
+    decideTeacherMemoryUpdate({
+      input: { userMessage: "Tell me more about limits" },
+      intent: "general_support",
+      response: baseResponse,
+    }),
+    "record_interaction_only",
+  );
+  assert.equal(
+    decideTeacherMemoryUpdate({
+      input: { userMessage: "I do not understand this" },
+      intent: "confusion",
+      response: baseResponse,
+    }),
+    "persist",
+  );
 });

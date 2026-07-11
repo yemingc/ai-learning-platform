@@ -3,11 +3,34 @@ import type {
   TeachingMove,
 } from "@/features/ai-teacher/types";
 import type {
+  CurriculumRetrievalDecision,
+  CurriculumRetrievalQuality,
   LearnerMemoryPatch,
   LearnerMemorySnapshot,
   TeacherIntent,
+  TeacherMemoryWriteDecision,
   TeacherWorkflowInput,
 } from "@/features/ai-teacher/workflow/types";
+import type { TeacherChatResponse } from "@/features/ai-teacher/types";
+import type { AssembledCurriculumContext } from "@/features/rag/curriculum-context";
+
+const LIGHTWEIGHT_MESSAGES = new Set([
+  "hi",
+  "hello",
+  "hey",
+  "thanks",
+  "thank you",
+  "ok",
+  "okay",
+  "你好",
+  "谢谢",
+  "好的",
+  "明白了",
+]);
+
+export function isLightweightTeacherMessage(userMessage: string) {
+  return LIGHTWEIGHT_MESSAGES.has(userMessage.trim().toLowerCase());
+}
 
 export function classifyTeacherIntent(
   input: Pick<TeacherWorkflowInput, "selectionAction" | "userMessage">,
@@ -66,23 +89,10 @@ export function selectTeachingStrategy(
   userMessage = "",
 ): TeachingMove {
   const normalizedMessage = userMessage.trim().toLowerCase();
-  const lightweightMessages = new Set([
-    "hi",
-    "hello",
-    "hey",
-    "thanks",
-    "thank you",
-    "ok",
-    "okay",
-    "你好",
-    "谢谢",
-    "好的",
-    "明白了",
-  ]);
 
   if (
     intent === "general_support" &&
-    !lightweightMessages.has(normalizedMessage)
+    !LIGHTWEIGHT_MESSAGES.has(normalizedMessage)
   ) {
     if (memory?.recentMisconceptions?.length) {
       return "correct_misconception";
@@ -103,6 +113,96 @@ export function selectTeachingStrategy(
   };
 
   return moveByIntent[intent];
+}
+
+export function decideCurriculumRetrieval({
+  input,
+  intent,
+}: {
+  input: Pick<
+    TeacherWorkflowInput,
+    "selectedText" | "selectionAction" | "userMessage"
+  >;
+  intent: TeacherIntent;
+}): CurriculumRetrievalDecision {
+  if (input.selectedText || input.selectionAction) {
+    return "retrieve";
+  }
+
+  if (isLightweightTeacherMessage(input.userMessage)) {
+    return "skip";
+  }
+
+  if (intent !== "general_support") {
+    return "retrieve";
+  }
+
+  return input.userMessage.trim().length >= 4 ? "retrieve" : "skip";
+}
+
+export function assessCurriculumRetrievalQuality({
+  context,
+  currentConceptId,
+}: {
+  context: AssembledCurriculumContext;
+  currentConceptId: string;
+}): CurriculumRetrievalQuality {
+  if (!context.retrievedChunks.length) {
+    return "unavailable";
+  }
+
+  return context.retrievedChunks.some(
+    (chunk) => chunk.conceptId === currentConceptId,
+  )
+    ? "sufficient"
+    : "insufficient";
+}
+
+export function buildBroadenedRetrievalQuery(
+  input: Pick<
+    TeacherWorkflowInput,
+    "concept" | "currentSection" | "selectedText" | "userMessage"
+  >,
+) {
+  return [
+    input.concept.title,
+    input.currentSection,
+    input.selectedText,
+    input.userMessage,
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join("\n");
+}
+
+export function decideTeacherMemoryUpdate({
+  input,
+  intent,
+  response,
+}: {
+  input: Pick<
+    TeacherWorkflowInput,
+    "selectedText" | "selectionAction" | "userMessage"
+  >;
+  intent: TeacherIntent;
+  response: TeacherChatResponse;
+}): TeacherMemoryWriteDecision {
+  if (isLightweightTeacherMessage(input.userMessage)) {
+    return "skip";
+  }
+
+  if (
+    input.selectedText ||
+    input.selectionAction ||
+    intent !== "general_support" ||
+    response.detectedMisconception ||
+    response.memorySignals.confusionLevel === "high" ||
+    response.memorySignals.needsReview ||
+    Math.abs(response.memorySignals.confidenceDelta) >= 4
+  ) {
+    return "persist";
+  }
+
+  return "record_interaction_only";
 }
 
 export function createTeacherMemoryPatch({

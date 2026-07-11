@@ -190,21 +190,29 @@ export async function POST(request: Request) {
     const responseWithCitations = {
       ...teacherResponse,
       citations: teacherWorkflowResult.citations,
+      memoryWriteDecision: teacherWorkflowResult.memoryWriteDecision,
     };
-    const conceptMemory = recordTeacherInteractionInDb({
-      conceptId: resolvedConcept.id,
-      conceptTitle: resolvedConcept.title,
-      courseId: resolvedConcept.courseId,
-      learnerId,
-      section: currentSection,
-      userMessage,
-      selectedText,
-      source,
-      teachingMove: teacherResponse.teachingMove,
-      detectedMisconception: teacherResponse.detectedMisconception,
-      memorySignals: teacherResponse.memorySignals,
-      locale,
-    });
+    const conceptMemory =
+      teacherWorkflowResult.memoryWriteDecision === "skip"
+        ? undefined
+        : recordTeacherInteractionInDb({
+            conceptId: resolvedConcept.id,
+            conceptTitle: resolvedConcept.title,
+            courseId: resolvedConcept.courseId,
+            learnerId,
+            section: currentSection,
+            userMessage,
+            selectedText,
+            source,
+            teachingMove: teacherResponse.teachingMove,
+            detectedMisconception: teacherResponse.detectedMisconception,
+            evidenceMode:
+              teacherWorkflowResult.memoryWriteDecision === "persist"
+                ? "learning_evidence"
+                : "audit_only",
+            memorySignals: teacherResponse.memorySignals,
+            locale,
+          });
     const shouldIncludeWorkflowTrace =
       process.env.NODE_ENV !== "production" ||
       process.env.NEXT_PUBLIC_SHOW_AI_TRACE === "true";

@@ -1,95 +1,75 @@
 import "server-only";
 
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
-import { generateTeacherResponse } from "@/features/ai-teacher/teacher-service";
-import type { TeachingMove } from "@/features/ai-teacher/types";
 import {
-  assembleCurriculumContext,
-  filterAllowedCitations,
-  type AssembledCurriculumContext,
-  type CurriculumCitation,
-} from "@/features/rag/curriculum-context";
+  buildTeacherWorkflowContext,
+  createNextStudyActionHint,
+  createTraceEvent,
+  generateValidatedTeacherTurn,
+  getBroadenedRetrievalUpdate,
+  getContextTraceDetail,
+  getCurriculumRetrievalDecision,
+  getLessonOnlyContext,
+  getRetrievalQuality,
+  getRetrievalTraceDetail,
+  getTeacherMemoryWriteDecision,
+  MAX_RETRIEVAL_RETRIES,
+  prepareTeacherMemoryPatch,
+  retrieveCurriculumForTeacher,
+} from "@/features/ai-teacher/workflow/teacher-workflow-steps";
 import {
   classifyTeacherIntent,
-  createTeacherMemoryPatch,
   selectTeachingStrategy,
 } from "@/features/ai-teacher/workflow/teacher-policy";
 import type {
   LearnerMemoryPatch,
-  LearnerMemorySnapshot,
-  NextStudyActionHint,
-  TeacherIntent,
   TeacherWorkflowContext,
   TeacherWorkflowInput,
-  TeacherWorkflowNode,
   TeacherWorkflowResult,
   TeacherWorkflowRuntimeOptions,
   TeacherWorkflowState,
   TeacherWorkflowTraceEvent,
 } from "@/features/ai-teacher/workflow/types";
+import type { CurriculumCitation } from "@/features/rag/curriculum-context";
+import type { TeachingMove } from "@/features/ai-teacher/types";
 
 const TeacherWorkflowAnnotation = Annotation.Root({
   context: Annotation<TeacherWorkflowContext | undefined>(),
-  errors: Annotation<string[]>(),
   input: Annotation<TeacherWorkflowInput>(),
-  intent: Annotation<TeacherIntent | undefined>(),
-  citations: Annotation<CurriculumCitation[]>(),
-  curriculumContext: Annotation<AssembledCurriculumContext | undefined>(),
-  memoryPatch: Annotation<LearnerMemoryPatch | undefined>(),
-  memorySignals: Annotation<TeacherWorkflowResult["memorySignals"] | undefined>(),
-  modelTelemetry: Annotation<TeacherWorkflowResult["modelTelemetry"] | undefined>(),
-  nextStudyAction: Annotation<NextStudyActionHint | undefined>(),
-  teacherResponse: Annotation<TeacherWorkflowResult["teacherResponse"] | undefined>(),
+  intent: Annotation<TeacherWorkflowState["intent"]>(),
   teachingStrategy: Annotation<TeachingMove | undefined>(),
-  trace: Annotation<TeacherWorkflowTraceEvent[]>(),
+  retrievalDecision: Annotation<TeacherWorkflowState["retrievalDecision"]>(),
+  retrievalAttempt: Annotation<number>(),
+  retrievalQuery: Annotation<string | undefined>(),
+  retrievalQuality: Annotation<TeacherWorkflowState["retrievalQuality"]>(),
+  curriculumContext: Annotation<TeacherWorkflowState["curriculumContext"]>(),
+  citations: Annotation<CurriculumCitation[]>(),
+  teacherResponse: Annotation<TeacherWorkflowResult["teacherResponse"] | undefined>(),
+  modelTelemetry: Annotation<TeacherWorkflowResult["modelTelemetry"] | undefined>(),
+  memorySignals: Annotation<TeacherWorkflowResult["memorySignals"] | undefined>(),
+  memoryWriteDecision: Annotation<TeacherWorkflowState["memoryWriteDecision"]>(),
+  memoryPatch: Annotation<LearnerMemoryPatch | undefined>(),
+  nextStudyAction: Annotation<TeacherWorkflowResult["nextStudyAction"] | undefined>(),
+  trace: Annotation<TeacherWorkflowTraceEvent[], TeacherWorkflowTraceEvent[]>({
+    reducer: (current, update) => current.concat(update),
+    default: () => [],
+  }),
+});
+
+const TeacherWorkflowRuntimeAnnotation = Annotation.Root({
+  onAssistantMessageDelta:
+    Annotation<TeacherWorkflowRuntimeOptions["onAssistantMessageDelta"]>(),
 });
 
 type GraphState = typeof TeacherWorkflowAnnotation.State;
-type GraphUpdate = Partial<GraphState>;
-
-function createTraceEvent(
-  node: TeacherWorkflowNode,
-  detail?: string,
-): TeacherWorkflowTraceEvent {
-  return {
-    node,
-    status: "success",
-    detail,
-    createdAt: new Date().toISOString(),
-  };
-}
-
-function appendTrace(
-  state: GraphState,
-  node: TeacherWorkflowNode,
-  detail?: string,
-) {
-  return [...(state.trace ?? []), createTraceEvent(node, detail)];
-}
+type GraphUpdate = typeof TeacherWorkflowAnnotation.Update;
 
 function buildContextNode(state: GraphState): GraphUpdate {
-  const learnerMemorySnapshot: LearnerMemorySnapshot =
-    state.input.learnerMemorySnapshot ?? {
-      source: "not_available",
-      conceptId: state.input.concept.id,
-      recentConfusionSections: [],
-      recentMisconceptions: [],
-    };
+  const context = buildTeacherWorkflowContext(state.input);
 
   return {
-    context: {
-      concept: state.input.concept,
-      currentSection: state.input.currentSection,
-      learnerMemorySnapshot,
-      lesson: state.input.lesson,
-    },
-    trace: appendTrace(
-      state,
-      "build_context",
-      learnerMemorySnapshot.source === "server_persistent"
-        ? `Loaded server learner memory with ${learnerMemorySnapshot.interactionCount ?? 0} prior interactions and ${learnerMemorySnapshot.assessmentEvidenceLevel ?? "none"} assessment evidence.`
-        : "Loaded lesson context without server-persistent learner memory.",
-    ),
+    context,
+    trace: [createTraceEvent("build_context", getContextTraceDetail(context))],
   };
 }
 
@@ -98,7 +78,7 @@ function classifyUserIntentNode(state: GraphState): GraphUpdate {
 
   return {
     intent,
-    trace: appendTrace(state, "classify_user_intent", intent),
+    trace: [createTraceEvent("classify_user_intent", intent)],
   };
 }
 
@@ -111,98 +91,128 @@ function selectTeachingStrategyNode(state: GraphState): GraphUpdate {
 
   return {
     teachingStrategy,
-    trace: appendTrace(
-      state,
-      "select_teaching_strategy",
-      teachingStrategy,
-    ),
+    trace: [
+      createTraceEvent("select_teaching_strategy", teachingStrategy),
+    ],
   };
 }
 
-async function retrieveCurriculumChunksNode(
+function decideCurriculumRetrievalNode(state: GraphState): GraphUpdate {
+  const retrievalDecision = getCurriculumRetrievalDecision(
+    state as TeacherWorkflowState,
+  );
+
+  return {
+    retrievalDecision,
+    trace: [
+      createTraceEvent(
+        "decide_curriculum_retrieval",
+        retrievalDecision === "retrieve"
+          ? "Substantive teaching request requires grounded curriculum context."
+          : "Lightweight message uses the reviewed lesson context without retrieval.",
+      ),
+    ],
+  };
+}
+
+function routeAfterRetrievalDecision(state: GraphState) {
+  return state.retrievalDecision === "retrieve"
+    ? "retrieve_curriculum_context"
+    : "use_lesson_context";
+}
+
+async function retrieveCurriculumContextNode(
   state: GraphState,
 ): Promise<GraphUpdate> {
-  const curriculumContext = await assembleCurriculumContext({
-    concept: state.input.concept,
-    currentSection: state.input.currentSection,
-    lesson: state.input.lesson,
-    locale: state.input.locale,
-    selectedText: state.input.selectedText,
-    selectionAction: state.input.selectionAction,
-    userMessage: state.input.userMessage,
-  });
-  const detail = curriculumContext.shouldRetrieve
-    ? [
-        `Retrieved ${curriculumContext.retrievedChunks.length} curriculum chunks.`,
-        `mode: ${curriculumContext.actualMode}`,
-        curriculumContext.actualMode !== curriculumContext.requestedMode
-          ? `requested: ${curriculumContext.requestedMode}`
-          : undefined,
-        curriculumContext.retrievalFallbackReason
-          ? `fallback: ${curriculumContext.retrievalFallbackReason}`
-          : undefined,
-      ]
-        .filter(Boolean)
-        .join(" ")
-    : "Skipped retrieval for this lightweight message.";
+  const workflowState = state as TeacherWorkflowState;
+  const curriculumContext = await retrieveCurriculumForTeacher(workflowState);
 
   return {
     curriculumContext,
-    trace: appendTrace(state, "retrieve_curriculum_chunks", detail),
+    trace: [
+      createTraceEvent(
+        "retrieve_curriculum_context",
+        getRetrievalTraceDetail(workflowState, curriculumContext),
+      ),
+    ],
   };
 }
 
-function assembleCurriculumContextNode(state: GraphState): GraphUpdate {
-  const allowedCitationCount =
-    state.curriculumContext?.allowedCitations.length ?? 0;
-  const detail = state.curriculumContext?.shouldRetrieve
-    ? `Assembled curriculum context with ${allowedCitationCount} allowed citations.`
-    : "No curriculum context assembled for this turn.";
+function assessRetrievalQualityNode(state: GraphState): GraphUpdate {
+  const retrievalQuality = getRetrievalQuality(state as TeacherWorkflowState);
 
   return {
-    trace: appendTrace(state, "assemble_curriculum_context", detail),
+    retrievalQuality,
+    trace: [
+      createTraceEvent(
+        "assess_retrieval_quality",
+        retrievalQuality === "sufficient"
+          ? "Retrieved context contains the active lesson concept."
+          : `${retrievalQuality}; the workflow will ${state.retrievalAttempt < MAX_RETRIEVAL_RETRIES ? "retry once with current-concept scope" : "fall back to the reviewed lesson context"}.`,
+      ),
+    ],
   };
 }
 
-async function generateTeachingResponseNode(
+function routeAfterRetrievalAssessment(state: GraphState) {
+  if (state.retrievalQuality === "sufficient") {
+    return "generate_validated_response";
+  }
+
+  return state.retrievalAttempt < MAX_RETRIEVAL_RETRIES
+    ? "broaden_retrieval_query"
+    : "use_lesson_context";
+}
+
+function broadenRetrievalQueryNode(state: GraphState): GraphUpdate {
+  const update = getBroadenedRetrievalUpdate(state as TeacherWorkflowState);
+
+  return {
+    ...update,
+    trace: [
+      createTraceEvent(
+        "broaden_retrieval_query",
+        "Expanded the query with the active concept and restricted the retry to that concept.",
+      ),
+    ],
+  };
+}
+
+function useLessonContextNode(state: GraphState): GraphUpdate {
+  const skippedRetrieval = state.retrievalDecision === "skip";
+  const reason = skippedRetrieval
+    ? "Retrieval skipped for a lightweight message."
+    : "No sufficiently relevant current-concept chunks were found after the bounded retry.";
+
+  return {
+    curriculumContext: getLessonOnlyContext(reason),
+    trace: [createTraceEvent("use_lesson_context", reason)],
+  };
+}
+
+async function generateValidatedResponseNode(
   state: GraphState,
-  runtimeOptions: TeacherWorkflowRuntimeOptions,
+  runtime: {
+    context?: typeof TeacherWorkflowRuntimeAnnotation.State;
+    signal: AbortSignal;
+  },
 ): Promise<GraphUpdate> {
-  const generatedResponse = await generateTeacherResponse({
-    ...state.input,
-    curriculumContext: state.curriculumContext,
-    intent: state.intent,
-    teachingMoveHint: state.teachingStrategy,
-  }, runtimeOptions);
-  const teacherResponse = generatedResponse.teacherResponse;
-  const citations = filterAllowedCitations({
-    allowedCitations: state.curriculumContext?.allowedCitations ?? [],
-    requestedChunkIds: teacherResponse.citationChunkIds,
-  });
-  const sanitizedTeacherResponse = {
-    ...teacherResponse,
-    citationChunkIds: citations.map((citation) => citation.chunkId),
-  };
+  const generated = await generateValidatedTeacherTurn(
+    state as TeacherWorkflowState,
+    {
+      onAssistantMessageDelta: runtime.context?.onAssistantMessageDelta,
+      signal: runtime.signal,
+    },
+  );
 
   return {
-    citations,
-    modelTelemetry: generatedResponse.modelTelemetry,
-    teacherResponse: sanitizedTeacherResponse,
-    trace: appendTrace(
-      state,
-      "generate_teaching_response",
-      `${teacherResponse.teachingMove}; ${citations.length} citations accepted.`,
-    ),
-  };
-}
-
-function validateStructuredOutputNode(state: GraphState): GraphUpdate {
-  return {
-    trace: appendTrace(
-      state,
-      "validate_structured_output",
-      "DeepSeek output normalized and validated against TeacherChatResponse schema.",
-    ),
+    ...generated,
+    trace: [
+      createTraceEvent(
+        "generate_validated_response",
+        `${generated.teacherResponse.teachingMove}; schema validated and ${generated.citations.length} allowlisted citations accepted.`,
+      ),
+    ],
   };
 }
 
@@ -215,113 +225,162 @@ function extractLearningSignalsNode(state: GraphState): GraphUpdate {
 
   return {
     memorySignals,
-    trace: appendTrace(
-      state,
-      "extract_learning_signals",
-      `${memorySignals.confusionLevel} confusion, ${memorySignals.suggestedStudyAction}`,
-    ),
+    trace: [
+      createTraceEvent(
+        "extract_learning_signals",
+        `${memorySignals.confusionLevel} confusion, ${memorySignals.suggestedStudyAction}`,
+      ),
+    ],
   };
 }
 
-function updateLearnerMemoryNode(state: GraphState): GraphUpdate {
-  if (!state.memorySignals) {
-    throw new Error("Cannot create memory patch before learning signals exist.");
-  }
+function decideMemoryUpdateNode(state: GraphState): GraphUpdate {
+  const memoryWriteDecision = getTeacherMemoryWriteDecision(
+    state as TeacherWorkflowState,
+  );
 
-  const memoryPatch = createTeacherMemoryPatch({
-    conceptId: state.input.concept.id,
-    memorySignals: state.memorySignals,
-    memorySnapshot: state.context?.learnerMemorySnapshot,
-  });
+  return {
+    memoryWriteDecision,
+    trace: [
+      createTraceEvent(
+        "decide_memory_update",
+        memoryWriteDecision === "persist"
+          ? "Learning evidence is strong enough to update learner state."
+          : memoryWriteDecision === "record_interaction_only"
+            ? "Interaction will be retained for audit without affecting readiness."
+            : "Lightweight interaction will not be written to learner memory.",
+      ),
+    ],
+  };
+}
+
+function routeAfterMemoryDecision(state: GraphState) {
+  return state.memoryWriteDecision === "persist"
+    ? "prepare_memory_patch"
+    : "return_next_study_action";
+}
+
+function prepareMemoryPatchNode(state: GraphState): GraphUpdate {
+  const memoryPatch = prepareTeacherMemoryPatch(state as TeacherWorkflowState);
 
   return {
     memoryPatch,
-    trace: appendTrace(
-      state,
-      "update_learner_memory",
-      memoryPatch.shouldPersistClientSide
-        ? "Prepared client-side memory patch."
-        : "Prepared server-side memory patch.",
-    ),
+    trace: [
+      createTraceEvent(
+        "prepare_memory_patch",
+        memoryPatch.shouldPersistClientSide
+          ? "Prepared client-side learner-memory patch."
+          : "Prepared server-side learner-memory patch.",
+      ),
+    ],
   };
 }
 
 function returnNextStudyActionNode(state: GraphState): GraphUpdate {
-  if (!state.memorySignals) {
-    throw new Error("Cannot create study action before learning signals exist.");
-  }
-
-  const nextStudyAction: NextStudyActionHint = {
-    action: state.memorySignals.suggestedStudyAction,
-    reason: state.memorySignals.evidenceNote,
-  };
+  const nextStudyAction = createNextStudyActionHint(
+    state as TeacherWorkflowState,
+  );
 
   return {
     nextStudyAction,
-    trace: appendTrace(
-      state,
-      "return_next_study_action",
-      nextStudyAction.action,
-    ),
+    trace: [
+      createTraceEvent(
+        "return_next_study_action",
+        nextStudyAction.action,
+      ),
+    ],
   };
 }
 
-function createTeacherGraph(runtimeOptions: TeacherWorkflowRuntimeOptions) {
-  return new StateGraph(TeacherWorkflowAnnotation)
+function createTeacherGraph() {
+  return new StateGraph(
+    TeacherWorkflowAnnotation,
+    TeacherWorkflowRuntimeAnnotation,
+  )
     .addNode("build_context", buildContextNode)
     .addNode("classify_user_intent", classifyUserIntentNode)
     .addNode("select_teaching_strategy", selectTeachingStrategyNode)
-    .addNode("retrieve_curriculum_chunks", retrieveCurriculumChunksNode)
-    .addNode("assemble_curriculum_context", assembleCurriculumContextNode)
-    .addNode("generate_teaching_response", (state) =>
-      generateTeachingResponseNode(state, runtimeOptions),
-    )
-    .addNode("validate_structured_output", validateStructuredOutputNode)
+    .addNode("decide_curriculum_retrieval", decideCurriculumRetrievalNode)
+    .addNode("retrieve_curriculum_context", retrieveCurriculumContextNode)
+    .addNode("assess_retrieval_quality", assessRetrievalQualityNode)
+    .addNode("broaden_retrieval_query", broadenRetrievalQueryNode)
+    .addNode("use_lesson_context", useLessonContextNode)
+    .addNode("generate_validated_response", generateValidatedResponseNode)
     .addNode("extract_learning_signals", extractLearningSignalsNode)
-    .addNode("update_learner_memory", updateLearnerMemoryNode)
+    .addNode("decide_memory_update", decideMemoryUpdateNode)
+    .addNode("prepare_memory_patch", prepareMemoryPatchNode)
     .addNode("return_next_study_action", returnNextStudyActionNode)
     .addEdge(START, "build_context")
     .addEdge("build_context", "classify_user_intent")
     .addEdge("classify_user_intent", "select_teaching_strategy")
-    .addEdge("select_teaching_strategy", "retrieve_curriculum_chunks")
-    .addEdge("retrieve_curriculum_chunks", "assemble_curriculum_context")
-    .addEdge("assemble_curriculum_context", "generate_teaching_response")
-    .addEdge("generate_teaching_response", "validate_structured_output")
-    .addEdge("validate_structured_output", "extract_learning_signals")
-    .addEdge("extract_learning_signals", "update_learner_memory")
-    .addEdge("update_learner_memory", "return_next_study_action")
+    .addEdge("select_teaching_strategy", "decide_curriculum_retrieval")
+    .addConditionalEdges(
+      "decide_curriculum_retrieval",
+      routeAfterRetrievalDecision,
+      ["retrieve_curriculum_context", "use_lesson_context"],
+    )
+    .addEdge("retrieve_curriculum_context", "assess_retrieval_quality")
+    .addConditionalEdges(
+      "assess_retrieval_quality",
+      routeAfterRetrievalAssessment,
+      [
+        "broaden_retrieval_query",
+        "generate_validated_response",
+        "use_lesson_context",
+      ],
+    )
+    .addEdge("broaden_retrieval_query", "retrieve_curriculum_context")
+    .addEdge("use_lesson_context", "generate_validated_response")
+    .addEdge("generate_validated_response", "extract_learning_signals")
+    .addEdge("extract_learning_signals", "decide_memory_update")
+    .addConditionalEdges(
+      "decide_memory_update",
+      routeAfterMemoryDecision,
+      ["prepare_memory_patch", "return_next_study_action"],
+    )
+    .addEdge("prepare_memory_patch", "return_next_study_action")
     .addEdge("return_next_study_action", END)
-    .compile();
+    .compile({ name: "bounded-adaptive-teacher-workflow" });
 }
+
+const teacherGraph = createTeacherGraph();
 
 export async function runLangGraphTeacherWorkflow(
   input: TeacherWorkflowInput,
   runtimeOptions: TeacherWorkflowRuntimeOptions = {},
 ): Promise<TeacherWorkflowResult> {
-  const graph = createTeacherGraph(runtimeOptions);
   const initialState: GraphState = {
-    context: undefined,
     citations: [],
+    context: undefined,
     curriculumContext: undefined,
-    errors: [],
     input,
     intent: undefined,
     memoryPatch: undefined,
     memorySignals: undefined,
+    memoryWriteDecision: undefined,
     modelTelemetry: undefined,
     nextStudyAction: undefined,
+    retrievalAttempt: 0,
+    retrievalDecision: undefined,
+    retrievalQuality: undefined,
+    retrievalQuery: undefined,
     teacherResponse: undefined,
     teachingStrategy: undefined,
     trace: [
       createTraceEvent("student_message", "Received student message."),
     ],
   };
-  const state = await graph.invoke(initialState);
+  const state = await teacherGraph.invoke(initialState, {
+    context: {
+      onAssistantMessageDelta: runtimeOptions.onAssistantMessageDelta,
+    },
+    signal: runtimeOptions.signal,
+  });
 
   if (
     !state.teacherResponse ||
     !state.memorySignals ||
-    !state.memoryPatch ||
+    !state.memoryWriteDecision ||
     !state.nextStudyAction ||
     !state.modelTelemetry
   ) {
@@ -332,6 +391,7 @@ export async function runLangGraphTeacherWorkflow(
     teacherResponse: state.teacherResponse,
     modelTelemetry: state.modelTelemetry,
     memorySignals: state.memorySignals,
+    memoryWriteDecision: state.memoryWriteDecision,
     memoryPatch: state.memoryPatch,
     nextStudyAction: state.nextStudyAction,
     citations: state.citations ?? [],

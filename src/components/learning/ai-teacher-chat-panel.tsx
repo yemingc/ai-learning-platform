@@ -47,6 +47,7 @@ import {
 import type {
   LearnerMemoryPatch,
   NextStudyActionHint,
+  TeacherMemoryWriteDecision,
   TeacherModelTelemetry,
   TeacherWorkflowTraceEvent,
 } from "@/features/ai-teacher/workflow/types";
@@ -74,6 +75,7 @@ type TeacherChatErrorResponse = {
 type TeacherChatDebugResponse = TeacherChatResponse & {
   citations?: CurriculumCitation[];
   memoryPatch?: LearnerMemoryPatch;
+  memoryWriteDecision?: TeacherMemoryWriteDecision;
   nextStudyAction?: NextStudyActionHint;
   workflowEngine?: string;
   workflowTrace?: TeacherWorkflowTraceEvent[];
@@ -549,6 +551,7 @@ export function AiTeacherChatPanel({
           durationMs: Date.now() - requestStartedAt,
           locale: language,
           memoryPatch: completedData.memoryPatch,
+          memoryWriteDecision: completedData.memoryWriteDecision,
           memorySignals: completedData.memorySignals,
           modelTelemetry: completedData.modelTelemetry,
           nextStudyAction: completedData.nextStudyAction,
@@ -563,7 +566,9 @@ export function AiTeacherChatPanel({
         });
       }
 
-      notifyLearnerMemoryUpdated();
+      if (completedData.memoryWriteDecision !== "skip") {
+        notifyLearnerMemoryUpdated();
+      }
     } catch (requestError) {
       setMessages((currentMessages) =>
         streamedContent

@@ -1,6 +1,7 @@
 import type {
   LearnerMemoryPatch,
   NextStudyActionHint,
+  TeacherMemoryWriteDecision,
   TeacherModelTelemetry,
   TeacherWorkflowTraceEvent,
 } from "@/features/ai-teacher/workflow/types";
@@ -26,6 +27,7 @@ export type TeacherWorkflowInspectorRun = {
   teachingMove: TeachingMove;
   detectedMisconception?: string;
   memorySignals: TeacherMemorySignals;
+  memoryWriteDecision?: TeacherMemoryWriteDecision;
   memoryPatch?: LearnerMemoryPatch;
   nextStudyAction?: NextStudyActionHint;
   trace: TeacherWorkflowTraceEvent[];

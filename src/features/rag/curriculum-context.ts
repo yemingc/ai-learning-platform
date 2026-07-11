@@ -31,7 +31,7 @@ export type AssembledCurriculumContext = {
   allowedCitations: CurriculumCitation[];
 };
 
-type AssembleCurriculumContextInput = {
+export type AssembleCurriculumContextInput = {
   concept: Concept;
   lesson: LessonContent;
   locale: "en" | "zh";
@@ -47,42 +47,7 @@ function getAiTeacherRetrievalMode() {
   return getRetrievalMode(process.env.RAG_RETRIEVAL_MODE);
 }
 
-function shouldRetrieveCurriculumChunks({
-  selectedText,
-  selectionAction,
-  userMessage,
-}: Pick<
-  AssembleCurriculumContextInput,
-  "selectedText" | "selectionAction" | "userMessage"
->) {
-  const normalizedMessage = userMessage.trim().toLowerCase();
-
-  if (selectedText || selectionAction) {
-    return true;
-  }
-
-  if (normalizedMessage.length < 4) {
-    return false;
-  }
-
-  const skipMessages = new Set([
-    "hi",
-    "hello",
-    "hey",
-    "thanks",
-    "thank you",
-    "ok",
-    "okay",
-    "你好",
-    "谢谢",
-    "好的",
-    "明白了",
-  ]);
-
-  return !skipMessages.has(normalizedMessage);
-}
-
-function buildRetrievalQuery({
+export function buildCurriculumRetrievalQuery({
   currentSection,
   selectedText,
   userMessage,
@@ -112,19 +77,31 @@ async function retrieveCurriculumChunks({
   concept,
   currentSection,
   locale,
+  queryText,
+  restrictToConcept,
   selectedText,
   userMessage,
 }: Pick<
   AssembleCurriculumContextInput,
   "concept" | "currentSection" | "locale" | "selectedText" | "userMessage"
->) {
+> & {
+  queryText?: string;
+  restrictToConcept?: boolean;
+}) {
   const curricula = getCurriculumPacks();
   const requestedMode = getAiTeacherRetrievalMode();
   const query = {
     courseId: concept.courseId,
+    conceptId: restrictToConcept ? concept.id : undefined,
     limit: MAX_RETRIEVED_CHUNKS,
     locale,
-    query: buildRetrievalQuery({ currentSection, selectedText, userMessage }),
+    query:
+      queryText ??
+      buildCurriculumRetrievalQuery({
+        currentSection,
+        selectedText,
+        userMessage,
+      }),
   };
 
   if (requestedMode === "keyword") {
@@ -158,36 +135,40 @@ async function retrieveCurriculumChunks({
   }
 }
 
-export async function assembleCurriculumContext({
+export function createLessonOnlyCurriculumContext(
+  fallbackReason?: string,
+): AssembledCurriculumContext {
+  const requestedMode = getAiTeacherRetrievalMode();
+
+  return {
+    actualMode: requestedMode,
+    allowedCitations: [],
+    contextText: "",
+    requestedMode,
+    retrievalFallbackReason: fallbackReason,
+    retrievedChunks: [],
+    shouldRetrieve: false,
+  };
+}
+
+export async function retrieveAndAssembleCurriculumContext({
   concept,
   currentSection,
   locale,
+  queryText,
+  restrictToConcept,
   selectedText,
-  selectionAction,
   userMessage,
-}: AssembleCurriculumContextInput): Promise<AssembledCurriculumContext> {
-  const requestedMode = getAiTeacherRetrievalMode();
-  const shouldRetrieve = shouldRetrieveCurriculumChunks({
-    selectedText,
-    selectionAction,
-    userMessage,
-  });
-
-  if (!shouldRetrieve) {
-    return {
-      actualMode: requestedMode,
-      allowedCitations: [],
-      contextText: "",
-      requestedMode,
-      retrievedChunks: [],
-      shouldRetrieve: false,
-    };
-  }
-
+}: AssembleCurriculumContextInput & {
+  queryText?: string;
+  restrictToConcept?: boolean;
+}): Promise<AssembledCurriculumContext> {
   const retrieval = await retrieveCurriculumChunks({
     concept,
     currentSection,
     locale,
+    queryText,
+    restrictToConcept,
     selectedText,
     userMessage,
   });

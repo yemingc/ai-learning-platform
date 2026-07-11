@@ -6,18 +6,16 @@ import {
 } from "../src/features/ai-teacher/evaluation/workflow-trace-evaluation.ts";
 import type { TeacherWorkflowTraceEvent } from "../src/features/ai-teacher/workflow/types.ts";
 
-test("requires retrieval, generation, signal, and memory workflow stages", () => {
+test("requires every branch-independent teaching workflow stage", () => {
   assert.deepEqual(requiredWorkflowNodes, [
     "student_message",
     "build_context",
     "classify_user_intent",
     "select_teaching_strategy",
-    "retrieve_curriculum_chunks",
-    "assemble_curriculum_context",
-    "generate_teaching_response",
-    "validate_structured_output",
+    "decide_curriculum_retrieval",
+    "generate_validated_response",
     "extract_learning_signals",
-    "update_learner_memory",
+    "decide_memory_update",
     "return_next_study_action",
   ]);
 });
@@ -36,7 +34,7 @@ test("reports missing or unsuccessful nodes from an actual trace", () => {
   };
 
   assert.deepEqual(getMissingSuccessfulWorkflowNodes(partialTrace), [
-    "retrieve_curriculum_chunks",
+    "decide_curriculum_retrieval",
     "return_next_study_action",
   ]);
 });

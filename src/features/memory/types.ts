@@ -55,6 +55,7 @@ export type TeacherInteractionMemory = {
   teachingMove: TeachingMove;
   detectedMisconception?: string;
   memorySignals: TeacherMemorySignals;
+  evidenceMode?: "learning_evidence" | "audit_only";
   locale: "en" | "zh";
   createdAt: string;
 };
@@ -94,6 +95,7 @@ export type RecordTeacherInteractionInput = {
   teachingMove: TeachingMove;
   detectedMisconception?: string;
   memorySignals: TeacherMemorySignals;
+  evidenceMode?: "learning_evidence" | "audit_only";
   locale: "en" | "zh";
 };
 

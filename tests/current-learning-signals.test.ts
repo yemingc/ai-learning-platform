@@ -73,3 +73,14 @@ test("review evidence observed after the exit ticket becomes current again", () 
   assert.deepEqual(getCurrentLearningSignals(memory), [reviewSignal]);
   assert.equal(hasCurrentReviewSignal(memory), true);
 });
+
+test("audit-only interactions never reopen a learning review signal", () => {
+  const memory = createMemory("2026-01-03T00:00:00.000Z");
+  memory.recentInteractions[0] = {
+    ...memory.recentInteractions[0],
+    evidenceMode: "audit_only",
+  };
+
+  assert.deepEqual(getCurrentLearningSignals(memory), []);
+  assert.equal(hasCurrentReviewSignal(memory), false);
+});

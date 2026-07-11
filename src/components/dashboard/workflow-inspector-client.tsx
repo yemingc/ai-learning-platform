@@ -60,21 +60,33 @@ const nodeLabels: Record<
     en: "Classify intent",
     zh: "识别意图（classify intent）",
   },
-  retrieve_curriculum_chunks: {
-    en: "Retrieve curriculum chunks",
-    zh: "检索课程片段（retrieve chunks）",
+  decide_curriculum_retrieval: {
+    en: "Decide curriculum retrieval",
+    zh: "决定是否检索课程（retrieval decision）",
   },
-  assemble_curriculum_context: {
-    en: "Assemble curriculum context",
-    zh: "组装课程上下文（curriculum context）",
+  retrieve_curriculum_context: {
+    en: "Retrieve curriculum context",
+    zh: "检索课程上下文（curriculum context）",
+  },
+  assess_retrieval_quality: {
+    en: "Assess retrieval quality",
+    zh: "评估检索质量（retrieval quality）",
+  },
+  broaden_retrieval_query: {
+    en: "Broaden retrieval query",
+    zh: "扩展检索查询（broaden query）",
+  },
+  use_lesson_context: {
+    en: "Use reviewed lesson context",
+    zh: "使用已审核课程上下文（lesson context）",
   },
   extract_learning_signals: {
     en: "Extract learning signals",
     zh: "提取学习信号（learning signals）",
   },
-  generate_teaching_response: {
-    en: "Generate response",
-    zh: "生成教学回应（teaching response）",
+  generate_validated_response: {
+    en: "Generate validated response",
+    zh: "生成并校验教学回应（validated response）",
   },
   return_next_study_action: {
     en: "Return next study action",
@@ -88,13 +100,13 @@ const nodeLabels: Record<
     en: "Student message",
     zh: "学生消息（student message）",
   },
-  update_learner_memory: {
-    en: "Update learner memory",
-    zh: "更新学习记忆（learner memory）",
+  decide_memory_update: {
+    en: "Decide memory update",
+    zh: "决定记忆更新（memory decision）",
   },
-  validate_structured_output: {
-    en: "Validate structured output",
-    zh: "校验结构化输出（structured output）",
+  prepare_memory_patch: {
+    en: "Prepare memory patch",
+    zh: "准备学习记忆补丁（memory patch）",
   },
 };
 
@@ -525,6 +537,10 @@ export function WorkflowInspectorClient() {
                   <div className="rounded-lg bg-muted p-3">
                     <span className="font-semibold">Action:</span>{" "}
                     {selectedRun.nextStudyAction?.action ?? "-"}
+                  </div>
+                  <div className="rounded-lg bg-muted p-3">
+                    <span className="font-semibold">Write decision:</span>{" "}
+                    {selectedRun.memoryWriteDecision ?? "legacy run"}
                   </div>
                   <div className="rounded-lg bg-muted p-3">
                     <span className="font-semibold">Persist client-side:</span>{" "}

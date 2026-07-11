@@ -8,12 +8,10 @@ export const requiredWorkflowNodes: TeacherWorkflowNode[] = [
   "build_context",
   "classify_user_intent",
   "select_teaching_strategy",
-  "retrieve_curriculum_chunks",
-  "assemble_curriculum_context",
-  "generate_teaching_response",
-  "validate_structured_output",
+  "decide_curriculum_retrieval",
+  "generate_validated_response",
   "extract_learning_signals",
-  "update_learner_memory",
+  "decide_memory_update",
   "return_next_study_action",
 ];
 

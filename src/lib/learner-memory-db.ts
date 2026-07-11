@@ -241,6 +241,8 @@ export function recordTeacherInteractionInDb(
   },
 ) {
   const now = new Date().toISOString();
+  const evidenceMode = input.evidenceMode ?? "learning_evidence";
+  const shouldApplyLearningEvidence = evidenceMode === "learning_evidence";
   const existingRow = db
     .prepare(
       `
@@ -266,6 +268,7 @@ export function recordTeacherInteractionInDb(
     teachingMove: input.teachingMove,
     detectedMisconception: input.detectedMisconception,
     memorySignals: input.memorySignals,
+    evidenceMode,
     locale: input.locale,
     createdAt: now,
   };
@@ -274,7 +277,9 @@ export function recordTeacherInteractionInDb(
       signal.section === input.section &&
       (signal.selectedText ?? "") === (input.selectedText ?? ""),
   );
-  const confusionSignals = matchingConfusionSignal
+  const confusionSignals = !shouldApplyLearningEvidence
+    ? existingConceptMemory.confusionSignals
+    : matchingConfusionSignal
     ? existingConceptMemory.confusionSignals.map((signal) =>
         signal.id === matchingConfusionSignal.id
           ? {
@@ -304,7 +309,9 @@ export function recordTeacherInteractionInDb(
           normalizedMisconception.toLowerCase(),
       )
     : undefined;
-  const misconceptions = normalizedMisconception
+  const misconceptions = !shouldApplyLearningEvidence
+    ? existingConceptMemory.misconceptions
+    : normalizedMisconception
     ? matchingMisconception
       ? existingConceptMemory.misconceptions.map((misconception) =>
           misconception.id === matchingMisconception.id
@@ -334,14 +341,20 @@ export function recordTeacherInteractionInDb(
   const nextConceptMemoryBase: ConceptMemory = {
     ...existingConceptMemory,
     conceptTitle: input.conceptTitle,
-    interactionCount: existingConceptMemory.interactionCount + 1,
-    lastStudiedAt: now,
+    interactionCount:
+      existingConceptMemory.interactionCount +
+      (shouldApplyLearningEvidence ? 1 : 0),
+    lastStudiedAt: shouldApplyLearningEvidence
+      ? now
+      : existingConceptMemory.lastStudiedAt,
     confusionSignals,
     misconceptions,
-    memorySignalHistory: [
-      input.memorySignals,
-      ...(existingConceptMemory.memorySignalHistory ?? []),
-    ].slice(0, 12),
+    memorySignalHistory: shouldApplyLearningEvidence
+      ? [
+          input.memorySignals,
+          ...(existingConceptMemory.memorySignalHistory ?? []),
+        ].slice(0, 12)
+      : existingConceptMemory.memorySignalHistory,
     recentInteractions: [
       interaction,
       ...existingConceptMemory.recentInteractions,

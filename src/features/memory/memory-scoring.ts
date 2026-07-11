@@ -15,8 +15,9 @@ function getConversationEvidenceModifier(memory: ConceptMemory) {
   const latestSignals = getCurrentLearningSignals(memory);
   const teachingMoveScore = memory.recentInteractions.some(
     (interaction) =>
-      interaction.teachingMove === "reflect" ||
-      interaction.teachingMove === "ask_guiding_question",
+      interaction.evidenceMode !== "audit_only" &&
+      (interaction.teachingMove === "reflect" ||
+        interaction.teachingMove === "ask_guiding_question"),
   )
     ? 6
     : 0;
