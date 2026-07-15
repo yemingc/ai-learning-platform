@@ -1,4 +1,5 @@
 import type { LessonContent } from "@/features/lessons/types";
+import { completeApCalculusZhLessonLocalizations } from "./adaptive-lesson-localization.ts";
 
 const unit11LessonBaseId =
   "ap-calculus-ab/ap-calculus-ab-unit-1-limits-continuity/instantaneous-change-motivation";
@@ -13,7 +14,7 @@ const unit11ApplicationTask = {
   sectionId: "application",
 };
 
-export const unit1AlignmentZhLessons: Record<
+const unit1AlignmentZhLessonDrafts: Record<
   string,
   Partial<LessonContent>
 > = {
@@ -223,7 +224,7 @@ export const unit1AlignmentZhLessons: Record<
     practiceReadinessTasks: [unit11ApplicationTask],
   },
   "estimating-limits-from-tables": {
-    title: "根据表格估计极限值",
+    title: "表里有很多数，哪些才算极限证据？",
     objective: {
       title: "使用双侧数值证据",
       description: "从目标两侧选择附近表格值，估计极限并把目标行与附近趋势分开。",
@@ -234,9 +235,9 @@ export const unit1AlignmentZhLessons: Record<
       ],
     },
     hook:
-      "表格是一组快照。真正的技能不是平均看待每一行，而是选出能够检验目标两侧附近行为的数据。",
+      "一张传感器数据表可能有几十行，但不是每一行都同样重要。求极限时，要像放大目标时刻一样，优先找离目标最近、又分布在两侧的数据。",
     intuition:
-      "把它想成从门口左右两边走近。最靠近目标的行最能描述局部行为，但只有两个方向说出同一个结果，才能得到双侧极限。",
+      "先把小于目标的输入和大于目标的输入分成两组，再分别从远到近观察输出。两组都稳定靠近同一个数，双侧极限才有依据；目标那一行有没有值，并不决定结论。",
     formalExplanation:
       "估计 lim x→c f(x) 时，要查看小于 c 和大于 c 且逐渐靠近 c 的输入。分别描述两个方向的输出趋势，再判断是否趋近同一个值。即使表中有 f(c)，它也不决定极限。有限表格提供的是估计，其精度应与数据间距相符。",
     prerequisiteConnections: [
@@ -253,7 +254,7 @@ export const unit1AlignmentZhLessons: Record<
     ],
     workedExamples: [
       {
-        title: "用双侧表格估计",
+        title: "目标行缺失，还能估计吗？",
         setup: "在 x=2 附近，f(1.9)=3.81、f(1.99)=3.9801、f(2.01)=4.0201、f(2.1)=4.41，而 f(2) 缺失。",
         walkthrough: [
           "把小于 2 和大于 2 的输入分开。",
@@ -289,13 +290,13 @@ export const unit1AlignmentZhLessons: Record<
       },
     ],
     reflectionPrompt: {
-      prompt: "说明估计极限时你会优先选择哪些表格行，以及原因。",
+      prompt: "如果一张表有很多行，请说明你会先圈出哪些数据，以及为什么。",
       sentenceStarter: "我会选择输入 ____，因为它们 ____，并且包含 ____。",
     },
     applicationPrompt: {
-      title: "审查测量数据表",
-      prompt: "面对间距不均且目标值异常的传感器表格，选择支持双侧估计的数据，并说明合理精度。",
-      whyItTransfers: "真实数据往往不均匀且带噪声，必须主动筛选方向性证据。",
+      title: "审查体温传感器记录",
+      prompt: "一份体温传感器记录在目标时刻附近采样间距不均，其中目标行还是异常值。选出可用于双侧估计的数据，并说明结果应该保留到什么精度。",
+      whyItTransfers: "真实测量不会自动排好间距，也可能含异常值；判断局部趋势前必须先筛选证据。",
     },
     keyTakeaways: [
       "有效的极限表格要从目标两侧靠近。",
@@ -304,7 +305,7 @@ export const unit1AlignmentZhLessons: Record<
     ],
   },
   "algebraic-limit-techniques": {
-    title: "使用代数变形求极限",
+    title: "得到 0/0 之后，下一步是什么？",
     objective: {
       title: "在保持附近行为的前提下变形",
       description: "使用因式分解、共轭式或三角变形消除不定式，再应用极限法则。",
@@ -314,8 +315,8 @@ export const unit1AlignmentZhLessons: Record<
         "只有消除不定形式后才再次代入。",
       ],
     },
-    hook: "0/0 常常只是一个面具：原公式在目标点未定义，但附近行为可能化简得非常清楚。",
-    intuition: "极限只关心去心邻域。两个表达式即使在目标点不同，只要在每个附近输入处相等，较简单的表达式就能揭示相同极限。",
+    hook: "直接代入出现 0/0，不代表答案是 0，也不代表极限不存在。它更像一块路牌：原式把附近趋势藏住了，现在该检查能否因式分解、乘共轭式或做三角变形。",
+    intuition: "求极限只看目标点附近。只要两个表达式在所有足够靠近、但不等于目标的输入处相等，就可以暂时换用更简单的那个表达式观察趋势。目标点本身有没有定义，要另行说明。",
     formalExplanation: "直接代入得到 0/0 后要检查结构。多项式公因式适合分解约去；根式之差适合乘分子分母的共轭式；三角表达式可能需要恒等式或标准三角极限。这些变形保持去心邻域中的相等，不保证目标点处有定义。",
     prerequisiteConnections: [
       {
@@ -326,7 +327,7 @@ export const unit1AlignmentZhLessons: Record<
     ],
     workedExamples: [
       {
-        title: "先分解，再重新代入",
+        title: "一个空点怎样被代数结构揭示？",
         setup: "计算 lim x→3 (x²-9)/(x-3)。",
         walkthrough: [
           "直接代入得到 0/0，因此还不能结束。",
@@ -366,9 +367,9 @@ export const unit1AlignmentZhLessons: Record<
       sentenceStarter: "极限忽略 ____，所以在 ____ 相等的表达式具有相同 ____。",
     },
     applicationPrompt: {
-      title: "选择并说明变形方法",
-      prompt: "比较可因式分解的商、根式之差和三角商，为每一个选择第一步并说明结构依据。",
-      whyItTransfers: "识别结构比记住一种万能方法更可靠。",
+      title: "给三类 0/0 表达式分诊",
+      prompt: "比较可因式分解的商、根式之差和三角商，分别选择第一步，并指出是哪一个结构线索让你这样选。",
+      whyItTransfers: "把 0/0 继续细分，能避免遇到任何题都机械套用同一种变形。",
     },
     keyTakeaways: [
       "0/0 是分析结构的信号。",
@@ -377,7 +378,7 @@ export const unit1AlignmentZhLessons: Record<
     ],
   },
   "selecting-limit-procedures": {
-    title: "选择求极限的方法",
+    title: "求极限没有万能第一步",
     objective: {
       title: "计算前先选方法",
       description: "根据表示方式、代入结果和表达式结构选择并说明极限方法。",
@@ -387,8 +388,8 @@ export const unit1AlignmentZhLessons: Record<
         "没有公式时诚实使用图像或数值估计。",
       ],
     },
-    hook: "许多极限错误发生在代数之前：学习者没有检查题目证据，就开始使用最熟悉的方法。",
-    intuition: "把方法选择看成诊断。先确认提供了什么信息，再测试最简单且有依据的方法，最后才针对剩余障碍选择特定技术。",
+    hook: "有些同学一看到极限就开始因式分解，结果题目明明直接代入就能完成。真正省力的顺序是：先看题目给了什么，再做最简单的检查，最后才处理没有解决的障碍。",
+    intuition: "把求极限想成给问题分诊：图像题先读走势，表格题先看两侧，公式题先试代入。代入若得到有限值通常可以结束；若出现 0/0，再根据因式、根式或三角结构选择工具。",
     formalExplanation: "可靠流程是：识别表示方式；检查定义域和单侧要求；有表达式时尝试直接代入；分类代入结果；再使用匹配结构的代数变形或图表估计。方法的有效性来自条件和结构，而不是“算出了一个数”。",
     prerequisiteConnections: [
       {
@@ -409,7 +410,7 @@ export const unit1AlignmentZhLessons: Record<
     ],
     workedExamples: [
       {
-        title: "为三个极限选择不同第一步",
+        title: "三道题，为什么不能用同一种第一步？",
         setup: "分别处理多项式极限、x→2 时的 (x²-4)/(x-2) 和 x→0 时的 (sqrt(x+1)-1)/x。",
         walkthrough: [
           "多项式连续，因此直接代入即可。",
@@ -449,9 +450,9 @@ export const unit1AlignmentZhLessons: Record<
       sentenceStarter: "我先识别 ____，再测试 ____；如果看到 ____，就选择 ____。",
     },
     applicationPrompt: {
-      title: "制作极限决策记录",
-      prompt: "对四个陌生极限写出表示方式、代入结果或证据、所选方法和一个被排除的替代方法。",
-      whyItTransfers: "说明被排除的方法能够证明你是在选择，而不是只做模式匹配。",
+      title: "制作一张极限分诊单",
+      prompt: "面对四个陌生极限，依次记录表示方式、第一条证据、所选方法，以及一个不采用的替代方法和理由。",
+      whyItTransfers: "能说明为什么不选另一种方法，才真正表明你理解了适用条件。",
     },
     keyTakeaways: [
       "先检查证据，再选择程序。",
@@ -460,7 +461,7 @@ export const unit1AlignmentZhLessons: Record<
     ],
   },
   "connecting-limit-representations": {
-    title: "连接极限的多重表示",
+    title: "图像、表格和公式为什么看起来会冲突？",
     objective: {
       title: "转换并交叉检查极限证据",
       description: "在图像、数值、解析、符号和语言形式之间保持同一个数学行为。",
@@ -470,8 +471,8 @@ export const unit1AlignmentZhLessons: Record<
         "说明每种表示能够证明什么、只能提示什么。",
       ],
     },
-    hook: "公式可能隐藏一个孔，图像尺度可能隐藏振荡，表格又可能漏掉关键输入。连接表示能让它们互相检查。",
-    intuition: "把不同表示看成同一事件的不同镜头。虽然细节不同，但它们必须对 x 去哪里、f(x) 去哪里讲出一致故事。",
+    hook: "图像看起来平滑，公式却显示有空点；表格像是在靠近 2，目标行又偏偏写着 9。它们未必真的矛盾，可能只是各自展示了同一函数的不同信息。",
+    intuition: "把图像、表格、公式和文字看成四个摄像机。画面角度不同，但都必须对三件事说得通：x 靠近哪里、从哪边靠近、f(x) 靠近什么。点值则要单独记录。",
     formalExplanation: "等价的极限表示必须保持目标输入、趋近方向和输出行为。图像和表格通常用于估计；代数和定理可以给出精确论证。完整转换还要把 f(c) 与 lim x→c f(x) 分开，并在双侧问题中写明方向证据。",
     prerequisiteConnections: [
       {
@@ -532,9 +533,9 @@ export const unit1AlignmentZhLessons: Record<
       sentenceStarter: "____ 表示说明 ____，而 ____ 通过 ____ 进行确认或限定。",
     },
     applicationPrompt: {
-      title: "协调相互冲突的证据",
-      prompt: "图像提示有限极限、稀疏表格无法判断、公式含有振荡时，决定还需要什么证据并写出谨慎结论。",
-      whyItTransfers: "真实问题需要评价证据质量，而不是接受第一种表示。",
+      title: "处理一组不一致的证据",
+      prompt: "图像似乎支持有限极限，稀疏表格却看不清，公式还含有快速振荡。指出每种证据的局限，决定还需要什么信息，再写出不过度断言的结论。",
+      whyItTransfers: "数学判断不仅要看答案，还要判断证据分辨率是否足以支持这个答案。",
     },
     keyTakeaways: [
       "所有表示必须保持同一输入和输出行为。",
@@ -543,7 +544,7 @@ export const unit1AlignmentZhLessons: Record<
     ],
   },
   "classifying-discontinuities": {
-    title: "探索间断的类型",
+    title: "空点、跳跃和渐近线，怎样分类？",
     objective: {
       title: "分类连续性失败",
       description: "区分可去、跳跃和无穷间断，并判断修改一个点能否修复。",
@@ -553,8 +554,8 @@ export const unit1AlignmentZhLessons: Record<
         "准确判断何时可通过重新定义一点修复。",
       ],
     },
-    hook: "孔、跳跃和垂直渐近线都会破坏连续性，但失败方式不同。间断类型会告诉你缺少哪项证据，以及能否修复。",
-    intuition: "依次问：两侧是否趋近有限值？两个值是否相等？函数值是否匹配？这些答案的组合就决定间断类型。",
+    hook: "图像断开并不只有一种原因：有时只是少了一个点，有时左右两段接不上，还有时曲线沿渐近线无限升高。分类不是背名称，而是找出哪条连续性条件失败了。",
+    intuition: "按固定顺序排查：左右两侧有没有有限趋势？两边是否相等？如果相等，函数值是否也匹配？前三个问题的答案会自然把间断分成可去、跳跃或无穷三类。",
     formalExplanation: "可去间断具有有限双侧极限，但 f(c) 缺失或不匹配；跳跃间断的有限单侧极限不相等；无穷间断含有无界单侧行为。只有可去间断能通过把 f(c) 定义为共同极限来修复。",
     prerequisiteConnections: [
       {
@@ -570,8 +571,8 @@ export const unit1AlignmentZhLessons: Record<
     ],
     workedExamples: [
       {
-        title: "分类三种连续性失败",
-        setup: "A 两侧趋近 3 但 f(c)=8；B 左侧趋近 1、右侧趋近 4；C 从右侧无界增大。",
+        title: "给三张图像体检",
+        setup: "图 A 两侧趋近 3 但 f(c)=8；图 B 左侧趋近 1、右侧趋近 4；图 C 从右侧无界增大。",
         walkthrough: [
           "A 有有限共同极限但点值不匹配，因此是可去间断。",
           "定义 f(c)=3 可以修复 A。",
@@ -610,9 +611,9 @@ export const unit1AlignmentZhLessons: Record<
       sentenceStarter: "先比较 ____；若它们 ____，再检查 ____；否则分类为 ____。",
     },
     applicationPrompt: {
-      title: "诊断分段函数边界",
+      title: "检查分段计费函数的边界",
       prompt: "在分段函数的两个边界分别求或读取单侧极限，分类间断，并判断参数能否修复。",
-      whyItTransfers: "图像和解析形式的分段函数都使用同一分类逻辑。",
+      whyItTransfers: "阶梯电价、分段计费等模型常在边界处换公式，同一套单侧检查能判断那里是否连续。",
     },
     keyTakeaways: [
       "方向性行为区分可去、跳跃和无穷间断。",
@@ -621,7 +622,7 @@ export const unit1AlignmentZhLessons: Record<
     ],
   },
   "continuity-over-intervals": {
-    title: "确认区间上的连续性",
+    title: "函数在哪些区间连续？",
     objective: {
       title: "用定义域和端点说明区间连续",
       description: "利用常见函数族在定义域上的连续性，并在闭区间端点使用单侧条件。",
@@ -631,8 +632,8 @@ export const unit1AlignmentZhLessons: Record<
         "在闭区间端点使用正确的单侧条件。",
       ],
     },
-    hook: "一点处连续是局部陈述；介值定理等结论要求更强的保证：整个区间上任何地方都没有连续性失败。",
-    intuition: "先确定函数族在有定义处连续，再标出公式失效的输入。这些排除点会把实数轴分成连续区间。",
+    hook: "检查某一个点连续，只能说明一个局部位置。若想使用介值定理，就要保证整段区间没有“断点”。最快的方法通常不是逐点检查，而是先找出公式在哪些输入处失效。",
+    intuition: "先认函数家族：多项式处处连续，有理函数只怕分母为 0，根式和对数受定义域限制。把所有排除值标到数轴上，它们自然会把定义域切成若干连续区间。",
     formalExplanation: "多项式在所有实数上连续；有理函数在分母非零处连续；根式和对数必须遵守实数定义域。函数在开区间连续，表示其中每一点连续；在 [a,b] 连续，还要求 (a,b) 内连续、a 处右连续、b 处左连续。",
     prerequisiteConnections: [
       {
@@ -683,9 +684,9 @@ export const unit1AlignmentZhLessons: Record<
       sentenceStarter: "因为 ____ 函数在定义域上连续，所以排除 ____，得到区间 ____。",
     },
     applicationPrompt: {
-      title: "为介值定理准备连续性陈述",
-      prompt: "给定 [0,4] 上的分段函数，找出所有内部边界和端点条件，再判断能否声明整个区间连续。",
-      whyItTransfers: "定理要求区间范围内的假设，必须检查每个可能失败的位置。",
+      title: "为介值定理做一次区间安检",
+      prompt: "给定 [0,4] 上的分段函数，列出所有内部换式边界和两个端点需要检查的方向，再判断能否声明整段连续。",
+      whyItTransfers: "定理使用的是整个区间上的假设，漏掉一个边界就可能让存在性结论失去依据。",
     },
     keyTakeaways: [
       "常见函数在其定义域上连续。",
@@ -694,3 +695,6 @@ export const unit1AlignmentZhLessons: Record<
     ],
   },
 };
+
+export const unit1AlignmentZhLessons =
+  completeApCalculusZhLessonLocalizations(unit1AlignmentZhLessonDrafts);

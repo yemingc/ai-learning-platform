@@ -59,6 +59,8 @@ import {
   unit1ExtensionLessonMetadata,
 } from "../src/curricula/ap-calculus-ab/unit-1-extension-lessons.ts";
 import { getLessonVisualization } from "../src/features/lessons/lesson-visualizations.ts";
+import { localizedConcepts } from "../src/features/knowledge/concept-localization.ts";
+import { zhLessons } from "../src/features/lessons/lesson-localization.ts";
 import { teacherEvaluationCases } from "../src/features/ai-teacher/evaluation/eval-cases.ts";
 import { avoidsEvaluationPatterns } from "../src/features/ai-teacher/evaluation/evaluation-text-matching.ts";
 
@@ -102,10 +104,15 @@ const apCalculusABTestCurriculum: CurriculumPack = {
       units: { ...unit1AlignmentLocalizedUnits, ...unit2LocalizedUnits },
       topics: { ...unit1AlignmentLocalizedTopics, ...unit2LocalizedTopics },
       concepts: {
+        ...localizedConcepts,
         ...unit1AlignmentLocalizedConcepts,
         ...unit2LocalizedConcepts,
       },
-      lessons: { ...unit1AlignmentZhLessons, ...unit2ZhLessons },
+      lessons: {
+        ...zhLessons,
+        ...unit1AlignmentZhLessons,
+        ...unit2ZhLessons,
+      },
     },
   },
   teachingProfile: {
@@ -281,6 +288,93 @@ test("Unit 1.1 Chinese is a complete adaptive teaching rewrite with stable seman
         /[\u3400-\u9fff]/u.test(section.body),
     ),
   );
+});
+
+test("every AP Calculus AB lesson has a complete natural Chinese teaching rewrite", () => {
+  const canonicalLessons = [
+    ...apCalculusABUnit1Lessons,
+    ...apCalculusABUnit2Lessons,
+  ];
+  const chineseText = /[\u3400-\u9fff]/u;
+  const englishScaffolding =
+    /Takeaway:|Prompt:|Hint:|Target insight:|Misconception \d|Check prompt:|Correction:|Sentence starter:|Why it transfers:/u;
+
+  for (const canonicalLesson of canonicalLessons) {
+    const localizedLesson = localizeLesson(
+      apCalculusABTestCurriculum,
+      canonicalLesson,
+      "zh",
+    );
+    const localizedConcept =
+      apCalculusABTestCurriculum.localizations?.zh?.concepts?.[
+        canonicalLesson.conceptId
+      ];
+
+    assert.ok(localizedConcept, canonicalLesson.conceptId);
+    assert.match(localizedConcept.title ?? "", chineseText);
+    assert.notEqual(localizedLesson.title, canonicalLesson.title);
+    assert.match(localizedLesson.title, chineseText);
+    assert.match(localizedLesson.hook, chineseText);
+    assert.match(localizedLesson.intuition, chineseText);
+    assert.match(localizedLesson.formalExplanation, chineseText);
+    assert.ok(
+      localizedLesson.learningObjectives.every((objective) =>
+        chineseText.test(objective),
+      ),
+      `${canonicalLesson.conceptId}: learning objectives must be Chinese`,
+    );
+
+    assert.deepEqual(
+      localizedLesson.sections.map(({ id, sectionId, type }) => ({
+        id,
+        sectionId,
+        type,
+      })),
+      canonicalLesson.sections.map(({ id, sectionId, type }) => ({
+        id,
+        sectionId,
+        type,
+      })),
+    );
+    assert.ok(
+      localizedLesson.sections.every(
+        (section) =>
+          chineseText.test(section.title) &&
+          chineseText.test(section.body) &&
+          chineseText.test(section.teachingGoal ?? "") &&
+          !englishScaffolding.test(section.body),
+      ),
+      `${canonicalLesson.conceptId}: sections must be independently authored in Chinese`,
+    );
+    assert.equal(
+      localizedLesson.glossaryTerms.length,
+      canonicalLesson.glossaryTerms.length,
+    );
+    assert.ok(
+      localizedLesson.glossaryTerms.every(
+        (term) =>
+          chineseText.test(term.term) && chineseText.test(term.definition),
+      ),
+      `${canonicalLesson.conceptId}: glossary must be Chinese`,
+    );
+    assert.deepEqual(
+      localizedLesson.applicationTasks.map((task) => task.id),
+      canonicalLesson.applicationTasks.map((task) => task.id),
+    );
+    assert.ok(
+      localizedLesson.applicationTasks.every(
+        (task) =>
+          chineseText.test(task.title) &&
+          chineseText.test(task.prompt) &&
+          chineseText.test(task.readinessSignal),
+      ),
+      `${canonicalLesson.conceptId}: application tasks must be Chinese`,
+    );
+    assert.deepEqual(
+      localizedLesson.practiceReadinessTasks.map((task) => task.id),
+      canonicalLesson.practiceReadinessTasks.map((task) => task.id),
+    );
+  }
 });
 
 test("Unit 2 prerequisites and dependencies preserve Unit 1 continuity", () => {
@@ -518,7 +612,7 @@ test("foundation lesson reflection prompts use natural Chinese instructions", ()
 
   assert.match(
     lessonLocalizationSource,
-    /prompt: "你会怎样用一句话解释极限（limit）？"/u,
+    /prompt: "如果不能照抄定义，你会怎样用一句话解释极限？"/u,
   );
   assert.doesNotMatch(lessonLocalizationSource, /不用“答案”这个词/u);
 });

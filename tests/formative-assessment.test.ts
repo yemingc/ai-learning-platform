@@ -94,6 +94,34 @@ test("assessment bank has unique ids, valid keys, and complete localization", ()
   assert.deepEqual(getFormativeAssessmentIntegrityIssues(), []);
 });
 
+test("every implemented assessment is independently readable in Chinese", () => {
+  for (const conceptId of apCalculusABConceptIds) {
+    for (const phase of ["diagnostic", "exit_ticket"] as const) {
+      const english = getFormativeAssessment({
+        conceptId,
+        locale: "en",
+        phase,
+      });
+      const chinese = getFormativeAssessment({
+        conceptId,
+        locale: "zh",
+        phase,
+      });
+
+      assert.match(chinese.title, /[\u3400-\u9fff]/u);
+      assert.equal(chinese.questions.length, english.questions.length);
+      for (let index = 0; index < chinese.questions.length; index += 1) {
+        const chineseQuestion = chinese.questions[index];
+        const englishQuestion = english.questions[index];
+        assert.ok(chineseQuestion);
+        assert.ok(englishQuestion);
+        assert.match(chineseQuestion.prompt, /[\u3400-\u9fff]/u);
+        assert.notEqual(chineseQuestion.prompt, englishQuestion.prompt);
+      }
+    }
+  }
+});
+
 test("public assessment DTOs are bilingual and do not expose answer keys", () => {
   const english = getFormativeAssessment({
     conceptId: "what-is-a-limit",

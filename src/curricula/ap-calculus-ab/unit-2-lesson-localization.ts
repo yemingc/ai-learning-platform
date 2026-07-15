@@ -1,8 +1,9 @@
 import type { LessonContent } from "@/features/lessons/types";
+import { completeApCalculusZhLessonLocalizations } from "./adaptive-lesson-localization.ts";
 
-export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
+const unit2ZhLessonDrafts: Record<string, Partial<LessonContent>> = {
   "average-and-instantaneous-rates-of-change": {
-    title: "从平均变化走向瞬时变化",
+    title: "一段时间的平均速度，怎样变成某一刻的速度？",
     objective: {
       title: "把差商解释为变化率",
       description:
@@ -14,7 +15,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "行程记录可以告诉你过去十分钟的平均速度，而速度表显示“此刻”发生了什么。微积分在不除以零的前提下连接这两种说法。",
+      "外卖骑手十分钟骑了多远，可以算出平均速度；车把上的速度表却在回答“现在这一刻有多快”。微积分要做的，就是在不把时间间隔硬设为零的前提下，连接这两个问题。",
     intuition:
       "平均变化率就是割线斜率：它比较水平距离非零的两个点。要描述某一瞬间，就固定一个端点，让另一个端点不断靠近。如果割线斜率稳定地趋近同一个数，这个极限就是固定点处的局部变化率。",
     formalExplanation:
@@ -78,9 +79,9 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
         "随着区间缩小，割线斜率 ____；如果它们趋近 ____，那么 ____。",
     },
     applicationPrompt: {
-      title: "解释水位变化",
+      title: "估计蓄水池此刻的水位变化",
       prompt:
-        "表格给出 4.9、5.0、5.1 分钟时水箱深度。构造一个 5.0 分钟处瞬时深度变化率的估计，并解释单位。",
+        "监测表给出 4.9、5.0、5.1 分钟时的水位。估计 5.0 分钟这一刻水位变化得多快，并说明结果的单位和正负号。",
       whyItTransfers:
         "任务从公式转到数值情境，但仍使用同一个差商结构。",
     },
@@ -91,7 +92,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
   "derivative-as-a-limit-and-tangent-slope": {
-    title: "导数同时是极限、变化率与斜率",
+    title: "导数为什么既是变化率，又是切线斜率？",
     objective: {
       title: "表示并使用导数定义",
       description:
@@ -103,7 +104,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "f'(a)、dy/dx 和切线斜率看上去像不同概念，导数定义说明它们只是从不同角度描述同一种局部变化。",
+      "“这一刻变化得多快”和“图像在这里有多陡”听起来是两个问题。导数定义会告诉你：它们最后算出的其实是同一个数。",
     intuition:
       "切线可以理解为通过固定点和附近点的割线所趋近的位置。导数不是切线本身，而是附近点不断靠近时留下来的斜率值。让基准点变化，就得到一个新的函数 f'。",
     formalExplanation:
@@ -171,7 +172,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
         "差商测量 ____；它的极限是 ____，也就是 ____。",
     },
     applicationPrompt: {
-      title: "识别隐藏的导数极限",
+      title: "看穿一道没有写“导数”的题",
       prompt:
         "识别 lim h→0 ((1+h)^5-1)/h 对应的函数和基准点，再用相应导数值计算极限。",
       whyItTransfers:
@@ -184,7 +185,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
   "estimating-derivatives-at-a-point": {
-    title: "用邻近证据估计切线斜率",
+    title: "没有公式，怎样估计某一点的导数？",
     objective: {
       title: "根据表格与图像估计导数",
       description:
@@ -196,7 +197,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "真实数据很少自带方便求导的公式，但仍可利用附近测量值或图像的局部形状估计导数。",
+      "空气质量监测、体温记录或骑行速度表通常只给出一串数据，不会附送一个漂亮公式。没有公式时，我们仍能借助目标点附近的数据估计变化速度。",
     intuition:
       "导数估计要让所选割线尽可能代表切线。靠近目标的点会缩小区间；分布在目标两侧的点能让估计居中，而不是偏向左侧或右侧。",
     formalExplanation:
@@ -257,9 +258,9 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
         "更强的估计使用 ____ 的点，并尽量位于 ____，因为 ____。",
     },
     applicationPrompt: {
-      title: "比较两个导数估计",
+      title: "替一组监测数据挑选更可信的估计",
       prompt:
-        "给定 x=3 附近一个不等距表格，计算两个合理的割线估计，判断哪个更可靠并说明理由。",
+        "一组传感器数据在 x=3 附近的采样间隔并不相等。用两组邻近数据分别估计导数，再判断哪一个更可信并说明理由。",
       whyItTransfers:
         "任务要求评价证据质量，而不是机械使用最先看到的两个数据。",
     },
@@ -270,7 +271,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
   "differentiability-and-continuity": {
-    title: "连续是必要条件，但平滑还需要更多",
+    title: "图像连得上，为什么还可能不可导？",
     objective: {
       title: "判断导数何处存在",
       description:
@@ -282,7 +283,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "一条道路可以没有断裂，却仍然有急转弯。连续性排除缺口；可导性还要求只有一个有限的局部方向。",
+      "一条山路可以全程没有断口，却在某处突然急转弯。连续性只保证“路接得上”；可导性还要求车辆经过这一点时，有一个明确而有限的前进方向。",
     intuition:
       "要让有限切线斜率稳定下来，图像必须先在该点连接，因此可导必然连续。但连续图像也可能从两侧以不同方向到达，或变得无限陡峭，于是点虽然连着，却不可导。",
     formalExplanation:
@@ -349,9 +350,9 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
         "如果函数可导，那么 ____；但如果只知道它连续，____。",
     },
     applicationPrompt: {
-      title: "审查五种图像特征",
+      title: "给五种道路形状做“可通行性检查”",
       prompt:
-        "分别判断光滑点、可去空点、跳跃、尖角和垂直切线是否连续、是否可导，并为每项给出一个理由。",
+        "把光滑点、可去空点、跳跃、尖角和垂直切线看成五种道路形状，逐一判断图像是否连续、是否可导，并用左右行为说明理由。",
       whyItTransfers:
         "比较任务要求使用通用判断框架，而不是只识别一个熟悉图像。",
     },
@@ -362,7 +363,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
   "power-rule": {
-    title: "幂法则压缩了一个极限模式",
+    title: "幂函数为什么都能用同一条求导规则？",
     objective: {
       title: "准确求幂函数的导数",
       description:
@@ -374,7 +375,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "导数定义可以处理每个幂函数，但反复做同样的代数会掩盖规律。幂法则把这个规律保存成一步可靠操作。",
+      "如果每遇到 x²、x⁵ 或 x^-2 都从差商重新展开，求导会变成重复劳动。幂法则把这些计算里反复出现的结构，压缩成一个可以检查、也可以解释的动作。",
     intuition:
       "指数越大，幂函数通常增长得越陡；求导会把指数移到前面作为缩放系数，再把剩余幂次降低 1。它同时改变系数与指数，结果仍描述局部斜率。",
     formalExplanation:
@@ -431,7 +432,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
         "法则把 ____ 移到前面并改变 ____；我仍需检查 ____。",
     },
     applicationPrompt: {
-      title: "比较原函数与导数的定义域",
+      title: "规则算完了，定义域检查还没结束",
       prompt:
         "分别求 x^(1/3)、x^(-1/2)、x^(3/2) 的导数，再比较每个原函数与导数的定义域。",
       whyItTransfers:
@@ -444,7 +445,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
   "linearity-rules-for-derivatives": {
-    title: "逐项求线性组合的导数",
+    title: "多项式为什么可以逐项求导？",
     objective: {
       title: "使用常数与线性求导法则",
       description:
@@ -456,7 +457,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "知道基本函数的导数后，不必为每个和或常数倍重新从极限开始。线性法则让每一项独立贡献自己的变化率。",
+      "一张总账由几项收入和支出相加而成，每一项的变化会共同决定总额怎样变化。函数的和与差也一样：先看每一项贡献多少变化率，再把这些贡献按原来的符号合起来。",
     intuition:
       "两个量的和会以两个变化率之和变化；函数乘以固定倍数后，变化率也乘同样倍数。常数完全不变，因此变化率为 0。",
     formalExplanation:
@@ -514,7 +515,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
         "从函数到导数的过程中，它们保留 ____ 与 ____。",
     },
     applicationPrompt: {
-      title: "审查两条求导路径",
+      title: "同一道题，先展开还是直接求导？",
       prompt:
         "对 (2x-1)(x+3)，先展开再求导，并用后续乘积法则预览再求一次。比较结果，解释为什么展开前不能只用线性法则。",
       whyItTransfers:
@@ -527,7 +528,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
   "basic-transcendental-derivatives": {
-    title: "四个基础超越函数求导公式",
+    title: "sin、cos、e^x 和 ln x 的导数怎样记得住？",
     objective: {
       title: "求常见非代数函数的导数",
       description:
@@ -539,7 +540,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "有些函数求导后会出现熟悉的伙伴：指数增长保持自身形状，正弦与余弦轮换，对数增长则变成倒数变化率。",
+      "这四个公式不该只是一张背诵表。看一眼图像的上升、下降和弯曲方式，就能解释余弦为什么带负号、e^x 为什么求导后还是自己，以及 ln x 为什么越走越平。",
     intuition:
       "求导公式反映图像的局部几何。在弧度制下，正弦斜率跟随余弦，余弦斜率跟随负正弦。自然指数函数以自身数值为增长率；自然对数靠近 0 时变化很快，输入变大后变化减慢，正好对应 1/x。",
     formalExplanation:
@@ -598,7 +599,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       sentenceStarter: "公式 ____ 合理，是因为原函数图像 ____。",
     },
     applicationPrompt: {
-      title: "把极限识别为导数值",
+      title: "从极限外表认出熟悉的导数",
       prompt:
         "通过识别导数定义计算 lim h→0 (e^h-1)/h 与 lim x→1 (ln x-ln 1)/(x-1)，并写出每个函数和基准点。",
       whyItTransfers:
@@ -611,7 +612,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
   "product-rule": {
-    title: "两个变化因子都会贡献",
+    title: "两个量同时变化，乘积会怎样变化？",
     objective: {
       title: "求函数乘积的导数",
       description:
@@ -623,7 +624,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "若长方形的长与宽都在变化，面积会因两个原因变化。乘积法则把两种贡献都记录下来。",
+      "商场中庭的电子屏正在同时变宽、变高，屏幕面积会因为两个方向的变化而增加。只算其中一个方向，结果一定会少一部分；乘积法则正是把两份贡献都记下来。",
     intuition:
       "一次微小变化中，一个贡献来自第一个因子变化、第二个因子保持当前值；另一个贡献恰好相反。两个因子同时发生的微小重叠项在极限中消失，留下两个主要项。",
     formalExplanation:
@@ -685,9 +686,9 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
         "第一项表示 ____ 变化而 ____ 保持当前值；第二项表示 ____。",
     },
     applicationPrompt: {
-      title: "解释变化长方形的面积",
+      title: "解释一块伸缩电子屏的面积变化",
       prompt:
-        "长方形的长为 L(t)、宽为 W(t)。写出 A'(t)，解释两个乘积法则项，并为每项附上单位。",
+        "一块长方形电子屏的长为 L(t)、宽为 W(t)。写出 A'(t)，说明两个乘积法则项各对应哪一种伸缩，并为每项附上单位。",
       whyItTransfers:
         "任务从符号法则转到具体情境，说明为什么两个贡献都不可缺少。",
     },
@@ -698,7 +699,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
   "quotient-rule": {
-    title: "在保持结构的前提下求比值的导数",
+    title: "分子和分母都在变，比值怎样求导？",
     objective: {
       title: "求函数商的导数",
       description:
@@ -710,7 +711,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "一个比值会同时受到分子和分母变化的影响。两种贡献方向相反，因此次序和分母缩放都很重要。",
+      "同样一笔总价，如果商品数量也在变化，“每件平均多少钱”就会同时受总价和数量影响。比值的变化不是把上下分别求导再相除，而要把两种影响按正确次序合在一起。",
     intuition:
       "分子增大通常让比值增大，而正分母增大通常让比值减小。商法则中的减法反映这种竞争，分母平方则重新缩放合成后的变化。",
     formalExplanation:
@@ -768,7 +769,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
         "我检查分子次序 ____、分母 ____，以及原定义域条件 ____。",
     },
     applicationPrompt: {
-      title: "选择商法则或改写",
+      title: "先判断结构，再选择最省力的求导路径",
       prompt:
         "分别对 (x²+1)/(x-2)、5/x³、sin x/cos x 选择合理求导路径，完成求导并保留定义域限制。",
       whyItTransfers:
@@ -781,7 +782,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
   "remaining-trigonometric-derivatives": {
-    title: "从恒等式建立其余三角函数求导公式",
+    title: "不再死背：从恒等式重建四个三角导数",
     objective: {
       title: "求 tan、cot、sec、csc 的导数",
       description:
@@ -793,7 +794,7 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
       ],
     },
     hook:
-      "四个新公式看似需要再背一张表，但它们都可以从正弦、余弦、乘积、商和已有恒等式重新推导出来。",
+      "tan、cot、sec、csc 的导数看起来又要多背四行。其实忘了也没关系：从正弦、余弦和熟悉的恒等式出发，几步就能把它们重新推出来。",
     intuition:
       "正切和余切是比值，因此导数带有商法则结构；正割和余割是倒数，因此变化率既保留倒数函数，也带上对应的正切或余切因子。忘记公式时重新推导，比猜符号更可靠。",
     formalExplanation:
@@ -872,3 +873,6 @@ export const unit2ZhLessons: Record<string, Partial<LessonContent>> = {
     ],
   },
 };
+
+export const unit2ZhLessons =
+  completeApCalculusZhLessonLocalizations(unit2ZhLessonDrafts);

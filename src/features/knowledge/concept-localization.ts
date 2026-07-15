@@ -3,7 +3,7 @@ import type { Concept, Course, LearningObjective, Topic, Unit } from "@/features
 import {
   unit1ExtensionLocalizedConcepts,
   unit1ExtensionLocalizedTopics,
-} from "@/curricula/ap-calculus-ab/unit-1-extension-localization";
+} from "../../curricula/ap-calculus-ab/unit-1-extension-localization.ts";
 
 type LocalizedLearningObjective = Pick<
   LearningObjective,
@@ -55,9 +55,9 @@ export const localizedTopics: Record<string, Partial<Topic>> = {
 export const localizedConcepts: Record<string, LocalizedConcept> = {
   ...unit1ExtensionLocalizedConcepts,
   "what-is-a-limit": {
-    title: "什么是极限（limit）？",
+    title: "函数靠近一个点时，到底在看什么？",
     description:
-      "把极限（limit）理解成：当输入靠近某个目标值时，函数值（function value）正在靠近哪里，即使目标点本身的函数值不同或不存在。",
+      "先不急着代入目标点，而是观察输入从两侧靠近时，输出是否稳定趋向同一个数。",
     learningObjectives: [
       {
         title: "解释接近行为（approaching behavior）",
@@ -101,9 +101,9 @@ export const localizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "limit-notation": {
-    title: "极限符号（limit notation）",
+    title: "怎样读懂极限符号？",
     description:
-      "读懂并表达类似 lim x → a f(x) = L 的极限陈述，把符号翻译成输入和输出的接近关系。",
+      "把“谁在靠近哪里、函数值趋向什么”准确地在语言、符号和图像之间转换。",
     learningObjectives: [
       {
         title: "流畅读懂极限符号（limit notation）",
@@ -147,9 +147,9 @@ export const localizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "estimating-limits-from-graphs": {
-    title: "从图像估计极限（estimating limits from graphs）",
+    title: "怎样从图像读出极限？",
     description:
-      "观察目标输入左右两侧的图像趋势，估计函数值（function value）是否靠近同一个输出值。",
+      "沿图像从目标输入的左右两侧靠近，判断两边是否指向同一个高度。",
     learningObjectives: [
       {
         title: "估计双侧极限（two-sided limit）",
@@ -193,9 +193,9 @@ export const localizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "one-sided-limits": {
-    title: "单侧极限（one-sided limits）",
+    title: "从左边看，还是从右边看？",
     description:
-      "只从左侧或右侧靠近目标输入，分析函数值（function value）的接近行为。",
+      "把左右两个方向拆开观察，再判断它们能否合成一个双侧极限。",
     learningObjectives: [
       {
         title: "区分左侧和右侧接近",
@@ -239,9 +239,9 @@ export const localizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "infinite-limits": {
-    title: "无穷极限（infinite limits）",
+    title: "函数值会“冲向无穷”吗？",
     description:
-      "识别当输入靠近目标值时，函数值（function value）无限增大或无限减小的情况，常常对应垂直渐近线（vertical asymptote）。",
+      "描述函数在某个有限输入附近不断增大或减小、没有有限上界的方向性行为。",
     learningObjectives: [
       {
         title: "描述无界行为（unbounded behavior）",

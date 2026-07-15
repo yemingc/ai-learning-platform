@@ -33,9 +33,9 @@ export const unit1ExtensionLocalizedConcepts: Record<
   LocalizedConceptDraft
 > = {
   "evaluating-limits-with-limit-laws": {
-    title: "用极限法则计算极限（evaluating limits with limit laws）",
+    title: "什么时候可以直接代入？",
     description:
-      "通过有效代数运算组合已知极限，在连续性允许时直接代入，并识别需要其他方法的不定式（indeterminate form）。",
+      "先检查代入结果和函数结构，再决定直接代入是否有依据，还是需要继续处理。",
     learningObjectives: [
       {
         title: "应用极限法则（limit laws）",
@@ -78,9 +78,9 @@ export const unit1ExtensionLocalizedConcepts: Record<
     ],
   },
   "squeeze-theorem": {
-    title: "夹逼定理（Squeeze Theorem）",
+    title: "函数振荡不停，极限还能存在吗？",
     description:
-      "把困难或振荡函数夹在趋近于同一个值的上下界之间，从而确定中间函数的极限。",
+      "当目标函数本身很难追踪时，用上下两个更容易分析的函数把它的行为锁定。",
     learningObjectives: [
       {
         title: "建立有效夹逼",
@@ -122,9 +122,9 @@ export const unit1ExtensionLocalizedConcepts: Record<
     ],
   },
   "continuity-at-a-point": {
-    title: "一点处的连续性（continuity at a point）",
+    title: "什么才叫在一点处连续？",
     description:
-      "检查函数值是否存在、双侧极限是否存在，以及这两个量是否相等。",
+      "同时检查函数在这里有没有取值、两侧极限是否存在，以及极限是否等于函数值。",
     learningObjectives: [
       {
         title: "验证连续性的三个条件",
@@ -167,9 +167,9 @@ export const unit1ExtensionLocalizedConcepts: Record<
     ],
   },
   "intermediate-value-theorem": {
-    title: "介值定理（Intermediate Value Theorem）",
+    title: "不解方程，也能知道零点存在吗？",
     description:
-      "利用闭区间上的连续性，保证函数会取得两个端点输出之间的每个中间值。",
+      "利用连续函数不会跳过中间高度的性质，证明某个输出或零点一定会出现。",
     learningObjectives: [
       {
         title: "验证介值定理的条件",
@@ -213,9 +213,9 @@ export const unit1ExtensionLocalizedConcepts: Record<
     ],
   },
   "limits-at-infinity": {
-    title: "无穷远处的极限与端行为（limits at infinity and end behavior）",
+    title: "图像走得足够远，会留下什么趋势？",
     description:
-      "描述输入无界变化时的函数行为，比较主导项，并把有限端行为理解为水平渐近线。",
+      "把视野拉远，分析输入越来越大或越来越小时，图像最终稳定靠近的高度或增长模式。",
     learningObjectives: [
       {
         title: "解释无穷远处的极限",

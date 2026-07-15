@@ -43,7 +43,7 @@ export const unit2LocalizedTopics: Record<string, Partial<Topic>> = {
 
 export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
   "average-and-instantaneous-rates-of-change": {
-    title: "平均变化率与瞬时变化率",
+    title: "一段时间的平均速度，怎样变成某一刻的速度？",
     description:
       "把差商理解为区间上的平均变化率，并用不断缩小的区间引出一点处的瞬时变化率。",
     learningObjectives: [
@@ -89,7 +89,7 @@ export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "derivative-as-a-limit-and-tangent-slope": {
-    title: "作为极限与切线斜率的导数",
+    title: "导数为什么既是变化率，又是切线斜率？",
     description:
       "用等价差商极限表示一点处的导数和导函数，并把导数值用于切线方程。",
     learningObjectives: [
@@ -133,7 +133,7 @@ export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "estimating-derivatives-at-a-point": {
-    title: "估计一点处的导数",
+    title: "没有公式，怎样估计某一点的导数？",
     description:
       "从邻近表格值、图像局部斜率或技术工具估计导数，并明确说明估计方法。",
     learningObjectives: [
@@ -179,7 +179,7 @@ export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "differentiability-and-continuity": {
-    title: "可导性与连续性",
+    title: "图像连得上，为什么还可能不可导？",
     description:
       "说明一点处可导必然连续，并识别连续但不存在有限导数的图像特征。",
     learningObjectives: [
@@ -225,7 +225,7 @@ export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "power-rule": {
-    title: "幂法则",
+    title: "幂函数为什么都能用同一条求导规则？",
     description:
       "高效求 x 的幂函数的导数，并把系数与指数变化连接回导数定义。",
     learningObjectives: [
@@ -270,7 +270,7 @@ export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "linearity-rules-for-derivatives": {
-    title: "常数、和、差与常数倍法则",
+    title: "多项式为什么可以逐项求导？",
     description:
       "逐项求常数和线性组合的导数，同时保留系数与减号结构。",
     learningObjectives: [
@@ -315,7 +315,7 @@ export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "basic-transcendental-derivatives": {
-    title: "正弦、余弦、指数与对数函数的导数",
+    title: "sin、cos、e^x 和 ln x 的导数怎样记得住？",
     description:
       "求 sin x、cos x、e^x 与 ln x 的导数，并识别表示这些已知导数值的极限。",
     learningObjectives: [
@@ -361,7 +361,7 @@ export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "product-rule": {
-    title: "乘积法则",
+    title: "两个量同时变化，乘积会怎样变化？",
     description:
       "把乘积的变化分解为两个贡献：每次对一个因子求导，同时保留另一个因子。",
     learningObjectives: [
@@ -407,7 +407,7 @@ export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "quotient-rule": {
-    title: "商法则",
+    title: "分子和分母都在变，比值怎样求导？",
     description:
       "按固定次序构造分子之差，并除以原分母的平方来求商的导数。",
     learningObjectives: [
@@ -453,7 +453,7 @@ export const unit2LocalizedConcepts: Record<string, LocalizedConcept> = {
     ],
   },
   "remaining-trigonometric-derivatives": {
-    title: "正切、余切、正割与余割函数的导数",
+    title: "不再死背：从恒等式重建四个三角导数",
     description:
       "使用商与倒数恒等式推导并应用其余三角函数的求导公式。",
     learningObjectives: [

@@ -101,7 +101,7 @@ export const unit1AlignmentLocalizedConcepts: Record<
     ],
   },
   "estimating-limits-from-tables": {
-    title: "根据表格估计极限值",
+    title: "表里有很多数，哪些才算极限证据？",
     description:
       "选择从目标两侧靠近的输入和对应输出，估计极限或判断数据不支持同一个趋近值。",
     learningObjectives: [
@@ -143,7 +143,7 @@ export const unit1AlignmentLocalizedConcepts: Record<
     ],
   },
   "algebraic-limit-techniques": {
-    title: "使用代数变形求极限",
+    title: "得到 0/0 之后，下一步是什么？",
     description:
       "通过因式分解、共轭有理化或三角恒等变形消除不定式，同时保持去心邻域中的函数行为。",
     learningObjectives: [
@@ -185,7 +185,7 @@ export const unit1AlignmentLocalizedConcepts: Record<
     ],
   },
   "selecting-limit-procedures": {
-    title: "选择求极限的方法",
+    title: "求极限没有万能第一步",
     description:
       "先识别表示方式、定义域和代入结果，再选择直接计算、图表估计或合适的代数技术。",
     learningObjectives: [
@@ -227,7 +227,7 @@ export const unit1AlignmentLocalizedConcepts: Record<
     ],
   },
   "connecting-limit-representations": {
-    title: "连接极限的多重表示",
+    title: "图像、表格和公式为什么看起来会冲突？",
     description:
       "在图像、数值、解析、符号和语言表示之间转换同一个极限行为，并判断每种证据的能力边界。",
     learningObjectives: [
@@ -269,7 +269,7 @@ export const unit1AlignmentLocalizedConcepts: Record<
     ],
   },
   "classifying-discontinuities": {
-    title: "探索间断的类型",
+    title: "空点、跳跃和渐近线，怎样分类？",
     description:
       "比较函数值与左右行为，分类可去间断、跳跃间断和无穷间断。",
     learningObjectives: [
@@ -311,7 +311,7 @@ export const unit1AlignmentLocalizedConcepts: Record<
     ],
   },
   "continuity-over-intervals": {
-    title: "确认区间上的连续性",
+    title: "函数在哪些区间连续？",
     description:
       "根据常见函数族的定义域、排除输入和端点条件，说明函数在哪些开区间或闭区间上连续。",
     learningObjectives: [

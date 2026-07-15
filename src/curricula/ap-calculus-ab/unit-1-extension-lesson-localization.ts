@@ -1,16 +1,17 @@
 import type { LessonContent } from "@/features/lessons/types";
+import { completeApCalculusZhLessonLocalizations } from "./adaptive-lesson-localization.ts";
 
-export const unit1ExtensionZhLessons: Record<
+const unit1ExtensionZhLessonDrafts: Record<
   string,
   Partial<LessonContent>
 > = {
   "evaluating-limits-with-limit-laws": {
     conceptId: "evaluating-limits-with-limit-laws",
-    title: "用极限法则计算极限（evaluating limits with limit laws）",
+    title: "什么时候可以直接代入？",
     objective: {
       title: "有依据地组合已知极限",
       description:
-        "使用极限法则（limit laws）和直接代入（direct substitution）计算极限，同时识别商法则失效或出现不定式的情况。",
+        "先判断函数结构是否允许直接代入，再用极限法则组合已知结果；遇到分母趋近 0 或 0/0 时及时停下来继续分析。",
       successCriteria: [
         "能选择正确的和、积、商、幂或常数倍法则。",
         "只有在连续性支持时才直接代入。",
@@ -18,20 +19,20 @@ export const unit1ExtensionZhLessons: Record<
       ],
     },
     hook:
-      "知道简单部分的极限后，不必每次都重新画图或列表。极限法则（limit laws）让可靠的附近行为可以通过代数运算组合起来。",
+      "一道极限题如果每次都重新画图、列一长串数据，会很低效。只要各部分的趋势可靠，极限法则就能像拼积木一样把结果组合起来；关键是先检查这块积木能不能用。",
     intuition:
       "如果 x 靠近同一个目标时 f(x) 靠近 3、g(x) 靠近 4，那么 f(x) + 2g(x) 就会靠近 3 + 2(4) = 11。附近函数值的代数结构预示极限的代数结构，但除法还要保证分母不会趋近于 0。",
     formalExplanation:
-      "若 x 趋近于 c 时 f(x) → L、g(x) → M，那么 f+g、f-g、kf、fg 与整数幂的极限可对 L、M 做相同运算。商法则要求 M ≠ 0。多项式处处连续；有理函数在分母不为 0 处连续，因此这些位置可直接代入。",
+      "若 x 趋近于 c 时 f(x) → L、g(x) → M，那么 f+g、f-g、kf、fg 与整数幂的极限可对 L、M 做相同运算。商法则要求 M ≠ 0。多项式处处连续；有理函数在分母不为 0 处连续，因此这些位置可直接代入。如果直接代入得到 0/0，它只是提醒我们当前形式无法决定极限，0/0 不是极限值。",
     prerequisiteConnections: [
       {
         conceptId: "limit-notation",
-        title: "极限符号（limit notation）",
+        title: "极限符号",
         connection: "组合极限前必须准确读出趋近输入和被趋近的输出。",
       },
       {
         conceptId: "one-sided-limits",
-        title: "单侧极限（one-sided limits）",
+        title: "单侧极限",
         connection: "相关单侧极限都存在时，相同法则也可用于方向性极限。",
       },
     ],
@@ -59,7 +60,7 @@ export const unit1ExtensionZhLessons: Record<
         prompt: "直接代入得到 0/0 时，为什么不能说极限是 0？",
         hint: "0/0 不是一个有定义的商。",
         targetInsight:
-          "0/0 是不定式（indeterminate form），无法单独决定附近行为，需要化简或其他方法。",
+          "0/0 是不定式，单凭这个结果无法判断附近行为，还需要化简或换一种方法。",
       },
     ],
     misconceptionChecks: [
@@ -92,7 +93,7 @@ export const unit1ExtensionZhLessons: Record<
   },
   "squeeze-theorem": {
     conceptId: "squeeze-theorem",
-    title: "夹逼定理（Squeeze Theorem）",
+    title: "函数振荡不停，极限还能存在吗？",
     objective: {
       title: "用相同极限的上下界确定困难极限",
       description: "把函数夹在趋近于同一个值的上下界之间，从而确定其极限。",
@@ -103,7 +104,7 @@ export const unit1ExtensionZhLessons: Record<
       ],
     },
     hook:
-      "一个函数即使振荡得很快，也可能拥有完全确定的极限。与其追逐每次振荡，不如用更简单的行为把它夹住。",
+      "手机信号曲线可能上下抖动得很厉害，但如果抖动范围越来越窄，最终趋势仍然可以判断。夹逼定理不追每一次振荡，只盯住它无法越过的上下边界。",
     intuition:
       "想象一个点被限制在逐渐变窄的走廊中。如果地板和天花板都靠近高度 0，中间的点就无处可逃。x²sin(1/x) 的正弦因子不断振荡，但 x² 把振幅压在 -x² 与 x² 之间。",
     formalExplanation:
@@ -116,7 +117,7 @@ export const unit1ExtensionZhLessons: Record<
       },
       {
         conceptId: "what-is-a-limit",
-        title: "什么是极限（limit）？",
+        title: "极限看的是附近行为",
         connection: "夹逼定理只使用附近行为，不要求目标点函数值存在。",
       },
     ],
@@ -175,7 +176,7 @@ export const unit1ExtensionZhLessons: Record<
   },
   "continuity-at-a-point": {
     conceptId: "continuity-at-a-point",
-    title: "一点处的连续性（continuity at a point）",
+    title: "什么才叫在一点处连续？",
     objective: {
       title: "检查连续性的三个条件",
       description: "通过函数值、双侧极限及两者是否相等来判断一点处的连续性。",
@@ -186,11 +187,11 @@ export const unit1ExtensionZhLessons: Record<
       ],
     },
     hook:
-      "“画图时不抬笔”是有帮助的图像直觉，但微积分需要一套对公式、表格和分段函数都适用的精确检验。",
+      "“画图时不用抬笔”只能帮助你快速想象。遇到空点、错放的实心点或分段函数时，真正可靠的是三项检查：点值、极限，以及两者是否相等。",
     intuition:
-      "连续表示函数在附近的目的地与目标点被赋予的函数值一致。图像可以靠近正确高度，却因为目标点缺失或放在别处而不连续。",
+      "可以把极限看成曲线从附近赶往的“目的地”，把 f(c) 看成目标点真正登记的“地址”。两者一致才连续；地址缺失或登记错了，即使曲线走向很清楚也不连续。",
     formalExplanation:
-      "函数 f 在 x = c 连续，当且仅当：f(c) 有定义；双侧极限 lim x→c f(x) 存在；并且该极限等于 f(c)。任何条件失败都会产生间断（discontinuity）。如果有限极限存在但函数值缺失或不匹配，这种间断是可去的。",
+      "判断函数在一点处的连续性，需要检查三个条件：f(c) 有定义；双侧极限 lim x→c f(x) 存在；并且该极限等于 f(c)。任何条件失败都会产生间断（discontinuity）。如果有限极限存在但函数值缺失或不匹配，这种间断是可去的。",
     prerequisiteConnections: [
       {
         conceptId: "estimating-limits-from-graphs",
@@ -259,7 +260,7 @@ export const unit1ExtensionZhLessons: Record<
   },
   "intermediate-value-theorem": {
     conceptId: "intermediate-value-theorem",
-    title: "介值定理（Intermediate Value Theorem）",
+    title: "不解方程，也能知道零点存在吗？",
     objective: {
       title: "用连续性保证一个输出一定出现",
       description: "利用介值定理判断连续函数何时必定取得两个端点输出之间的值。",
@@ -270,9 +271,9 @@ export const unit1ExtensionZhLessons: Record<
       ],
     },
     hook:
-      "如果一条连续道路从海平面以下开始、在海平面以上结束，它一定会经过海平面。连续性把这种图像直觉变成了定理。",
+      "一段连续山路从海拔 -20 米爬到 80 米，中途一定经过海拔 0 米。我们也许不知道具体在哪一米经过，但连续性足以保证“至少经过一次”。",
     intuition:
-      "连续图像不能瞬间跳过一个中间高度。从 f(a) 变化到 f(b) 时，它必须经过两者之间的每个 y 值，但同一个高度可能经过多次。",
+      "连续图像不能从一个高度瞬间跳到另一个高度。只要目标值夹在 f(a) 与 f(b) 之间，曲线途中就必须碰到它；至于碰到几次、在哪里碰到，定理并不回答。",
     formalExplanation:
       "若 f 在闭区间 [a,b] 上连续，且 N 位于 f(a) 与 f(b) 之间，则至少存在一个 c∈[a,b] 使 f(c)=N。若 N 严格位于端点输出之间，可取 c∈(a,b)。定理只保证存在，不给出 c 的位置或唯一性。",
     prerequisiteConnections: [
@@ -342,7 +343,7 @@ export const unit1ExtensionZhLessons: Record<
   },
   "limits-at-infinity": {
     conceptId: "limits-at-infinity",
-    title: "无穷远处的极限与端行为（limits at infinity and end behavior）",
+    title: "图像走得足够远，会留下什么趋势？",
     objective: {
       title: "描述输入无界时的函数行为",
       description:
@@ -354,7 +355,7 @@ export const unit1ExtensionZhLessons: Record<
       ],
     },
     hook:
-      "极限也能描述函数在任何固定输入之外很远处的行为。我们不再放大一个 x 值，而是缩小视野，观察图像两端最终保留下来的趋势。",
+      "前面求极限像拿放大镜盯住某个 x 值；现在把镜头拉远，看图像向左、向右延伸很久以后，哪些细节消失了，哪条长期趋势还留着。",
     intuition:
       "当 |x| 很大时，低次项相对最高次幂越来越小。在 (2x²+1)/(x²+3) 中，同除以 x² 后，1/x² 逐渐消失，整个比值就靠近 2。",
     formalExplanation:
@@ -362,7 +363,7 @@ export const unit1ExtensionZhLessons: Record<
     prerequisiteConnections: [
       {
         conceptId: "infinite-limits",
-        title: "无穷极限（infinite limits）",
+        title: "无穷极限",
         connection: "无穷极限让输入靠近有限值而输出无界；无穷远极限关注无界输入。",
       },
       {
@@ -425,3 +426,6 @@ export const unit1ExtensionZhLessons: Record<
     ],
   },
 };
+
+export const unit1ExtensionZhLessons =
+  completeApCalculusZhLessonLocalizations(unit1ExtensionZhLessonDrafts);
