@@ -27,6 +27,24 @@ language:
   localization_languages:
     - zh
   terminology_policy: null
+  localization_profiles:
+    zh:
+      locale_variant: zh-CN
+      strategy: adaptive_rewrite # 中文教学改写，不按英文逐句对齐
+      audience: null
+      register: null # 例如：自然、简洁、适合高中课堂的现代汉语
+      allow_sentence_restructuring: true
+      allow_cultural_adaptation: true
+      preserve:
+        - learning_outcomes
+        - factual_accuracy
+        - domain_notation
+        - misconception_targets
+        - assessment_correctness
+      quality_criteria:
+        - 允许调整语序、段落结构并拆分过长句子。
+        - 文化场景可替换为学习者熟悉且认知要求等价的情境。
+        - 中文应像教师直接讲解，不保留生硬的翻译句式。
 
 teaching_profile:
   role: null
@@ -38,6 +56,9 @@ teaching_profile:
 units:
   - title: null
     unit_id: null
+    delivery_status: planned # planned | implemented | reviewed
+    continues_from_unit_ids: [] # 后续单元必须引用前面的路线图单元
+    required_prior_concept_ids: [] # 来自前置单元的概念 ID
     description: null
     estimated_minutes: null
     topics:
@@ -74,6 +95,9 @@ content_constraints:
   accessibility_requirements: []
 
 delivery:
+  roadmap_version: 1 # 规划结构或衔接关系变化时递增
+  mode: unit_by_unit # unit_by_unit | full_course
+  target_unit_id: null # 每次只指定一个 planned 单元；全部完成后为 null
   target_release: null
   reviewer: null
   notes: null

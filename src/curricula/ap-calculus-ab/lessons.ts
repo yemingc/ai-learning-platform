@@ -1,9 +1,14 @@
-import { lessonContentArraySchema } from "@/features/lessons/lesson-schema";
-import { validateRetrievalReadyLessons } from "@/features/lessons/retrieval-chunks";
+import { lessonContentArraySchema } from "../../features/lessons/lesson-schema.ts";
+import { validateRetrievalReadyLessons } from "../../features/lessons/retrieval-validation.ts";
+import { AP_CALCULUS_AB_UNIT_1_CONCEPT_IDS } from "./unit-1-alignment-knowledge.ts";
+import {
+  apCalculusABUnit1AlignmentLessons,
+  unit1AlignmentLessonMetadata,
+} from "./unit-1-alignment-lessons.ts";
 import {
   apCalculusABUnit1ExtensionLessons,
   unit1ExtensionLessonMetadata,
-} from "@/curricula/ap-calculus-ab/unit-1-extension-lessons";
+} from "./unit-1-extension-lessons.ts";
 import type {
   LessonApplicationPrompt,
   LessonGuidedQuestion,
@@ -44,6 +49,7 @@ const lessonMetadata: Record<
     }>;
   }
 > = {
+  ...unit1AlignmentLessonMetadata,
   ...unit1ExtensionLessonMetadata,
   "what-is-a-limit": {
     retrievalTags: ["limits", "approaching behavior", "function value"],
@@ -801,7 +807,12 @@ const apCalculusABUnit1FoundationLessons: LegacyLessonContent[] = [
 const rawApCalculusABUnit1Lessons: LegacyLessonContent[] = [
   ...apCalculusABUnit1FoundationLessons,
   ...apCalculusABUnit1ExtensionLessons,
-];
+  ...apCalculusABUnit1AlignmentLessons,
+].sort(
+  (left, right) =>
+    AP_CALCULUS_AB_UNIT_1_CONCEPT_IDS.indexOf(left.conceptId as never) -
+    AP_CALCULUS_AB_UNIT_1_CONCEPT_IDS.indexOf(right.conceptId as never),
+);
 
 export const apCalculusABUnit1Lessons = lessonContentArraySchema.parse(
   rawApCalculusABUnit1Lessons.map(createRetrievalReadyLesson),

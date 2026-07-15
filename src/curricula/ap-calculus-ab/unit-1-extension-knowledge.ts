@@ -11,20 +11,30 @@ export const apCalculusABUnit1ExtensionTopics: Topic[] = [
   {
     id: "unit-1-topic-limit-laws-and-squeeze",
     unitId: UNIT_ID,
-    sequence: 4,
-    title: "Limit laws and bounding arguments",
+    sequence: 3,
+    title: "Limit procedures and representation connections",
     description:
-      "Evaluating algebraic limits with justified laws and determining difficult limits by trapping behavior between simpler bounds.",
-    conceptIds: ["evaluating-limits-with-limit-laws", "squeeze-theorem"],
+      "Evaluate limits with laws, algebraic transformations, deliberate procedure selection, bounding arguments, and coordinated representations.",
+    conceptIds: [
+      "evaluating-limits-with-limit-laws",
+      "algebraic-limit-techniques",
+      "selecting-limit-procedures",
+      "squeeze-theorem",
+      "connecting-limit-representations",
+    ],
   },
   {
     id: "unit-1-topic-continuity-and-ivt",
     unitId: UNIT_ID,
-    sequence: 5,
-    title: "Continuity and existence theorems",
+    sequence: 4,
+    title: "Discontinuities and continuity",
     description:
-      "Checking continuity precisely and using continuity on an interval to guarantee intermediate outputs.",
-    conceptIds: ["continuity-at-a-point", "intermediate-value-theorem"],
+      "Classify failures of continuity, verify continuity at a point, and extend the definition across intervals.",
+    conceptIds: [
+      "classifying-discontinuities",
+      "continuity-at-a-point",
+      "continuity-over-intervals",
+    ],
   },
   {
     id: "unit-1-topic-end-behavior",
@@ -46,7 +56,11 @@ export const apCalculusABUnit1ExtensionConcepts: Concept[] = [
     title: "Evaluating limits with limit laws",
     description:
       "Combine known limits through valid algebraic operations, use direct substitution when continuity justifies it, and recognize indeterminate forms that require another method.",
-    prerequisiteConceptIds: ["limit-notation", "one-sided-limits"],
+    prerequisiteConceptIds: [
+      "limit-notation",
+      "one-sided-limits",
+      "estimating-limits-from-tables",
+    ],
     learningObjectives: [
       {
         id: "lo-limit-laws-combine",
@@ -106,6 +120,7 @@ export const apCalculusABUnit1ExtensionConcepts: Concept[] = [
     prerequisiteConceptIds: [
       "what-is-a-limit",
       "evaluating-limits-with-limit-laws",
+      "selecting-limit-procedures",
     ],
     learningObjectives: [
       {
@@ -166,6 +181,7 @@ export const apCalculusABUnit1ExtensionConcepts: Concept[] = [
     prerequisiteConceptIds: [
       "estimating-limits-from-graphs",
       "evaluating-limits-with-limit-laws",
+      "classifying-discontinuities",
     ],
     learningObjectives: [
       {
@@ -219,11 +235,11 @@ export const apCalculusABUnit1ExtensionConcepts: Concept[] = [
     id: "intermediate-value-theorem",
     courseId: COURSE_ID,
     unitId: UNIT_ID,
-    topicId: "unit-1-topic-continuity-and-ivt",
+    topicId: "unit-1-topic-intermediate-value-theorem",
     title: "The Intermediate Value Theorem",
     description:
       "Use continuity on a closed interval to guarantee that a function attains every output between its endpoint outputs.",
-    prerequisiteConceptIds: ["continuity-at-a-point"],
+    prerequisiteConceptIds: ["continuity-over-intervals"],
     learningObjectives: [
       {
         id: "lo-ivt-check-hypotheses",
@@ -374,14 +390,6 @@ export const apCalculusABUnit1ExtensionDependencies: ConceptDependency[] = [
     relationship: "supports",
     rationale:
       "Limit laws and substitution provide analytical evidence for continuity of algebraic functions.",
-  },
-  {
-    id: "dependency-continuity-to-ivt",
-    prerequisiteConceptId: "continuity-at-a-point",
-    dependentConceptId: "intermediate-value-theorem",
-    relationship: "extends",
-    rationale:
-      "The Intermediate Value Theorem extends local continuity into a guarantee across a closed interval.",
   },
   {
     id: "dependency-infinite-to-end-behavior",

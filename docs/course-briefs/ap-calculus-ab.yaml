@@ -1,0 +1,770 @@
+course:
+  title: AP Calculus AB
+  course_id: ap-calculus-ab
+  short_title: AP Calc AB
+  subject: Calculus
+  description: A concept-first AP Calculus AB learning path aligned to the College Board course framework.
+  level: Advanced high school
+  status: preview
+  tags:
+    - mathematics
+    - calculus
+    - ap
+
+learners:
+  audience: High school students preparing for AP Calculus AB
+  assumed_prior_knowledge:
+    - Algebraic manipulation and equation solving
+    - Linear, polynomial, rational, exponential, logarithmic, trigonometric, inverse trigonometric, and piecewise-defined functions
+    - Graphing functions and interpreting tables
+    - Function composition and inverse functions
+  age_or_stage: Upper-secondary students or first-semester college-calculus learners
+  learning_context: Self-study and classroom supplementation for AP exam preparation
+
+scope:
+  included_topics:
+    - Limits and continuity
+    - Definition and fundamental properties of differentiation
+    - Composite, implicit, and inverse differentiation
+    - Contextual and analytical applications of differentiation
+    - Integration and accumulation of change
+    - Differential equations
+    - Applications of integration
+  excluded_topics:
+    - AP Calculus BC-only parametric, polar, vector-valued, and infinite-series content
+    - Proofs requiring real-analysis formalism beyond the AP Calculus AB framework
+    - Secure or proprietary AP Classroom questions
+  final_learning_outcomes:
+    - Determine values and expressions using limits, derivatives, integrals, and differential equations.
+    - Connect graphical, numerical, analytical, and verbal representations of change and accumulation.
+    - Justify conclusions with definitions, theorems, hypotheses, units, and appropriate mathematical evidence.
+    - Communicate calculus reasoning with correct notation, language, and conventions.
+    - Select an appropriate calculus process for unfamiliar AP-style problems and check whether the result is reasonable.
+  estimated_total_minutes: 2098
+
+language:
+  canonical_language: en
+  localization_languages:
+    - zh
+  terminology_policy: In Chinese, introduce specialized calculus terminology with the original English term in parentheses and keep notation unchanged.
+  localization_profiles:
+    zh:
+      locale_variant: zh-CN
+      strategy: adaptive_rewrite
+      audience: Chinese-speaking upper-secondary learners preparing for AP Calculus AB
+      register: Natural, concise classroom Chinese with precise mathematical language
+      allow_sentence_restructuring: true
+      allow_cultural_adaptation: true
+      preserve:
+        - learning_outcomes
+        - factual_accuracy
+        - domain_notation
+        - misconception_targets
+        - assessment_correctness
+      quality_criteria:
+        - Reorganize explanations around the question a Chinese learner is likely to ask first.
+        - Split dense English sentences and avoid repeated parenthetical English after a term is established.
+        - Replace culture-bound scenarios only with mathematically equivalent and AP-appropriate contexts.
+        - Keep formulas, limit and derivative notation, units, answer keys, and difficulty unchanged unless values are recomputed and revalidated.
+
+teaching_profile:
+  role: AP Calculus AB concept-first teacher
+  tone: Calm, precise, encouraging, and misconception-aware
+  learning_priorities:
+    - Build conceptual understanding before procedures.
+    - Connect graphical, numerical, analytical, and verbal representations.
+    - Require hypotheses and units when they carry mathematical meaning.
+    - Diagnose observable misconceptions before claiming readiness.
+    - Use transfer tasks rather than repeated substitution drills as evidence of learning.
+  example_style: Short AP-style examples with explicit method selection, reasoning steps, and a reasonableness check.
+  misconception_strategy: State a plausible incorrect model, ask a discriminating question, then repair it with a contrasting representation or counterexample.
+
+units:
+  - title: "Unit 1: Limits and Continuity"
+    unit_id: ap-calculus-ab-unit-1-limits-continuity
+    delivery_status: implemented
+    continues_from_unit_ids: []
+    required_prior_concept_ids: []
+    description: Motivate instantaneous change, build limit meaning across representations, select valid procedures, and use continuity and existence theorems.
+    estimated_minutes: 368
+    topics:
+      - title: Limit foundations
+        topic_id: unit-1-topic-limit-foundations
+        description: Use shrinking intervals to motivate limits, then separate nearby behavior from point values and communicate it with notation.
+        concepts:
+          - title: Can change occur at an instant?
+            concept_id: instantaneous-change-motivation
+            description: Use average rates over shrinking intervals to motivate instantaneous behavior without dividing by a zero-length interval.
+            difficulty: foundational
+            estimated_minutes: 20
+            prerequisite_concept_ids: []
+            learning_outcomes: [Explain how a stable trend in average rates over shrinking intervals motivates instantaneous change.]
+            common_misconceptions: [An instantaneous rate is found by dividing by an interval of exactly zero.]
+          - title: What is a limit?
+            concept_id: what-is-a-limit
+            description: Interpret a limit as nearby input-output behavior.
+            difficulty: foundational
+            estimated_minutes: 18
+            prerequisite_concept_ids: [instantaneous-change-motivation]
+            learning_outcomes: [Explain why a limit can exist when the point value is missing or different.]
+            common_misconceptions: [The limit must equal the function value.]
+          - title: Limit notation
+            concept_id: limit-notation
+            description: Read and write precise limit statements.
+            difficulty: foundational
+            estimated_minutes: 14
+            prerequisite_concept_ids: [what-is-a-limit]
+            learning_outcomes: [Translate between symbolic limit notation and verbal behavior.]
+            common_misconceptions: [The approach arrow means the input equals the target.]
+      - title: Graphical and numerical limit reasoning
+        topic_id: unit-1-topic-graphical-limits
+        description: Estimate directional and two-sided limits from nearby graph and table behavior.
+        concepts:
+          - title: Estimating limits from graphs
+            concept_id: estimating-limits-from-graphs
+            description: Compare left and right graphical behavior at a target input.
+            difficulty: developing
+            estimated_minutes: 20
+            prerequisite_concept_ids: [what-is-a-limit, limit-notation]
+            learning_outcomes: [Use both sides of a graph to determine whether a two-sided limit exists.]
+            common_misconceptions: [A filled point determines the limit.]
+          - title: One-sided limits
+            concept_id: one-sided-limits
+            description: Interpret limits from the left and right.
+            difficulty: developing
+            estimated_minutes: 22
+            prerequisite_concept_ids: [what-is-a-limit, limit-notation, estimating-limits-from-graphs]
+            learning_outcomes: [Use matching one-sided limits to justify a two-sided limit.]
+            common_misconceptions: [The plus or minus superscript gives the sign of the output.]
+          - title: Estimating limit values from tables
+            concept_id: estimating-limits-from-tables
+            description: Select nearby inputs from both sides and use their outputs to estimate a limit.
+            difficulty: developing
+            estimated_minutes: 22
+            prerequisite_concept_ids: [estimating-limits-from-graphs, one-sided-limits]
+            learning_outcomes: [Estimate or reject a two-sided limit from appropriately selected table values.]
+            common_misconceptions: [The table row at the target input determines the limit.]
+      - title: Procedures and representations for limits
+        topic_id: unit-1-topic-limit-laws-and-squeeze
+        description: Evaluate limits with justified laws, algebra, method selection, bounding arguments, and cross-representation checks.
+        concepts:
+          - title: Evaluating limits with limit laws
+            concept_id: evaluating-limits-with-limit-laws
+            description: Combine component limits and diagnose indeterminate forms.
+            difficulty: developing
+            estimated_minutes: 24
+            prerequisite_concept_ids: [limit-notation, estimating-limits-from-tables]
+            learning_outcomes: [Apply limit laws and explain when direct substitution is justified.]
+            common_misconceptions: [The form 0/0 is a final limit value.]
+          - title: Determining limits using algebraic manipulation
+            concept_id: algebraic-limit-techniques
+            description: Resolve indeterminate forms by factoring, rationalizing, or rewriting expressions while preserving nearby behavior.
+            difficulty: developing
+            estimated_minutes: 26
+            prerequisite_concept_ids: [evaluating-limits-with-limit-laws]
+            learning_outcomes: [Choose and justify an algebraic transformation that removes an indeterminate structure.]
+            common_misconceptions: [Canceling a factor proves the original function is defined at the target.]
+          - title: Selecting procedures for determining limits
+            concept_id: selecting-limit-procedures
+            description: Classify the representation and substitution result before choosing a valid procedure.
+            difficulty: advanced
+            estimated_minutes: 24
+            prerequisite_concept_ids: [evaluating-limits-with-limit-laws, algebraic-limit-techniques, estimating-limits-from-tables]
+            learning_outcomes: [Select and justify a limit procedure from the available evidence and expression structure.]
+            common_misconceptions: [A familiar procedure should be applied before inspecting the expression.]
+          - title: The Squeeze Theorem
+            concept_id: squeeze-theorem
+            description: Trap difficult behavior between functions with a common limit.
+            difficulty: advanced
+            estimated_minutes: 22
+            prerequisite_concept_ids: [what-is-a-limit, evaluating-limits-with-limit-laws, selecting-limit-procedures]
+            learning_outcomes: [Construct and justify a valid squeeze argument.]
+            common_misconceptions: [One bounding function is enough.]
+          - title: Connecting multiple representations of limits
+            concept_id: connecting-limit-representations
+            description: Translate limit behavior among graphical, numerical, analytical, and verbal forms and qualify each form's evidence.
+            difficulty: advanced
+            estimated_minutes: 24
+            prerequisite_concept_ids: [estimating-limits-from-graphs, estimating-limits-from-tables, selecting-limit-procedures, squeeze-theorem]
+            learning_outcomes: [Use a second representation to confirm or challenge a limit claim.]
+            common_misconceptions: [A coarse graph or table proves an exact limit value by itself.]
+      - title: Discontinuities and continuity over intervals
+        topic_id: unit-1-topic-continuity-and-ivt
+        description: Classify continuity failures, check continuity at a point, and extend the conditions over intervals.
+        concepts:
+          - title: Exploring types of discontinuities
+            concept_id: classifying-discontinuities
+            description: Classify removable, jump, and infinite discontinuities from function values and directional behavior.
+            difficulty: developing
+            estimated_minutes: 24
+            prerequisite_concept_ids: [connecting-limit-representations, one-sided-limits]
+            learning_outcomes: [Classify a discontinuity and determine whether redefining one point can repair it.]
+            common_misconceptions: [Every discontinuity can be repaired by changing one function value.]
+          - title: Continuity at a point
+            concept_id: continuity-at-a-point
+            description: Verify the three conditions for continuity.
+            difficulty: developing
+            estimated_minutes: 22
+            prerequisite_concept_ids: [classifying-discontinuities, evaluating-limits-with-limit-laws]
+            learning_outcomes: [Diagnose which continuity condition fails at a point.]
+            common_misconceptions: [A defined function value alone guarantees continuity.]
+          - title: Confirming continuity over an interval
+            concept_id: continuity-over-intervals
+            description: Use function domains and one-sided endpoint conditions to justify continuity on an interval.
+            difficulty: advanced
+            estimated_minutes: 24
+            prerequisite_concept_ids: [continuity-at-a-point]
+            learning_outcomes: [Find continuity intervals and verify closed-interval endpoint conditions.]
+            common_misconceptions: [Closed-interval continuity requires two-sided limits beyond both endpoints.]
+      - title: Infinite limits and vertical asymptotes
+        topic_id: unit-1-topic-one-sided-and-infinite-limits
+        description: Analyze unbounded outputs near finite inputs with directional limit language.
+        concepts:
+          - title: Infinite limits
+            concept_id: infinite-limits
+            description: Describe outputs growing without bound near a finite input.
+            difficulty: advanced
+            estimated_minutes: 18
+            prerequisite_concept_ids: [what-is-a-limit, limit-notation, one-sided-limits, classifying-discontinuities]
+            learning_outcomes: [Interpret directional infinite limits and vertical-asymptote behavior.]
+            common_misconceptions: [Infinity is an ordinary function value.]
+      - title: Limits at infinity and end behavior
+        topic_id: unit-1-topic-end-behavior
+        description: Determine long-run behavior and horizontal asymptotes.
+        concepts:
+          - title: Limits at infinity and end behavior
+            concept_id: limits-at-infinity
+            description: Analyze unbounded inputs using dominant powers.
+            difficulty: advanced
+            estimated_minutes: 24
+            prerequisite_concept_ids: [infinite-limits, evaluating-limits-with-limit-laws]
+            learning_outcomes: [Evaluate rational-function limits at infinity and interpret horizontal asymptotes.]
+            common_misconceptions: [A graph can never cross a horizontal asymptote.]
+      - title: Continuity and the Intermediate Value Theorem
+        topic_id: unit-1-topic-intermediate-value-theorem
+        description: Use continuity on a closed interval to guarantee that intermediate outputs occur.
+        concepts:
+          - title: The Intermediate Value Theorem
+            concept_id: intermediate-value-theorem
+            description: Use interval continuity to make an existence claim.
+            difficulty: advanced
+            estimated_minutes: 20
+            prerequisite_concept_ids: [continuity-over-intervals]
+            learning_outcomes: [Verify IVT hypotheses and state a valid existence conclusion.]
+            common_misconceptions: [The IVT finds an exact or unique input.]
+
+  - title: "Unit 2: Differentiation - Definition and Fundamental Properties"
+    unit_id: ap-calculus-ab-unit-2-differentiation-fundamentals
+    delivery_status: implemented
+    continues_from_unit_ids: [ap-calculus-ab-unit-1-limits-continuity]
+    required_prior_concept_ids: [instantaneous-change-motivation, evaluating-limits-with-limit-laws, continuity-at-a-point]
+    description: Use limits to define derivatives, estimate them across representations, and apply foundational differentiation rules.
+    estimated_minutes: 250
+    topics:
+      - title: Rates of change and the derivative definition
+        topic_id: unit-2-topic-rates-and-derivative-definition
+        description: Move from secant slopes over intervals to tangent slopes at an instant.
+        concepts:
+          - title: Average and instantaneous rates of change
+            concept_id: average-and-instantaneous-rates-of-change
+            description: Interpret difference quotients as average rate and their limiting value as instantaneous rate.
+            difficulty: developing
+            estimated_minutes: 26
+            prerequisite_concept_ids: [instantaneous-change-motivation, evaluating-limits-with-limit-laws]
+            learning_outcomes: [Calculate average rates and explain how shrinking intervals approach an instantaneous rate.]
+            common_misconceptions: [An instantaneous rate is found by using a zero-width interval directly.]
+          - title: The derivative as a limit and tangent slope
+            concept_id: derivative-as-a-limit-and-tangent-slope
+            description: Represent a derivative value and derivative function with equivalent difference-quotient limits.
+            difficulty: advanced
+            estimated_minutes: 28
+            prerequisite_concept_ids: [average-and-instantaneous-rates-of-change, limit-notation]
+            learning_outcomes: [Write and interpret derivative definitions and use a derivative value in a tangent-line equation.]
+            common_misconceptions: [The derivative is the tangent line rather than its slope.]
+      - title: Estimating derivatives and differentiability
+        topic_id: unit-2-topic-estimation-and-differentiability
+        description: Estimate slopes from data or graphs and determine where derivatives fail to exist.
+        concepts:
+          - title: Estimating derivatives at a point
+            concept_id: estimating-derivatives-at-a-point
+            description: Approximate a derivative from nearby table values or a graph.
+            difficulty: developing
+            estimated_minutes: 24
+            prerequisite_concept_ids: [average-and-instantaneous-rates-of-change]
+            learning_outcomes: [Choose a nearby secant slope and communicate why it estimates the tangent slope.]
+            common_misconceptions: [Any two table rows give an equally good derivative estimate.]
+          - title: Differentiability and continuity
+            concept_id: differentiability-and-continuity
+            description: Explain why differentiability implies continuity and identify continuous nondifferentiable points.
+            difficulty: advanced
+            estimated_minutes: 26
+            prerequisite_concept_ids: [derivative-as-a-limit-and-tangent-slope, continuity-at-a-point, one-sided-limits]
+            learning_outcomes: [Classify corners, cusps, vertical tangents, discontinuities, and smooth points using one-sided derivative behavior.]
+            common_misconceptions: [Every continuous function is differentiable.]
+      - title: Fundamental derivatives and linear rules
+        topic_id: unit-2-topic-fundamental-derivative-rules
+        description: Build fluency with powers, linear combinations, and familiar elementary functions.
+        concepts:
+          - title: The power rule
+            concept_id: power-rule
+            description: Differentiate real powers of x and connect the rule to the derivative definition.
+            difficulty: developing
+            estimated_minutes: 22
+            prerequisite_concept_ids: [derivative-as-a-limit-and-tangent-slope]
+            learning_outcomes: [Apply the power rule accurately, including constant and negative powers in their valid domains.]
+            common_misconceptions: [The exponent decreases without first becoming the coefficient.]
+          - title: Constant, sum, difference, and constant-multiple rules
+            concept_id: linearity-rules-for-derivatives
+            description: Differentiate linear combinations and polynomial functions term by term.
+            difficulty: developing
+            estimated_minutes: 22
+            prerequisite_concept_ids: [power-rule]
+            learning_outcomes: [Select and apply linearity rules while preserving coefficients and signs.]
+            common_misconceptions: [A constant term differentiates to itself.]
+          - title: Derivatives of sine, cosine, exponential, and logarithmic functions
+            concept_id: basic-transcendental-derivatives
+            description: Differentiate sin x, cos x, e^x, and ln x and recognize derivative-definition limits.
+            difficulty: developing
+            estimated_minutes: 26
+            prerequisite_concept_ids: [derivative-as-a-limit-and-tangent-slope, linearity-rules-for-derivatives]
+            learning_outcomes: [Recall and apply the four foundational transcendental derivative rules with correct signs and domains.]
+            common_misconceptions: [The derivative of cos x is sin x.]
+      - title: Products, quotients, and remaining trigonometric functions
+        topic_id: unit-2-topic-product-quotient-and-trig-rules
+        description: Differentiate products and quotients without distributing invalid derivative operations.
+        concepts:
+          - title: The product rule
+            concept_id: product-rule
+            description: Differentiate products of differentiable functions using both value and derivative information.
+            difficulty: advanced
+            estimated_minutes: 26
+            prerequisite_concept_ids: [linearity-rules-for-derivatives, basic-transcendental-derivatives]
+            learning_outcomes: [Apply and explain the two-term structure of the product rule.]
+            common_misconceptions: [The derivative of a product is the product of the derivatives.]
+          - title: The quotient rule
+            concept_id: quotient-rule
+            description: Differentiate quotients and maintain numerator order and denominator restrictions.
+            difficulty: advanced
+            estimated_minutes: 26
+            prerequisite_concept_ids: [product-rule]
+            learning_outcomes: [Apply the quotient rule and check the original function domain.]
+            common_misconceptions: [The derivative of a quotient is the quotient of the derivatives.]
+          - title: Derivatives of tangent, cotangent, secant, and cosecant
+            concept_id: remaining-trigonometric-derivatives
+            description: Derive and use remaining trigonometric derivative rules from quotient and product identities.
+            difficulty: advanced
+            estimated_minutes: 24
+            prerequisite_concept_ids: [quotient-rule, basic-transcendental-derivatives]
+            learning_outcomes: [Differentiate tan, cot, sec, and csc while preserving signs and factors.]
+            common_misconceptions: [All six trigonometric derivative rules follow the same sign pattern.]
+
+  - title: "Unit 3: Differentiation - Composite, Implicit, and Inverse Functions"
+    unit_id: ap-calculus-ab-unit-3-composite-implicit-inverse
+    delivery_status: planned
+    continues_from_unit_ids: [ap-calculus-ab-unit-2-differentiation-fundamentals]
+    required_prior_concept_ids: [product-rule, quotient-rule]
+    description: Extend differentiation to composite, implicit, inverse, and higher-order structures.
+    estimated_minutes: 220
+    topics:
+      - title: Composite and implicit differentiation
+        topic_id: unit-3-topic-composite-and-implicit
+        description: Select and execute differentiation procedures for nested and implicit relations.
+        concepts:
+          - title: The chain rule
+            concept_id: chain-rule
+            description: Differentiate nested functions while preserving inner-function rates.
+            difficulty: advanced
+            estimated_minutes: 42
+            prerequisite_concept_ids: [product-rule, quotient-rule]
+            learning_outcomes: [Decompose a composite function and apply the chain rule in correct order.]
+            common_misconceptions: [Differentiating only the outer function is sufficient.]
+          - title: Implicit differentiation
+            concept_id: implicit-differentiation
+            description: Differentiate relations where y is not isolated.
+            difficulty: advanced
+            estimated_minutes: 38
+            prerequisite_concept_ids: [chain-rule]
+            learning_outcomes: [Differentiate both sides with respect to x and solve for dy/dx.]
+            common_misconceptions: [Terms containing y differentiate without a dy/dx factor.]
+      - title: Inverses and procedure selection
+        topic_id: unit-3-topic-inverses-and-procedures
+        description: Differentiate inverse structures and combine rules strategically.
+        concepts:
+          - title: Derivatives of inverse functions
+            concept_id: inverse-function-derivatives
+            description: Use reciprocal slopes at corresponding inverse points.
+            difficulty: advanced
+            estimated_minutes: 34
+            prerequisite_concept_ids: [chain-rule]
+            learning_outcomes: [Determine an inverse-function derivative from formulas, tables, or graphs.]
+            common_misconceptions: [The derivative of an inverse is the reciprocal of the original function value.]
+          - title: Derivatives of inverse trigonometric functions
+            concept_id: inverse-trigonometric-derivatives
+            description: Apply inverse-trigonometric derivative rules with domain awareness.
+            difficulty: advanced
+            estimated_minutes: 34
+            prerequisite_concept_ids: [inverse-function-derivatives, chain-rule]
+            learning_outcomes: [Differentiate inverse-trigonometric composites and state domain restrictions.]
+            common_misconceptions: [Inverse-trigonometric notation means a reciprocal function.]
+          - title: Higher-order derivatives
+            concept_id: higher-order-derivatives
+            description: Interpret and calculate second and higher derivatives.
+            difficulty: developing
+            estimated_minutes: 32
+            prerequisite_concept_ids: [chain-rule]
+            learning_outcomes: [Calculate and interpret higher-order derivatives with correct notation.]
+            common_misconceptions: [A second derivative means squaring the first derivative.]
+          - title: Selecting differentiation procedures
+            concept_id: selecting-differentiation-procedures
+            description: Choose and sequence rules based on function structure.
+            difficulty: advanced
+            estimated_minutes: 40
+            prerequisite_concept_ids: [implicit-differentiation, inverse-trigonometric-derivatives, higher-order-derivatives]
+            learning_outcomes: [Explain why a selected rule sequence matches the expression structure.]
+            common_misconceptions: [The visually longest rule should be applied first.]
+
+  - title: "Unit 4: Contextual Applications of Differentiation"
+    unit_id: ap-calculus-ab-unit-4-contextual-applications
+    delivery_status: planned
+    continues_from_unit_ids: [ap-calculus-ab-unit-3-composite-implicit-inverse]
+    required_prior_concept_ids: [selecting-differentiation-procedures]
+    description: Interpret derivatives as rates in context and solve motion, related-rate, approximation, and indeterminate-form problems.
+    estimated_minutes: 240
+    topics:
+      - title: Rates, motion, and related quantities
+        topic_id: unit-4-topic-rates-motion-related-rates
+        description: Model rates with units and connect position, velocity, acceleration, and related quantities.
+        concepts:
+          - title: Interpreting rates in context
+            concept_id: interpreting-rates-in-context
+            description: Attach meaning and units to derivative values and expressions.
+            difficulty: developing
+            estimated_minutes: 40
+            prerequisite_concept_ids: [selecting-differentiation-procedures]
+            learning_outcomes: [Interpret a derivative statement in a contextual sentence with units.]
+            common_misconceptions: [Derivative units are the same as function units.]
+          - title: Motion along a line
+            concept_id: motion-position-velocity-acceleration
+            description: Relate position, velocity, speed, and acceleration.
+            difficulty: developing
+            estimated_minutes: 48
+            prerequisite_concept_ids: [interpreting-rates-in-context, higher-order-derivatives]
+            learning_outcomes: [Analyze direction, speed, and acceleration from derivatives of position.]
+            common_misconceptions: [Negative velocity always means an object is slowing down.]
+          - title: Related rates
+            concept_id: related-rates
+            description: Differentiate a relationship with respect to time and solve for an unknown rate.
+            difficulty: advanced
+            estimated_minutes: 56
+            prerequisite_concept_ids: [implicit-differentiation, interpreting-rates-in-context]
+            learning_outcomes: [Build a relation, differentiate in time, and report a rate with units and sign meaning.]
+            common_misconceptions: [Known numerical values should be substituted before differentiating.]
+      - title: Local approximation and indeterminate forms
+        topic_id: unit-4-topic-local-approximation-and-lhospital
+        description: Use local linearity and L'Hospital's rule with verified hypotheses.
+        concepts:
+          - title: Local linearity and linearization
+            concept_id: local-linearity-and-linearization
+            description: Approximate nearby function values with a tangent line.
+            difficulty: advanced
+            estimated_minutes: 46
+            prerequisite_concept_ids: [derivative-as-a-limit-and-tangent-slope]
+            learning_outcomes: [Construct a linearization and discuss approximation error qualitatively.]
+            common_misconceptions: [A linearization is exact throughout the function domain.]
+          - title: L'Hospital's rule
+            concept_id: lhospital-rule
+            description: Evaluate eligible indeterminate limits by differentiating numerator and denominator.
+            difficulty: advanced
+            estimated_minutes: 50
+            prerequisite_concept_ids: [selecting-differentiation-procedures, evaluating-limits-with-limit-laws]
+            learning_outcomes: [Verify an eligible indeterminate form before applying L'Hospital's rule.]
+            common_misconceptions: [L'Hospital's rule applies to any quotient limit.]
+
+  - title: "Unit 5: Analytical Applications of Differentiation"
+    unit_id: ap-calculus-ab-unit-5-analytical-applications
+    delivery_status: planned
+    continues_from_unit_ids: [ap-calculus-ab-unit-4-contextual-applications]
+    required_prior_concept_ids: [interpreting-rates-in-context]
+    description: Use derivatives and theorems to analyze function behavior, graph structure, and optimization.
+    estimated_minutes: 300
+    topics:
+      - title: Theorems and critical behavior
+        topic_id: unit-5-topic-theorems-and-critical-behavior
+        description: Use existence theorems and critical points to support analytical conclusions.
+        concepts:
+          - title: Mean Value and Extreme Value Theorems
+            concept_id: mean-and-extreme-value-theorems
+            description: Verify hypotheses and state guaranteed conclusions.
+            difficulty: advanced
+            estimated_minutes: 50
+            prerequisite_concept_ids: [interpreting-rates-in-context, continuity-at-a-point]
+            learning_outcomes: [Apply the MVT and EVT only after checking their interval hypotheses.]
+            common_misconceptions: [A theorem conclusion can be used without verifying its hypotheses.]
+          - title: Critical points and extrema
+            concept_id: critical-points-and-extrema
+            description: Identify candidates for local and absolute extrema.
+            difficulty: developing
+            estimated_minutes: 44
+            prerequisite_concept_ids: [mean-and-extreme-value-theorems]
+            learning_outcomes: [Distinguish critical numbers, local extrema, and absolute extrema.]
+            common_misconceptions: [Every critical point is an extremum.]
+      - title: Derivative tests and graph relationships
+        topic_id: unit-5-topic-derivative-tests-and-graphs
+        description: Infer increasing, decreasing, concavity, and extrema from derivative evidence.
+        concepts:
+          - title: First derivative test
+            concept_id: first-derivative-test
+            description: Use sign changes in f' to classify local extrema.
+            difficulty: advanced
+            estimated_minutes: 48
+            prerequisite_concept_ids: [critical-points-and-extrema]
+            learning_outcomes: [Build and interpret a sign chart for the first derivative.]
+            common_misconceptions: [f'(c)=0 alone proves an extremum.]
+          - title: Concavity and the second derivative test
+            concept_id: concavity-and-second-derivative-test
+            description: Use f'' to analyze concavity and classify eligible critical points.
+            difficulty: advanced
+            estimated_minutes: 50
+            prerequisite_concept_ids: [higher-order-derivatives, critical-points-and-extrema]
+            learning_outcomes: [Connect second-derivative signs to concavity and interpret inconclusive cases.]
+            common_misconceptions: [f''(c)=0 proves an inflection point.]
+          - title: Graphs of functions and derivatives
+            concept_id: graphing-functions-and-derivatives
+            description: Translate behavior among f, f', and f'' graphs.
+            difficulty: advanced
+            estimated_minutes: 54
+            prerequisite_concept_ids: [first-derivative-test, concavity-and-second-derivative-test]
+            learning_outcomes: [Use one graph to justify claims about the related function or derivatives.]
+            common_misconceptions: [The graph of f' is a shifted copy of f.]
+      - title: Optimization
+        topic_id: unit-5-topic-optimization
+        description: Model and solve constrained maximum and minimum problems.
+        concepts:
+          - title: Optimization
+            concept_id: optimization
+            description: Build an objective function, restrict its domain, and justify an optimum.
+            difficulty: advanced
+            estimated_minutes: 54
+            prerequisite_concept_ids: [critical-points-and-extrema, interpreting-rates-in-context]
+            learning_outcomes: [Define variables, construct a one-variable objective, and justify the selected optimum.]
+            common_misconceptions: [Solving f'=0 alone completes an optimization problem.]
+
+  - title: "Unit 6: Integration and Accumulation of Change"
+    unit_id: ap-calculus-ab-unit-6-integration-accumulation
+    delivery_status: planned
+    continues_from_unit_ids: [ap-calculus-ab-unit-5-analytical-applications]
+    required_prior_concept_ids: [interpreting-rates-in-context]
+    description: Define definite integrals through accumulation and connect integration to differentiation.
+    estimated_minutes: 300
+    topics:
+      - title: Accumulation and definite integrals
+        topic_id: unit-6-topic-accumulation-and-definite-integrals
+        description: Approximate and interpret accumulated change with signed area and Riemann sums.
+        concepts:
+          - title: Riemann sums and accumulation
+            concept_id: riemann-sums-and-accumulation
+            description: Approximate accumulated change with partitioned products.
+            difficulty: developing
+            estimated_minutes: 52
+            prerequisite_concept_ids: [interpreting-rates-in-context, limits-at-infinity]
+            learning_outcomes: [Construct left, right, midpoint, and trapezoidal approximations from data or formulas.]
+            common_misconceptions: [A Riemann sum always represents geometric area without sign.]
+          - title: Definite integral properties and interpretation
+            concept_id: definite-integral-properties
+            description: Interpret a definite integral as signed accumulation and use interval properties.
+            difficulty: developing
+            estimated_minutes: 48
+            prerequisite_concept_ids: [riemann-sums-and-accumulation]
+            learning_outcomes: [Use limits of Riemann sums and integral properties to reason about accumulated change.]
+            common_misconceptions: [A definite integral can never be negative.]
+      - title: Fundamental Theorem and antiderivatives
+        topic_id: unit-6-topic-fundamental-theorem-and-antiderivatives
+        description: Connect rates and accumulation through the Fundamental Theorem of Calculus.
+        concepts:
+          - title: Fundamental Theorem of Calculus
+            concept_id: fundamental-theorem-of-calculus
+            description: Relate definite integrals, antiderivatives, and accumulated change.
+            difficulty: advanced
+            estimated_minutes: 58
+            prerequisite_concept_ids: [definite-integral-properties]
+            learning_outcomes: [Evaluate definite integrals and explain why differentiation and accumulation are inverse processes.]
+            common_misconceptions: [The Fundamental Theorem is only a shortcut for area.]
+          - title: Accumulation functions
+            concept_id: accumulation-functions
+            description: Differentiate integrals with variable endpoints and interpret the resulting rate.
+            difficulty: advanced
+            estimated_minutes: 50
+            prerequisite_concept_ids: [fundamental-theorem-of-calculus, chain-rule]
+            learning_outcomes: [Differentiate and interpret accumulation functions with variable limits.]
+            common_misconceptions: [The derivative of an accumulation function is a constant total area.]
+          - title: Antiderivatives and indefinite integrals
+            concept_id: antiderivatives-and-indefinite-integrals
+            description: Find families of antiderivatives and use initial conditions.
+            difficulty: developing
+            estimated_minutes: 44
+            prerequisite_concept_ids: [fundamental-theorem-of-calculus]
+            learning_outcomes: [Find antiderivatives and include an arbitrary constant when appropriate.]
+            common_misconceptions: [An indefinite integral has a single numerical value.]
+          - title: Integration by substitution
+            concept_id: integration-by-substitution
+            description: Reverse the chain rule to integrate composite structures.
+            difficulty: advanced
+            estimated_minutes: 48
+            prerequisite_concept_ids: [antiderivatives-and-indefinite-integrals, chain-rule]
+            learning_outcomes: [Choose a substitution, transform the integral consistently, and return to the original variable or bounds.]
+            common_misconceptions: [Choosing u changes only one visible part of the integrand.]
+
+  - title: "Unit 7: Differential Equations"
+    unit_id: ap-calculus-ab-unit-7-differential-equations
+    delivery_status: planned
+    continues_from_unit_ids: [ap-calculus-ab-unit-6-integration-accumulation]
+    required_prior_concept_ids: [antiderivatives-and-indefinite-integrals]
+    description: Represent, solve, and interpret first-order differential equations and growth models.
+    estimated_minutes: 180
+    topics:
+      - title: Representations and solution methods
+        topic_id: unit-7-topic-representations-and-solution-methods
+        description: Read slope fields and solve separable initial-value problems.
+        concepts:
+          - title: Slope fields and solution curves
+            concept_id: slope-fields-and-solution-curves
+            description: Interpret differential-equation behavior from local slope segments.
+            difficulty: developing
+            estimated_minutes: 34
+            prerequisite_concept_ids: [interpreting-rates-in-context]
+            learning_outcomes: [Match differential equations, slope fields, and qualitative solution curves.]
+            common_misconceptions: [A slope field displays a single solution curve.]
+          - title: Euler's method
+            concept_id: eulers-method
+            description: Approximate a solution by repeated tangent-line steps.
+            difficulty: developing
+            estimated_minutes: 32
+            prerequisite_concept_ids: [slope-fields-and-solution-curves, local-linearity-and-linearization]
+            learning_outcomes: [Execute Euler steps and explain the role of step size.]
+            common_misconceptions: [Euler's method produces an exact solution.]
+          - title: Separation of variables
+            concept_id: separation-of-variables
+            description: Rearrange and integrate separable differential equations.
+            difficulty: advanced
+            estimated_minutes: 42
+            prerequisite_concept_ids: [antiderivatives-and-indefinite-integrals, integration-by-substitution]
+            learning_outcomes: [Separate variables, integrate both sides, and account for constants.]
+            common_misconceptions: [Differentials can be moved without checking separability.]
+          - title: Initial-value problems
+            concept_id: initial-value-problems
+            description: Use a condition to identify one solution from a family.
+            difficulty: developing
+            estimated_minutes: 32
+            prerequisite_concept_ids: [separation-of-variables]
+            learning_outcomes: [Solve for the integration constant and verify the initial condition.]
+            common_misconceptions: [The initial condition should be substituted before integrating.]
+      - title: Growth models
+        topic_id: unit-7-topic-growth-models
+        description: Analyze exponential and logistic differential-equation models.
+        concepts:
+          - title: Exponential and logistic growth models
+            concept_id: exponential-and-logistic-growth-models
+            description: Interpret parameters, solution behavior, and limiting values in growth models.
+            difficulty: advanced
+            estimated_minutes: 40
+            prerequisite_concept_ids: [initial-value-problems]
+            learning_outcomes: [Build and interpret exponential or logistic models from rate assumptions.]
+            common_misconceptions: [Every positive growth rate produces unrestricted exponential growth.]
+
+  - title: "Unit 8: Applications of Integration"
+    unit_id: ap-calculus-ab-unit-8-applications-of-integration
+    delivery_status: planned
+    continues_from_unit_ids: [ap-calculus-ab-unit-7-differential-equations]
+    required_prior_concept_ids: [definite-integral-properties]
+    description: Apply definite integrals to average value, net change, area, and volume.
+    estimated_minutes: 290
+    topics:
+      - title: Average value, net change, and area
+        topic_id: unit-8-topic-average-value-net-change-area
+        description: Interpret and calculate aggregate quantities over intervals.
+        concepts:
+          - title: Average value and net change
+            concept_id: average-value-and-net-change
+            description: Calculate average function value and recover total change from a rate.
+            difficulty: developing
+            estimated_minutes: 54
+            prerequisite_concept_ids: [definite-integral-properties, fundamental-theorem-of-calculus]
+            learning_outcomes: [Distinguish average value, accumulated change, and final value in context.]
+            common_misconceptions: [Average value is the same as total accumulated change.]
+          - title: Area between curves
+            concept_id: area-between-curves
+            description: Integrate top-minus-bottom or right-minus-left differences over valid intervals.
+            difficulty: advanced
+            estimated_minutes: 62
+            prerequisite_concept_ids: [definite-integral-properties]
+            learning_outcomes: [Find intersections, choose orientation, and split intervals when boundaries switch.]
+            common_misconceptions: [One top-minus-bottom expression works even after the curves cross.]
+      - title: Volumes of solids
+        topic_id: unit-8-topic-volumes-of-solids
+        description: Model solids with known cross sections, disks, and washers.
+        concepts:
+          - title: Volumes with known cross sections
+            concept_id: volumes-with-known-cross-sections
+            description: Integrate cross-sectional area along an axis.
+            difficulty: advanced
+            estimated_minutes: 58
+            prerequisite_concept_ids: [definite-integral-properties, area-between-curves]
+            learning_outcomes: [Express cross-sectional area in one variable and integrate over the solid's interval.]
+            common_misconceptions: [The given base length is already the cross-sectional area.]
+          - title: Disk and washer methods
+            concept_id: disk-and-washer-methods
+            description: Build volume integrals perpendicular to an axis of rotation.
+            difficulty: advanced
+            estimated_minutes: 64
+            prerequisite_concept_ids: [area-between-curves]
+            learning_outcomes: [Identify outer and inner radii and integrate disk or washer area.]
+            common_misconceptions: [The inner radius is always the lower function.]
+          - title: Selecting and justifying an integration setup
+            concept_id: selecting-integration-setups
+            description: Choose bounds, orientation, variable, and geometric formula before integrating.
+            difficulty: advanced
+            estimated_minutes: 52
+            prerequisite_concept_ids: [average-value-and-net-change, volumes-with-known-cross-sections, disk-and-washer-methods]
+            learning_outcomes: [Explain why an integral setup matches the requested quantity and geometry.]
+            common_misconceptions: [A correct antiderivative can repair an incorrect setup.]
+
+assessment:
+  enabled: true
+  questions_per_phase: 2
+  phases:
+    - diagnostic
+    - exit_ticket
+  localization_required: true
+
+visualization:
+  enabled: true
+  required_concept_ids:
+    - what-is-a-limit
+    - estimating-limits-from-graphs
+    - one-sided-limits
+    - infinite-limits
+    - continuity-at-a-point
+    - limits-at-infinity
+  notes: Unit 1 keeps the six existing interactive visualizations while its seven alignment lessons use the shared lesson representations; Unit 2 also uses the shared lesson representations without introducing a derivative-specific visualization kind.
+
+content_constraints:
+  required_sources_or_standards:
+    - College Board AP Calculus AB course page: https://apcentral.collegeboard.org/courses/ap-calculus-ab
+    - College Board AP Calculus AB and BC Course and Exam Description: https://apcentral.collegeboard.org/media/pdf/ap-calculus-ab-and-bc-course-and-exam-description.pdf?course=ap-calculus-ab
+  prohibited_claims_or_topics:
+    - Claims that this preview is endorsed, audited, or approved by College Board
+    - Reproduction of secure or proprietary AP Classroom questions
+    - AP Calculus BC-only content in the AB runtime pack
+  citation_requirements: Record official source URLs in this brief and the implementation handoff because the lesson schema has no citation field.
+  accessibility_requirements:
+    - Do not rely on color alone to communicate mathematical meaning.
+    - Write mathematical relationships in readable text as well as notation.
+    - Keep bilingual terminology consistent and avoid unexplained abbreviations.
+
+delivery:
+  roadmap_version: 2
+  mode: unit_by_unit
+  target_unit_id: ap-calculus-ab-unit-3-composite-implicit-inverse
+  target_release: Unit 3 preview
+  reviewer: null
+  notes: Unit 1 now covers all sixteen official topics in sequence through seventeen platform concepts, including seven bilingual alignment lessons, assessments, AI Teacher cases, and retrieval cases. Unit 2 is implemented with ten bilingual lessons, bilingual diagnostic and exit-ticket assessments, course-scoped routes, and retrieval coverage. Both units remain AI-authored previews pending subject-matter review.

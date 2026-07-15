@@ -7,10 +7,23 @@ import type {
   Unit,
 } from "@/features/knowledge/types";
 import {
+  AP_CALCULUS_AB_UNIT_1_CONCEPT_IDS,
+  apCalculusABUnit1AlignmentConcepts,
+  apCalculusABUnit1AlignmentDependencies,
+  apCalculusABUnit1AlignmentTopics,
+} from "./unit-1-alignment-knowledge.ts";
+import {
   apCalculusABUnit1ExtensionConcepts,
   apCalculusABUnit1ExtensionDependencies,
   apCalculusABUnit1ExtensionTopics,
-} from "@/curricula/ap-calculus-ab/unit-1-extension-knowledge";
+} from "./unit-1-extension-knowledge.ts";
+import {
+  AP_CALCULUS_AB_UNIT_2_ID,
+  apCalculusABUnit2,
+  apCalculusABUnit2Concepts,
+  apCalculusABUnit2Dependencies,
+  apCalculusABUnit2Topics,
+} from "./unit-2-knowledge.ts";
 
 export const AP_CALCULUS_AB_COURSE_ID = "ap-calculus-ab";
 export const AP_CALCULUS_AB_UNIT_1_ID =
@@ -23,10 +36,10 @@ export const apCalculusABCourse: Course = {
   subject: "Calculus",
   description:
     "A learning path for building concept mastery across the AP Calculus AB curriculum.",
-  unitIds: [AP_CALCULUS_AB_UNIT_1_ID],
+  unitIds: [AP_CALCULUS_AB_UNIT_1_ID, AP_CALCULUS_AB_UNIT_2_ID],
 };
 
-export const apCalculusABUnit1Topics: Topic[] = [
+const apCalculusABUnit1CoreTopics: Topic[] = [
   {
     id: "unit-1-topic-limit-foundations",
     unitId: AP_CALCULUS_AB_UNIT_1_ID,
@@ -34,7 +47,11 @@ export const apCalculusABUnit1Topics: Topic[] = [
     title: "Limit foundations",
     description:
       "Core meaning and notation students need before analyzing limits from representations.",
-    conceptIds: ["what-is-a-limit", "limit-notation"],
+    conceptIds: [
+      "instantaneous-change-motivation",
+      "what-is-a-limit",
+      "limit-notation",
+    ],
   },
   {
     id: "unit-1-topic-graphical-limits",
@@ -43,19 +60,28 @@ export const apCalculusABUnit1Topics: Topic[] = [
     title: "Graphical limit reasoning",
     description:
       "Estimating limit behavior from graphs and separating approaching behavior from function value.",
-    conceptIds: ["estimating-limits-from-graphs"],
+    conceptIds: [
+      "estimating-limits-from-graphs",
+      "one-sided-limits",
+      "estimating-limits-from-tables",
+    ],
   },
   {
     id: "unit-1-topic-one-sided-and-infinite-limits",
     unitId: AP_CALCULUS_AB_UNIT_1_ID,
-    sequence: 3,
+    sequence: 5,
     title: "Directional and unbounded behavior",
     description:
       "Reasoning about one-sided approaches and limits that grow without bound.",
-    conceptIds: ["one-sided-limits", "infinite-limits"],
+    conceptIds: ["infinite-limits"],
   },
-  ...apCalculusABUnit1ExtensionTopics,
 ];
+
+export const apCalculusABUnit1Topics: Topic[] = [
+  ...apCalculusABUnit1CoreTopics,
+  ...apCalculusABUnit1ExtensionTopics,
+  ...apCalculusABUnit1AlignmentTopics,
+].sort((left, right) => left.sequence - right.sequence);
 
 export const apCalculusABUnit1: Unit = {
   id: AP_CALCULUS_AB_UNIT_1_ID,
@@ -63,13 +89,13 @@ export const apCalculusABUnit1: Unit = {
   sequence: 1,
   title: "Limits and Continuity (Unit 1)",
   description:
-    "A concept-first Unit 1 sequence covering limit representations, directional and unbounded behavior, limit laws, bounding arguments, continuity, existence theorems, and end behavior.",
+    "An officially ordered Unit 1 sequence moving from instantaneous-change motivation through limit representations and procedures to continuity, asymptotes, and the Intermediate Value Theorem.",
   topicIds: apCalculusABUnit1Topics.map((topic) => topic.id),
   conceptIds: apCalculusABUnit1Topics.flatMap((topic) => topic.conceptIds),
-  estimatedMinutes: 204,
+  estimatedMinutes: 368,
 };
 
-export const apCalculusABUnit1Concepts: Concept[] = [
+const apCalculusABUnit1ExistingConcepts: Concept[] = [
   {
     id: "what-is-a-limit",
     courseId: AP_CALCULUS_AB_COURSE_ID,
@@ -78,7 +104,7 @@ export const apCalculusABUnit1Concepts: Concept[] = [
     title: "What is a limit?",
     description:
       "Understand a limit as the value a function approaches as the input gets close to a target, even when the function value at the target is different or undefined.",
-    prerequisiteConceptIds: [],
+    prerequisiteConceptIds: ["instantaneous-change-motivation"],
     learningObjectives: [
       {
         id: "lo-what-is-a-limit-meaning",
@@ -245,7 +271,7 @@ export const apCalculusABUnit1Concepts: Concept[] = [
     id: "one-sided-limits",
     courseId: AP_CALCULUS_AB_COURSE_ID,
     unitId: AP_CALCULUS_AB_UNIT_1_ID,
-    topicId: "unit-1-topic-one-sided-and-infinite-limits",
+    topicId: "unit-1-topic-graphical-limits",
     title: "One-sided limits",
     description:
       "Analyze function behavior as the input approaches a target from only the left or only the right.",
@@ -366,6 +392,22 @@ export const apCalculusABUnit1Concepts: Concept[] = [
   ...apCalculusABUnit1ExtensionConcepts,
 ];
 
+const unit1ConceptOrder = new Map<string, number>(
+  AP_CALCULUS_AB_UNIT_1_CONCEPT_IDS.map((conceptId, index) => [
+    conceptId,
+    index,
+  ]),
+);
+
+export const apCalculusABUnit1Concepts: Concept[] = [
+  ...apCalculusABUnit1ExistingConcepts,
+  ...apCalculusABUnit1AlignmentConcepts,
+].sort(
+  (left, right) =>
+    (unit1ConceptOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+    (unit1ConceptOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+);
+
 export const apCalculusABUnit1ConceptDependencies: ConceptDependency[] = [
   {
     id: "dependency-limit-meaning-to-notation",
@@ -407,13 +449,17 @@ export const apCalculusABUnit1ConceptDependencies: ConceptDependency[] = [
     rationale:
       "Infinite limits often require directional analysis because each side of a vertical asymptote can behave differently.",
   },
+  ...apCalculusABUnit1AlignmentDependencies,
   ...apCalculusABUnit1ExtensionDependencies,
 ];
 
 export const apCalculusABKnowledgeGraph: KnowledgeGraph = {
   course: apCalculusABCourse,
-  units: [apCalculusABUnit1],
-  topics: apCalculusABUnit1Topics,
-  concepts: apCalculusABUnit1Concepts,
-  dependencies: apCalculusABUnit1ConceptDependencies,
+  units: [apCalculusABUnit1, apCalculusABUnit2],
+  topics: [...apCalculusABUnit1Topics, ...apCalculusABUnit2Topics],
+  concepts: [...apCalculusABUnit1Concepts, ...apCalculusABUnit2Concepts],
+  dependencies: [
+    ...apCalculusABUnit1ConceptDependencies,
+    ...apCalculusABUnit2Dependencies,
+  ],
 };

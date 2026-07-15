@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   FormativeAssessmentError,
@@ -15,18 +16,14 @@ import {
 } from "../src/features/memory/memory-scoring.ts";
 import type { FormativeAssessmentAttempt } from "../src/features/assessment/types.ts";
 import type { ConceptMemory } from "../src/features/memory/types.ts";
+import { AP_CALCULUS_AB_UNIT_1_CONCEPT_IDS } from "../src/curricula/ap-calculus-ab/unit-1-alignment-knowledge.ts";
+import { AP_CALCULUS_AB_UNIT_2_CONCEPT_IDS } from "../src/curricula/ap-calculus-ab/unit-2-knowledge.ts";
 
-const unit1ConceptIds = [
-  "what-is-a-limit",
-  "limit-notation",
-  "estimating-limits-from-graphs",
-  "one-sided-limits",
-  "infinite-limits",
-  "evaluating-limits-with-limit-laws",
-  "squeeze-theorem",
-  "continuity-at-a-point",
-  "intermediate-value-theorem",
-  "limits-at-infinity",
+const unit1ConceptIds = [...AP_CALCULUS_AB_UNIT_1_CONCEPT_IDS];
+
+const apCalculusABConceptIds = [
+  ...unit1ConceptIds,
+  ...AP_CALCULUS_AB_UNIT_2_CONCEPT_IDS,
 ];
 
 function createAttempt({
@@ -77,12 +74,12 @@ function createMemory(
   };
 }
 
-test("every Unit 1 concept has two-item diagnostic and exit assessments", () => {
+test("every implemented AP Calculus AB concept has two-item diagnostic and exit assessments", () => {
   const coverage = getFormativeAssessmentCoverage();
 
   assert.deepEqual(
     coverage.map((item) => item.conceptId).sort(),
-    unit1ConceptIds.slice().sort(),
+    apCalculusABConceptIds.slice().sort(),
   );
   assert.ok(
     coverage.every(
@@ -113,6 +110,86 @@ test("public assessment DTOs are bilingual and do not expose answer keys", () =>
   assert.notEqual(english.questions[0]?.prompt, chinese.questions[0]?.prompt);
   assert.equal(JSON.stringify(english).includes("correctOptionId"), false);
   assert.equal(JSON.stringify(english).includes("explanation"), false);
+
+  const curriculumSource = readFileSync(
+    new URL("../src/curricula/ap-calculus-ab/index.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(curriculumSource, /correctOptionId|unit-2-assessments/u);
+});
+
+test("Unit 1.1 Chinese assessments use natural contexts without changing grading", () => {
+  const englishDiagnostic = getFormativeAssessment({
+    conceptId: "instantaneous-change-motivation",
+    locale: "en",
+    phase: "diagnostic",
+  });
+  const chineseDiagnostic = getFormativeAssessment({
+    conceptId: "instantaneous-change-motivation",
+    locale: "zh",
+    phase: "diagnostic",
+  });
+  const chineseExit = getFormativeAssessment({
+    conceptId: "instantaneous-change-motivation",
+    locale: "zh",
+    phase: "exit_ticket",
+  });
+
+  assert.equal(
+    englishDiagnostic.questions[0]?.prompt,
+    "Which expression is an average rate of change of s over [a,b], with a≠b?",
+  );
+  assert.match(chineseDiagnostic.questions[0]?.prompt ?? "", /行程记录/u);
+  assert.match(chineseDiagnostic.questions[1]?.prompt ?? "", /有同学说/u);
+  assert.match(chineseExit.questions[0]?.prompt ?? "", /长途客车/u);
+  assert.match(chineseExit.questions[1]?.prompt ?? "", /储水罐/u);
+
+  const diagnosticResult = gradeFormativeAssessment({
+    conceptId: "instantaneous-change-motivation",
+    locale: "zh",
+    phase: "diagnostic",
+    answers: [
+      { questionId: "instantaneous-change-motivation-d1", selectedOptionId: "a" },
+      { questionId: "instantaneous-change-motivation-d2", selectedOptionId: "b" },
+    ],
+  });
+  const exitResult = gradeFormativeAssessment({
+    conceptId: "instantaneous-change-motivation",
+    locale: "zh",
+    phase: "exit_ticket",
+    answers: [
+      { questionId: "instantaneous-change-motivation-e1", selectedOptionId: "a" },
+      { questionId: "instantaneous-change-motivation-e2", selectedOptionId: "a" },
+    ],
+  });
+
+  assert.equal(diagnosticResult.score, 100);
+  assert.equal(exitResult.score, 100);
+});
+
+test("Unit 2 assessments return the AP course identity and grade server-side", () => {
+  const assessment = getFormativeAssessment({
+    conceptId: "product-rule",
+    locale: "zh",
+    phase: "exit_ticket",
+  });
+
+  assert.equal(assessment.courseId, "ap-calculus-ab");
+  assert.equal(assessment.conceptId, "product-rule");
+  assert.equal(JSON.stringify(assessment).includes("correctOptionId"), false);
+
+  const graded = gradeFormativeAssessment({
+    conceptId: "product-rule",
+    locale: "en",
+    phase: "exit_ticket",
+    answers: [
+      { questionId: "product-rule-e1", selectedOptionId: "a" },
+      { questionId: "product-rule-e2", selectedOptionId: "a" },
+    ],
+  });
+
+  assert.equal(graded.score, 100);
+  assert.equal(graded.assessment.courseId, "ap-calculus-ab");
 });
 
 test("server grader scores a complete submission and rejects tampered options", () => {

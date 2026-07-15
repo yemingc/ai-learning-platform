@@ -5,6 +5,8 @@ import type {
   FormativeAssessmentPhase,
   FormativeAssessmentProvider,
 } from "@/features/assessment/types";
+import { apCalculusABUnit2AssessmentBank } from "../../curricula/ap-calculus-ab/unit-2-assessments.ts";
+import { apCalculusABUnit1AlignmentAssessmentBank } from "../../curricula/ap-calculus-ab/unit-1-alignment-assessments.ts";
 
 export type LocalizedText = Record<FormativeAssessmentLocale, string>;
 
@@ -30,7 +32,7 @@ export type FormativeAssessmentBank = Record<
 >;
 
 const COURSE_ID = "ap-calculus-ab";
-const ASSESSMENT_VERSION = "unit-1-formative-v1";
+const ASSESSMENT_VERSION = "ap-calculus-ab-formative-v3";
 
 function text(en: string, zh: string): LocalizedText {
   return { en, zh };
@@ -53,6 +55,8 @@ function question(
 }
 
 const assessmentBank: FormativeAssessmentBank = {
+  ...apCalculusABUnit2AssessmentBank,
+  ...apCalculusABUnit1AlignmentAssessmentBank,
   "what-is-a-limit": {
     diagnostic: [
       question(

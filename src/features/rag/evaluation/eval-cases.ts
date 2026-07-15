@@ -187,4 +187,86 @@ export const retrievalEvalCases: RetrievalEvalCase[] = [
     maxRank: 3,
     mustIncludeText: ["水平渐近线"],
   },
+  {
+    id: "en-instantaneous-change-shrinking-intervals",
+    description:
+      "English query about motivating instantaneous change without a zero-width interval.",
+    query:
+      "instantaneous change shrinking nonzero intervals approaches zero division by zero",
+    locale: "en",
+    expectedConceptIds: ["instantaneous-change-motivation"],
+    expectedSectionTypes: ["formal_idea", "common_trap", "worked_example"],
+    maxRank: 3,
+    mustIncludeText: ["nonzero"],
+  },
+  {
+    id: "zh-table-limit-target-row",
+    description:
+      "Chinese query about estimating a two-sided limit from nearby table rows.",
+    query: "表格估计极限 目标行不决定 两侧附近数据",
+    locale: "zh",
+    expectedConceptIds: ["estimating-limits-from-tables"],
+    expectedSectionTypes: ["formal_idea", "common_trap", "worked_example"],
+    maxRank: 3,
+    mustIncludeText: ["表格"],
+  },
+  {
+    id: "en-algebraic-limit-nearby-cancellation",
+    description:
+      "English query about factoring and cancellation in a deleted neighborhood.",
+    query:
+      "factor 0/0 limit cancel common factor nearby inputs original function undefined target",
+    locale: "en",
+    expectedConceptIds: ["algebraic-limit-techniques"],
+    expectedSectionTypes: ["worked_example", "common_trap", "formal_idea"],
+    maxRank: 3,
+    mustIncludeText: ["cancel"],
+  },
+  {
+    id: "zh-select-limit-procedure",
+    description:
+      "Chinese query about selecting direct substitution, factoring, or a conjugate.",
+    query: "选择求极限的方法 表示方式 直接代入 代入结果 表达式结构",
+    locale: "zh",
+    expectedConceptIds: ["selecting-limit-procedures"],
+    expectedSectionTypes: ["worked_example", "formal_idea", "key_takeaways"],
+    maxRank: 3,
+    mustIncludeText: ["直接代入"],
+  },
+  {
+    id: "en-connect-limit-representations",
+    description:
+      "English query about graph, table, and formula evidence for the same removable-hole limit.",
+    query:
+      "connect graph table formula limit representation hole resolution exact estimate",
+    locale: "en",
+    expectedConceptIds: ["connecting-limit-representations"],
+    expectedSectionTypes: ["worked_example", "formal_idea", "common_trap"],
+    maxRank: 3,
+    mustIncludeText: ["representation"],
+  },
+  {
+    id: "zh-classify-discontinuities",
+    description:
+      "Chinese query distinguishing removable, jump, and infinite discontinuities.",
+    query:
+      "探索间断的类型：可去间断、跳跃间断、无穷间断怎样分类，修改一个点的修复条件是什么",
+    locale: "zh",
+    expectedConceptIds: ["classifying-discontinuities"],
+    expectedSectionTypes: ["formal_idea", "worked_example", "common_trap"],
+    maxRank: 3,
+    mustIncludeText: ["可去"],
+  },
+  {
+    id: "en-continuity-over-interval-endpoints",
+    description:
+      "English query about domains and one-sided endpoint conditions for interval continuity.",
+    query:
+      "continuous on closed interval right-hand left endpoint domain restrictions rational function",
+    locale: "en",
+    expectedConceptIds: ["continuity-over-intervals"],
+    expectedSectionTypes: ["common_trap", "formal_idea", "think_with_me"],
+    maxRank: 3,
+    mustIncludeText: ["endpoint"],
+  },
 ];

@@ -53,6 +53,50 @@ src/curricula/<course-id>/
 
 如果课程范围、受众或学习结果不明确，应先澄清，避免生成大量无法形成连贯路径的课时。
 
+## 3.1 推荐生成方式：整课规划，逐单元接入
+
+默认使用“先规划整门课，再一次实现一个单元”的方式，而不是一次生成全部正式内容。
+
+课程 brief 是持久化的整课路线图，应该提前冻结所有单元、主题和概念的标题、ID、目标、顺序与预期衔接关系。尚未轮到的单元只保留路线图，不生成完整课时、题库或本地化内容。
+
+`CurriculumPack` 是已经实现并能在平台运行的内容，只注册完成课时、本地化、已启用评估和测试的单元。不要把未来单元以空壳形式加入课程包。
+
+brief 使用以下字段跟踪增量交付：
+
+```yaml
+delivery:
+  roadmap_version: 1
+  mode: unit_by_unit
+  target_unit_id: example-unit-1
+
+units:
+  - unit_id: example-unit-1
+    delivery_status: planned
+    continues_from_unit_ids: []
+    required_prior_concept_ids: []
+```
+
+- `delivery.mode` 默认是 `unit_by_unit`；只有明确要求一次完成整门课时才使用 `full_course`。
+- `delivery.target_unit_id` 表示本轮唯一要实现的单元。
+- `delivery.target_unit_id` 必须是路线图中最早的 `planned` 单元，不能跳过尚未完成的中间单元。
+- 规划中的单元结构、ID、顺序或衔接关系发生变化时递增 `roadmap_version`。
+- `delivery_status` 可为 `planned`、`implemented`、`reviewed`。工程验证通过只能标记为 `implemented`；只有具备人工审核证据时才能标记为 `reviewed`。
+- `continues_from_unit_ids` 描述单元级延续关系。
+- `required_prior_concept_ids` 描述新单元明确依赖的前置概念。
+
+加入第二单元及后续单元时，必须同时读取路线图和当前课程源码。已经实现的源码是既有内容的事实来源，brief 是未来范围的事实来源。生成前整理连续性摘要：
+
+1. 前置概念、学习目标、成功标准与先修关系；
+2. 已建立的术语、别名、符号和代码约定；
+3. 已经使用的例子、类比和心智模型；
+4. 已发现、已纠正或需要再次检查的常见误区；
+5. 诊断与离堂检查覆盖，以及进入下一单元前预期的学习证据；
+6. 新单元需要增加的跨单元 prerequisite/supports/extends 关系。
+
+实现新单元时保留之前单元的稳定 ID 和教学含义，只追加目标单元及必要的跨单元关系。旧内容只有在发现明确缺陷或路线图变更得到确认时才修改。
+
+目标单元通过完整验证后，将它更新为 `implemented`，并把 `delivery.target_unit_id` 推进到下一个 `planned` 单元；没有剩余单元时设为 `null`。如果既有课程没有 brief，应先根据源码重建已实现路线图，再规划后续单元；不得凭空推断已有内容已经过人工审核。
+
 ## 4. ID 规则
 
 - 所有 ID 使用小写 `kebab-case`。
@@ -222,9 +266,47 @@ key_takeaways
 - 主语言内容保存在标准课程和课时字段中。
 - 翻译保存在 `localizations.<language>`，按原始 ID 覆盖。
 - 翻译不得修改 ID、父级关系、先修关系或题目正确答案。
-- 中文应使用自然教学语言，不做逐词直译。
+- 本地化是受语义约束的教学改写，不是主语言内容的逐句映射。先提取教学目标、事实、推理证据和误区，再脱离原句结构用目标语言重新讲解。
+- 中文允许重新安排信息顺序、拆分长句、合并重复句、调整提示语气和段落结构。不得为了与英文逐句对应而保留不自然的中文句式。
+- 可以把文化相关的运动、货币、校园生活、交通或日常场景替换为学习者更熟悉的等价情境，但必须重新验证数值、单位、答案、难度和目标误区没有变化。
+- 必须保持学习结果、事实准确性、数学符号或代码行为、误区诊断目标、评估正确答案、安全边界和来源含义不变。
+- 中文应像教师直接面对学习者讲解：优先使用清楚的主谓句和短步骤，避免层层定语、过度名词化、重复英文括注、行政化表达和面向开发者的工程语言。
 - 专业术语策略应与 `teachingProfile.terminologyPolicy` 一致。
 - `localizeLesson` 使用浅层覆盖。若翻译某个嵌套对象或数组，应提供该字段可直接使用的完整结构，不能只给半个嵌套对象。
+
+brief 中每个本地化语言都必须提供 `language.localization_profiles.<language>`：
+
+```yaml
+language:
+  canonical_language: en
+  localization_languages: [zh]
+  terminology_policy: 中文首次出现专业术语时保留英文，后续以中文为主。
+  localization_profiles:
+    zh:
+      locale_variant: zh-CN
+      strategy: adaptive_rewrite
+      audience: 中国大陆高中阶段学习者
+      register: 自然、简洁、适合课堂讲解的现代汉语
+      allow_sentence_restructuring: true
+      allow_cultural_adaptation: true
+      preserve:
+        - learning_outcomes
+        - factual_accuracy
+        - domain_notation
+        - misconception_targets
+        - assessment_correctness
+      quality_criteria:
+        - 先解决学习者最可能提出的问题，再引入抽象定义。
+        - 拆分英文长句，不机械保留英文段落边界。
+        - 文化场景替换后保持相同认知要求。
+```
+
+推荐采用四轮本地化审阅：
+
+1. **语义检查**：核对事实、推理、符号、答案和误区目标；
+2. **教学检查**：只阅读中文版本，确认顺序、认知负担、提示和迁移任务自然连贯；
+3. **语言检查**：清理翻译腔、长句、重复英文和不合语境的例子；
+4. **平台检查**：确认嵌套字段完整覆盖，评估不泄露答案，检索标签和中文 RAG 查询有效，UTF-8 无乱码。
 
 最低本地化建议：
 
@@ -351,6 +433,9 @@ orphanedCount: 0
 ### 结构
 
 - [ ] `pack.id === course.id`
+- [ ] brief 包含整课路线图，`CurriculumPack` 只包含已实现单元
+- [ ] 本轮只实现 `delivery.target_unit_id` 指定的一个单元
+- [ ] 后续单元的 `continues_from_unit_ids` 和 `required_prior_concept_ids` 有效
 - [ ] course 的 `unitIds` 与 units 完全一致
 - [ ] 所有 unit/topic/concept 父级引用有效
 - [ ] 没有循环或缺失先修关系
@@ -368,7 +453,10 @@ orphanedCount: 0
 ### 本地化与评估
 
 - [ ] 课程库和学习页面不存在其他课程的硬编码文案
-- [ ] 中文内容自然且术语一致
+- [ ] 中文内容使用 `adaptive_rewrite`，没有为了逐句对应英文而保留翻译腔
+- [ ] 中文允许合理重排、拆句和文化场景替换，同时保持语义不变量
+- [ ] 中文术语一致，英文括注符合 brief 约定而不过度重复
+- [ ] 已分别完成语义、教学、自然语言和平台四轮检查
 - [ ] 每个启用评估的概念都有 diagnostic 和 exit ticket
 - [ ] 题目 ID 唯一，选项与反馈完整
 - [ ] 答案和评分函数只存在于服务端
@@ -380,6 +468,7 @@ orphanedCount: 0
 - [ ] lint 通过
 - [ ] 生产构建通过
 - [ ] 新课程页面实际返回 200
+- [ ] 新单元与至少一个前置单元的页面都通过回归检查
 - [ ] 评估 API 返回正确 courseId
 - [ ] RAG 索引覆盖率为 100%
 
@@ -397,12 +486,16 @@ orphanedCount: 0
 4. 如果 brief 缺少课程范围、受众、最终学习结果、单元划分或语言要求，先列出缺失项，不要直接生成课程。
 
 实现要求：
+- 默认按 `delivery.mode: unit_by_unit` 每次只实现 `target_unit_id`；其余 planned 单元只保留路线图。
+- 加入第二单元及后续单元时，先读取现有课程源码和评估，整理前置概念、术语、误区、证据预期与跨单元依赖。
+- 目标单元验证通过后标记为 implemented，并把 target_unit_id 推进到下一 planned 单元。
 - 使用稳定的 kebab-case ID。
 - 先生成知识图谱，再生成每个概念的一对一结构化课时。
 - 所有父级、先修、dependency 和 lesson 引用必须一致。
 - 每个概念包含可观察的成功标准、常见误区和示例。
 - 每节课包含直观解释、正式解释、worked example、guided question、misconception check、reflection 和 application transfer。
-- 按 brief 提供自然的本地化内容。
+- 按 brief 的 localization profile 进行目标语言教学改写；中文可重排语序、拆分长句和替换等价文化场景，不要求与英文逐句对应。
+- 本地化后回查学习目标、事实、符号、误区目标、评估答案和难度等语义不变量。
 - 如果启用形成性评估，为每个概念提供 diagnostic 和 exit_ticket，并把 provider 注册到 server-resources.ts。
 - 不得把答案或评分函数放入可序列化 CurriculumPack。
 - 不要生成当前渲染器不支持的 visualization kind；确需新增时同步实现类型、组件和测试。

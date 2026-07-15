@@ -13,7 +13,7 @@ import type { ConceptId, CourseId } from "@/features/knowledge/types";
 import type { EvaluationReleaseGate } from "@/features/ai-teacher/evaluation/release-gate";
 
 export const TEACHER_EVALUATION_SUITE_VERSION =
-  "teacher-unit1-adversarial-2026-07-11";
+  "teacher-unit1-complete-2026-07-15";
 
 export const teacherEvaluationDimensions = [
   "contract",
