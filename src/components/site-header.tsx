@@ -19,7 +19,10 @@ export function SiteHeader() {
   const pathname = usePathname();
   const { language } = useLanguage();
   const { data: session, status } = useSession();
-  const userLabel = session?.user?.name || session?.user?.email || "User";
+  const userLabel =
+    session?.user?.name ||
+    session?.user?.email ||
+    (language === "zh" ? "用户" : "User");
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur">
@@ -28,7 +31,9 @@ export function SiteHeader() {
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-sm">
             AB
           </span>
-          <span>AI Learning Platform</span>
+          <span>
+            {language === "zh" ? "AI 自适应学习平台" : "AI Learning Platform"}
+          </span>
         </Link>
 
         <div className="flex flex-wrap items-center gap-2">
