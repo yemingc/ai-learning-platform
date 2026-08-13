@@ -2,6 +2,8 @@
 
 Audit date: 2026-07-15
 
+Repository verification snapshot: 2026-08-13
+
 Official references:
 
 - [AP Calculus AB course page](https://apcentral.collegeboard.org/courses/ap-calculus-ab)
@@ -10,6 +12,24 @@ Official references:
 The College Board course page identifies eight AP Calculus AB units and gives both Unit 1 and Unit 2 a 10%–12% multiple-choice exam weighting. The current Course and Exam Description organizes Unit 1 into Topics 1.1–1.16 and Unit 2 into Topics 2.1–2.10, with about 22–23 AB class periods suggested for Unit 1 and 13–14 for Unit 2. Platform minute estimates describe direct self-study content rather than official classroom pacing. The College Board has announced 2026–27 clarifications but states that course content will not change.
 
 This audit requires observable platform evidence. “Complete” means that an official topic has a stable concept mapping, a schema-complete lesson, substantive Chinese teaching copy, diagnostic and exit-ticket assessment support, retrieval coverage, and regression coverage. It does not mean that College Board has reviewed or endorsed the material.
+
+## Current implementation scope
+
+| Measure | Current repository state |
+| --- | --- |
+| Official AP units implemented | 2 of 8 |
+| Official topics implemented | 26: Unit 1 Topics 1.1–1.16 and Unit 2 Topics 2.1–2.10 |
+| Platform units/topics/concepts | 2 units, 11 topics, 27 concepts |
+| Structured lessons | 27, one per concept |
+| Chinese lesson rewrites | 27, one complete adaptive teaching rewrite per lesson |
+| Formative assessment items | 108 bilingual items: 2 diagnostic and 2 exit-ticket items per concept |
+| Concept visualizations | 10 selected Unit 1 concepts |
+| Runtime catalog status | `preview` |
+
+Units 3–8 are outside the implemented runtime scope. Their absence is a known
+course-completion gap, not a partial implementation hidden behind placeholder
+units. Optional embedding-index freshness and live-model quality are
+environment-backed states and are not asserted by this source alignment audit.
 
 ## Unit 1 mapping
 
@@ -61,4 +81,11 @@ Unit 2 explicitly continues from Unit 1’s instantaneous-change motivation, lim
 
 The prior Unit 1 gaps were remediated with seven focused concepts placed at their official teaching positions: instantaneous-change-motivation, estimating-limits-from-tables, algebraic-limit-techniques, selecting-limit-procedures, connecting-limit-representations, classifying-discontinuities, and continuity-over-intervals. Each addition includes a knowledge-graph node, a full lesson, Chinese teaching copy, two diagnostic and two exit-ticket questions, an AI Teacher evaluation case, a RAG retrieval case, and regression coverage.
 
-Unit 1 and Unit 2 are engineering-complete AI-authored previews. They still require named subject-matter review before the course status can move from preview to reviewed or published.
+Unit 1 and Unit 2 are engineering-complete AI-authored previews. Their 27
+concepts have one structured lesson and four bilingual formative items each,
+and all 27 lessons have complete natural Chinese teaching rewrites. The ten
+existing concept visualizations cover selected Unit 1 concepts rather than
+every implemented lesson. Named subject-matter review is still required before
+the course status can move from preview to reviewed or published. The versioned
+whole-course brief at `docs/course-briefs/ap-calculus-ab.yaml` records Unit 1
+and Unit 2 as implemented and defines Unit 3 as the next curriculum increment.

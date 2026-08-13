@@ -16,9 +16,11 @@ Knowledge Graph
   -> Application Practice Readiness
 ```
 
-The MVP focuses on AP Calculus AB Unit 1 and demonstrates how a modern AI
-education product can combine structured curriculum content, interactive AI
-teaching, learner memory, and observable AI workflows.
+The implemented AP Calculus AB preview currently covers Unit 1 and Unit 2. It
+demonstrates how a modern AI education product can combine structured
+curriculum content, natural bilingual teaching, interactive AI support,
+learner memory, and observable AI workflows. This is not yet the complete
+eight-unit AP Calculus AB course.
 
 ## Product Positioning
 
@@ -38,28 +40,47 @@ before they move into problem solving.
 
 ## Current MVP
 
+Repository verification snapshot as of 2026-08-13:
+
+| Area | Repository-backed status |
+| --- | --- |
+| Registered course packs | 2: AP Calculus AB and JavaScript Foundations |
+| AP Calculus AB runtime scope | 2 of 8 official units implemented |
+| AP structure | 11 platform topics, 27 concepts, and 27 lessons |
+| Official topic alignment | Unit 1 Topics 1.1–1.16 and Unit 2 Topics 2.1–2.10 |
+| Chinese AP lesson coverage | 27 of 27 lessons use complete teaching rewrites |
+| AP formative assessment | 27 concepts, each with 2 diagnostic and 2 exit-ticket items; 108 bilingual items total |
+| Concept visualizations | 10 selected Unit 1 concepts |
+| Course review state | Engineering-complete AI-authored preview; named subject-matter review still required |
+| Automated repository checks | 99 of 99 tests, ESLint, and TypeScript no-emit checks pass locally |
+
+The counts above describe source-controlled runtime content. They do not claim
+that optional live-model results or embedding-index freshness are current;
+those require separate environment-backed checks.
+
 ### Learning Experience
 
-- Polished landing page explaining the learning-centric product model.
-- Course library page with AP Calculus AB as one selectable course pack.
+- Chinese-default bilingual landing page explaining the learning-centric
+  product model, with the shared language preference preserved across visits.
+- Course library page with AP Calculus AB and a small JavaScript Foundations
+  pack that demonstrates course-level reuse.
 - Course learning page that separates course -> unit -> concept navigation.
-- AP Calculus AB Unit 1 concept cards organized into six dependency-aware topics.
-- Static lesson pages for ten limits-and-continuity concepts:
-  - What is a limit?
-  - Limit notation
-  - Estimating limits from graphs
-  - One-sided limits
-  - Infinite limits
-  - Evaluating limits with limit laws
-  - The Squeeze Theorem
-  - Continuity at a point
-  - The Intermediate Value Theorem
-  - Limits at infinity and end behavior
-- Every lesson includes a concept-specific accessible SVG representation and
-  numerical evidence with directional controls.
+- AP Calculus AB Unit 1 contains 7 dependency-aware platform topics and 17
+  concepts aligned to official Topics 1.1–1.16.
+- AP Calculus AB Unit 2 contains 4 dependency-aware platform topics and 10
+  concepts aligned to official Topics 2.1–2.10, with explicit cross-unit
+  prerequisites back to Unit 1.
+- Every AP concept has one schema-complete static lesson and a complete Chinese
+  teaching rewrite. Chinese lessons may reorganize explanations, split long
+  sentences, and use equivalent familiar contexts while preserving the
+  mathematical and assessment contract.
+- Ten selected Unit 1 concepts include accessible SVG representations and
+  numerical evidence. Unit 2 and the remaining Unit 1 concepts currently rely
+  on structured text, examples, and assessment evidence rather than a bespoke
+  visualization.
 - Guided questions and misconception checks use progressive disclosure and can
   send the learner's written reasoning to the AI Teacher for feedback.
-- Every concept includes a bilingual two-item diagnostic and a distinct
+- Every implemented AP concept includes a bilingual two-item diagnostic and a distinct
   two-item exit ticket. Answer keys remain server-side; authenticated attempts
   are persisted as formative evidence rather than course grades.
 - Lesson flow sections:
@@ -181,8 +202,8 @@ Diagnostic -> Lesson + AI support -> Exit ticket -> Learning gain
                                       -> AI Teacher personalization
 ```
 
-- Forty bilingual conceptual items cover all ten Unit 1 concepts: two
-  diagnostic and two exit-ticket items per concept.
+- 108 bilingual conceptual items cover all 27 implemented AP concepts: two
+  diagnostic and two exit-ticket items per concept across Unit 1 and Unit 2.
 - `GET /api/formative-assessment` returns a minimal public DTO without correct
   options or explanations.
 - `POST /api/formative-assessment` re-authenticates the learner, validates the
@@ -343,37 +364,37 @@ evidence level from response headers, and exits non-zero on a failed gate.
 the production server with an ephemeral report secret; exports JSON and Markdown
 without calling the model; and uploads both files as a CI artifact.
 
-### Curriculum Retrieval Preview
+### Curriculum Retrieval Inspection
 
-The project includes a developer-facing RAG preparation tool behind Developer
+The project includes a developer-facing RAG inspection tool behind Developer
 Mode at:
 
 ```text
 /developer/retrieval-preview
 ```
 
-It previews how structured static lessons are flattened into bilingual
-retrieval-ready curriculum chunks before adding embeddings or a vector database.
-The preview supports deterministic keyword, tag, section-type, course, unit,
-concept, and locale filtering, and displays:
+It shows how structured static lessons are flattened into bilingual curriculum
+chunks used by keyword, embedding, and hybrid retrieval. The preview supports
+tag, section-type, course, unit, concept, and locale filtering, and displays:
 
 - stable chunk ids
 - locale (`zh` or `en`)
-- source labels for future citation
+- source labels for safe runtime citation
 - section types
 - retrieval tags
 - matched reasons
 - preview text
 
-This keeps the current curriculum as the source of truth while preparing the
-platform for future course-level RAG with cited lesson sections. Chinese lesson
-sections are indexed as first-class chunks rather than relying only on Chinese
-query expansion over English text.
+This keeps the current curriculum as the source of truth for the AI Teacher's
+runtime RAG path with cited lesson sections. Chinese lesson sections are indexed
+as first-class chunks rather than relying only on Chinese query expansion over
+English text.
 
-### Embedding Retrieval MVP
+### Runtime Retrieval Modes
 
-The project now includes an embedding retrieval layer that can be promoted into
-the AI Teacher runtime after retrieval quality is evaluated.
+The AI Teacher runtime supports keyword, embedding, and hybrid retrieval. The
+configured mode is used when its index is complete and current; embedding or
+hybrid failures degrade explicitly to the deterministic keyword baseline.
 
 - Keyword retrieval remains the deterministic baseline.
 - Embedding retrieval stores vectors in local SQLite at
@@ -420,10 +441,13 @@ debugging and evaluation story.
 
 ### Bilingual UX
 
-- English and Chinese language toggle.
-- Chinese teaching responses are expected to include English terminology in
-  parentheses for academic terms, for example: `limit`, `one-sided limit`,
-  `infinite limit`, and `function value`.
+- English and Chinese language toggle backed by one shared language state.
+- The landing page and shared header default to Chinese while preserving the
+  learner's explicit language choice.
+- Chinese curriculum content is authored as a natural teaching rewrite rather
+  than a sentence-by-sentence translation. Necessary academic English terms
+  are retained where the course terminology policy or evaluation contract
+  requires them, without forcing English sentence structure onto the Chinese.
 
 ## Tech Stack
 
@@ -458,7 +482,8 @@ debugging and evaluation story.
 | `/memory` | Legacy redirect to `/dashboard` |
 | `/developer` | Developer Mode entry and internal tool launcher |
 | `/developer/ai-runs` | Persisted AI run, usage, latency, and live-evaluation dashboard |
-| `/developer/retrieval-preview` | Retrieval-ready curriculum chunk preview for future RAG |
+| `/developer/retrieval-preview` | Runtime curriculum retrieval and index-status inspection |
+| `/developer/retrieval-evaluation` | Keyword, embedding, and hybrid retrieval comparison |
 | `/dashboard/ai-evaluation` | AI Teacher contract and pedagogy evaluation suite |
 | `/dashboard/workflow-inspector` | AI workflow trace and memory patch inspector |
 | `/api/health` | Public, uncached application and SQLite readiness probe |
@@ -524,15 +549,20 @@ and fill in the reusable
 [course brief template](docs/CURRICULUM_PACK_BRIEF.template.yaml) before
 generating curriculum content.
 
-1. Create `src/curricula/<course-id>/index.ts` and implement
-   `CurriculumPack`.
-2. Include course catalog metadata, the unit/topic/concept graph, structured
-   lessons, a teaching profile, and any course-owned localizations,
-   assessments, or visualizations.
-3. Register the pack in `src/curricula/index.ts`.
-4. Run `npm test`, `npx tsc --noEmit`, `npm run lint`, and `npm run build`.
-5. Rebuild the embedding index with `npm run embeddings:build` when localized
-   lesson content changes.
+1. Fill a persistent whole-course brief and freeze the unit/topic/concept
+   roadmap before generating complete lesson content.
+2. Implement only the earliest planned `delivery.target_unit_id` by default;
+   future units remain roadmap entries rather than incomplete runtime shells.
+3. Create or extend `src/curricula/<course-id>/`, including the graph,
+   structured lessons, teaching profile, natural localizations, and optional
+   visualizations for the target unit.
+4. Keep assessment answers server-only and register the assessment provider in
+   `src/curricula/server-resources.ts` before enabling the capability flag.
+5. Register the client-safe pack in `src/curricula/index.ts` and add continuity,
+   localization, assessment, and route coverage.
+6. Run `npm test`, `npx tsc --noEmit`, `npm run lint`, and `npm run build`.
+7. Rebuild the embedding index with `npm run embeddings:build` when localized
+   lesson content changes and an embedding service is configured.
 
 The course-pack and assessment checks reject invalid parent references,
 missing lessons, duplicate lesson attachments, malformed lesson schemas,
@@ -588,10 +618,10 @@ lesson id, locale, section id, section type, retrieval tags, and a
 human-readable source label. English chunks are created from canonical
 structured lesson sections. Chinese chunks are created from localized lesson
 content so Chinese RAG queries can retrieve Chinese curriculum text directly.
-This prepares the platform for future course-level RAG with citations while
+This supplies the current course-level RAG path with safe citations while
 keeping static lessons as the source of truth.
 
-The AI Teacher is connected to this RAG-preparation layer without requiring a
+The AI Teacher is connected to this RAG layer without requiring a dedicated
 vector database:
 
 - Retrieval is conditional, so lightweight greetings or acknowledgements do not
@@ -899,8 +929,9 @@ private or real learner accounts. A remote `DEMO_BASE_URL` must use HTTPS.
 
 1. Open `/learn`.
 2. Select `AP Calculus AB`.
-3. Open `Limits and Continuity (Unit 1)`.
-4. Select `What is a limit?`.
+3. Open either `Limits and Continuity (Unit 1)` or `Differentiation: Definition
+   and Fundamental Properties (Unit 2)`.
+4. For the introductory path, select `What is a limit?` in Unit 1.
 5. Log in and complete the two-minute diagnostic.
 6. Read a lesson section.
 7. Use `Ask about this` or select lesson text and ask the AI Teacher.
@@ -933,6 +964,8 @@ private or real learner accounts. A remote `DEMO_BASE_URL` must use HTTPS.
 
 The project intentionally does not include:
 
+- AP Calculus AB Units 3–8
+- named subject-matter approval for the AI-authored AP Unit 1 and Unit 2 content
 - high-stakes quiz/exam grading
 - review queues
 - full practice question bank
@@ -970,11 +1003,11 @@ go beyond a simple chatbot:
 - server-side per-learner usage limits
 - cancellable, progressively rendered structured AI responses
 - AI observability through workflow traces and persisted run telemetry
-- deterministic and live-model evaluation with persisted summaries
+- deterministic evaluation plus an opt-in live-model evaluation pipeline with persisted summaries
 - adversarial prompt-injection, privacy, false-premise, and citation tests
 - versioned model-cost estimation and baseline-aware prompt/model release gates
 - suite-version-aware quality, cost, and latency trend reporting
-- versioned human-review rubric with automated-score agreement calibration
+- versioned human-review rubric and automated-score agreement calibration logic
 - privacy-safe JSON/Markdown governance reports with CI exit semantics
 - non-root Next.js standalone container with SQLite volume and health probe
 - idempotent API-driven synthetic learner bootstrap and opt-in one-click demo login
@@ -987,17 +1020,22 @@ Built a learning-centric AI education platform with Next.js, TypeScript,
 DeepSeek, Zod, and LangGraph, featuring grounded curriculum retrieval,
 server-persisted learner memory, schema-validated teaching workflows,
 per-user usage controls, cancellable structured-response streaming,
-server-scored diagnostic-to-exit learning evidence, live/offline evaluations,
+server-scored diagnostic-to-exit learning evidence, deterministic evaluation
+plus persisted live-evaluation and human-review pipelines,
 privacy-minimized model/token/TTFT observability, adversarial six-dimension AI
 evaluation, auditable quality/cost release gates, and version-aware evaluation
-trend reporting plus privacy-minimized human-review calibration for prompt/model
-changes, exported as CI-ready JSON/Markdown governance artifacts.
+trend reporting plus privacy-minimized human-review calibration support for
+prompt/model changes, exported as CI-ready JSON/Markdown governance artifacts.
 ```
 
 ## Recommended Next Step
 
-Deploy the containerized portfolio build and add **reviewed screenshots or a
-short demo GIF** from the seeded learner journey.
+Use the existing versioned whole-course AP Calculus AB brief to record named
+subject-matter review of Unit 1 and Unit 2 and to govern the planned Unit 3
+increment. For the public portfolio release, deploy the containerized build,
+rebuild and evaluate the environment-backed embedding index, collect real
+human-reviewed live runs, and add **reviewed screenshots or a short demo GIF**
+from the seeded learner journey.
 
 The suite now combines concept coverage with prompt injection, private-memory
 canaries, false premises, bilingual behavior, and citation hallucination
@@ -1013,13 +1051,17 @@ immediately visible through an actual hosted demo and reviewed visuals.
 
 ### Short Term
 
+- Record named subject-matter review of Unit 1 and Unit 2 against the existing
+  versioned whole-course brief before changing the course from `preview`
+- Rebuild the embedding index and preserve a keyword/embedding/hybrid retrieval
+  comparison after the current curriculum changes
 - Deploy the verified standalone image to a single-instance container host
 - Collect at least three real human-reviewed live runs for the calibration sample
 - README screenshots or demo GIFs backed by a deployed portfolio instance
 
 ### Medium Term
 
-- AP Calculus AB Unit 2 derivative foundations
+- Implement AP Calculus AB Unit 3 as the next roadmap-governed course increment
 - Persistent workflow traces and teacher/admin curriculum review tools
 - PostgreSQL/pgvector migration for a multi-instance deployment
 - Email verification or OAuth sign-in if the app moves beyond local demos
@@ -1033,6 +1075,12 @@ immediately visible through an actual hosted demo and reviewed visuals.
 
 ## Status
 
-The current version is a portfolio-ready MVP centered on a complete Unit 1
-learning loop, authenticated evidence-based learner memory, grounded AI
-teaching, and observable/evaluable agent workflows.
+The current version is a locally verified portfolio MVP with two registered
+course packs. Its AP Calculus AB preview implements 2 of 8 official units: 27
+concepts with one lesson and four bilingual formative items per concept,
+complete natural Chinese lesson rewrites, authenticated evidence-based learner
+memory, grounded AI teaching, and observable/evaluable workflows. Unit 1 and
+Unit 2 are engineering-complete but remain `preview` pending named
+subject-matter review; Units 3–8 are not implemented. Public portfolio release
+still requires a hosted demo or reviewed visual walkthrough plus current
+environment-backed live-evaluation and retrieval evidence.
