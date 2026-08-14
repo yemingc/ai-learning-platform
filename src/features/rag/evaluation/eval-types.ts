@@ -1,14 +1,21 @@
-﻿import type { LessonSectionType } from "@/features/lessons/types";
+import type { LessonSectionType } from "@/features/lessons/types";
 import type { CurriculumRetrievalMode } from "@/features/rag/embedding-types";
-import type { CurriculumRetrievalLocale } from "@/features/rag/retrieval-types";
+import type {
+  CurriculumRetrievalLocale,
+  CurriculumRetrievalResult,
+} from "@/features/rag/retrieval-types";
 
 export type RetrievalEvalCase = {
   id: string;
   description: string;
   query: string;
   locale: CurriculumRetrievalLocale;
+  courseId?: string;
+  unitId?: string;
+  expectedOutcome?: "match" | "no_match";
   expectedConceptIds: string[];
   expectedSectionTypes: LessonSectionType[];
+  forbiddenConceptIds?: string[];
   maxRank: number;
   mustIncludeText?: string[];
 };
@@ -18,8 +25,11 @@ export type RetrievalEvalResult = {
   description: string;
   query: string;
   locale: CurriculumRetrievalLocale;
+  expectedOutcome: "match" | "no_match";
   passed: boolean;
+  durationMs: number;
   topRank?: number;
+  forbiddenRank?: number;
   reciprocalRank: number;
   expectedConceptIds: string[];
   expectedSectionTypes: LessonSectionType[];
@@ -30,6 +40,7 @@ export type RetrievalEvalResult = {
     sectionType: LessonSectionType;
     title: string;
     score: number;
+    scoreBreakdown?: CurriculumRetrievalResult["scoreBreakdown"];
     sourceLabel: string;
   }>;
   failureReason?: string;
@@ -38,6 +49,8 @@ export type RetrievalEvalResult = {
 export type RetrievalEvalSummary = {
   mode?: CurriculumRetrievalMode;
   totalCases: number;
+  positiveCases: number;
+  negativeCases: number;
   passedCases: number;
   failedCases: number;
   passRate: number;
@@ -46,6 +59,13 @@ export type RetrievalEvalSummary = {
   topOneHitRate: number;
   topThreeHits: number;
   topThreeHitRate: number;
+  recallAtEightHits: number;
+  recallAtEightRate: number;
+  noMatchCorrect: number;
+  noMatchAccuracy: number;
+  falsePositiveRate: number;
+  medianDurationMs: number;
+  p95DurationMs: number;
   results: RetrievalEvalResult[];
   error?: string;
 };

@@ -63,12 +63,75 @@ const bilingualMathTermSynonyms: Record<string, string[]> = {
   单侧极限: ["one-sided limit", "one-sided limits"],
 };
 
+const retrievalStopwords = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "can",
+  "could",
+  "do",
+  "does",
+  "for",
+  "from",
+  "how",
+  "i",
+  "in",
+  "is",
+  "it",
+  "my",
+  "of",
+  "on",
+  "or",
+  "should",
+  "that",
+  "the",
+  "this",
+  "to",
+  "what",
+  "when",
+  "where",
+  "why",
+  "with",
+  "would",
+  "you",
+  "your",
+  "什么",
+  "为什么",
+  "怎样",
+  "怎么",
+  "是否",
+  "可以",
+]);
+
 function normalizeText(value: string) {
   return value
     .toLowerCase()
     .replace(/[()，。！？；：、,.!?;:]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function expandCjkToken(token: string) {
+  if (!/[\u3400-\u9fff]/.test(token)) {
+    return [token];
+  }
+
+  const cjkRuns = token.match(/[\u3400-\u9fff]+/g) ?? [];
+  const ngrams = cjkRuns.flatMap((run) => {
+    const values: string[] = [];
+    const maximumSize = Math.min(4, run.length);
+
+    for (let size = 2; size <= maximumSize; size += 1) {
+      for (let index = 0; index <= run.length - size; index += 1) {
+        values.push(run.slice(index, index + size));
+      }
+    }
+
+    return values;
+  });
+
+  return [token, ...ngrams];
 }
 
 function tokenize(value: string) {
@@ -83,7 +146,10 @@ function tokenize(value: string) {
       normalized
         .split(" ")
         .map((token) => token.trim())
-        .filter((token) => token.length >= 2),
+        .flatMap(expandCjkToken)
+        .filter(
+          (token) => token.length >= 2 && !retrievalStopwords.has(token),
+        ),
     ),
   );
 }
@@ -286,7 +352,8 @@ export function searchCurriculumChunks({
   });
   const tokens = getQueryTokens(query.query);
   const limit = query.limit ?? 8;
-  const scoredResults = chunks
+  const minimumScore = query.minimumScore ?? 0;
+  const matchingResults = chunks
     .map((chunk) => {
       const scoredChunk = scoreChunk({ chunk, query, tokens });
 
@@ -315,13 +382,18 @@ export function searchCurriculumChunks({
 
       return a.id.localeCompare(b.id);
     });
-  const limitedResults = scoredResults.slice(0, limit);
+  const acceptedResults = matchingResults.filter(
+    (result) => result.score >= minimumScore,
+  );
+  const limitedResults = acceptedResults.slice(0, limit);
 
   return {
+    minimumScore,
     query,
+    rejectedMatches: matchingResults.length - acceptedResults.length,
     results: limitedResults,
     totalChunks: chunks.length,
-    totalMatches: scoredResults.length,
+    totalMatches: acceptedResults.length,
   };
 }
 

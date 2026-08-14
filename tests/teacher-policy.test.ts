@@ -6,6 +6,7 @@ import {
   createTeacherMemoryPatch,
   decideCurriculumRetrieval,
   decideTeacherMemoryUpdate,
+  getTeacherRetrievalScope,
   selectTeachingStrategy,
 } from "../src/features/ai-teacher/workflow/teacher-policy.ts";
 
@@ -113,12 +114,19 @@ test("routes lightweight messages around retrieval and grounds substantive reque
   );
 });
 
+test("searches the active concept before broadening to the course", () => {
+  assert.equal(getTeacherRetrievalScope(0), "concept");
+  assert.equal(getTeacherRetrievalScope(1), "course");
+});
+
 test("requires retrieval context from the active concept", () => {
   const createContext = (conceptId?: string) => ({
     actualMode: "keyword" as const,
     allowedCitations: [],
     contextText: "",
+    minimumScore: 4,
     requestedMode: "keyword" as const,
+    rejectedMatches: 0,
     retrievedChunks: conceptId
       ? [
           {
@@ -127,13 +135,23 @@ test("requires retrieval context from the active concept", () => {
             id: `chunk-${conceptId}`,
             lessonId: `lesson-${conceptId}`,
             locale: "en" as const,
+            matchedReasons: ["text" as const],
+            previewText: "Lesson context",
             retrievalTags: [],
+            score: 8,
             sectionId: "intuition",
             sectionType: "intuition" as const,
             sourceLabel: conceptId,
             text: "Lesson context",
             title: "Intuition",
             unitId: "unit-1",
+            citation: {
+              conceptTitle: conceptId,
+              courseTitle: "AP Calculus AB",
+              sectionTitle: "Intuition",
+              sectionType: "intuition" as const,
+              unitTitle: "Unit 1",
+            },
           },
         ]
       : [],
@@ -150,6 +168,15 @@ test("requires retrieval context from the active concept", () => {
   assert.equal(
     assessCurriculumRetrievalQuality({
       context: createContext("limit-notation"),
+      currentConceptId: "what-is-a-limit",
+    }),
+    "insufficient",
+  );
+  const belowThresholdContext = createContext("what-is-a-limit");
+  belowThresholdContext.retrievedChunks[0]!.score = 3;
+  assert.equal(
+    assessCurriculumRetrievalQuality({
+      context: belowThresholdContext,
       currentConceptId: "what-is-a-limit",
     }),
     "insufficient",

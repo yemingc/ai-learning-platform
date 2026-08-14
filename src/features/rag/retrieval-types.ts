@@ -15,6 +15,7 @@ export type CurriculumRetrievalQuery = {
   sectionType?: LessonSectionType;
   tags?: string[];
   limit?: number;
+  minimumScore?: number;
 };
 
 export type CurriculumRetrievalMatchReason =
@@ -27,6 +28,15 @@ export type CurriculumRetrievalMatchReason =
 
 export type CurriculumRetrievalResult = LessonRetrievalChunk & {
   score: number;
+  scoreBreakdown?: {
+    keywordRawScore: number;
+    keywordNormalizedScore: number;
+    embeddingSimilarityScore: number;
+    keywordWeight: number;
+    embeddingWeight: number;
+    keywordContribution: number;
+    embeddingContribution: number;
+  };
   matchedReasons: CurriculumRetrievalMatchReason[];
   sourceLabel: string;
   citation: {
@@ -43,5 +53,7 @@ export type CurriculumRetrievalPreview = {
   query: CurriculumRetrievalQuery;
   totalChunks: number;
   totalMatches: number;
+  rejectedMatches: number;
+  minimumScore: number;
   results: CurriculumRetrievalResult[];
 };

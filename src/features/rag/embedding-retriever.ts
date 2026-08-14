@@ -111,6 +111,7 @@ export async function searchCurriculumChunksByEmbedding({
   }
 
   const limit = query.limit ?? 8;
+  const minimumScore = query.minimumScore ?? 0;
   const scoredResults = records
     .map((record) => {
       const chunk = chunkById.get(record.chunkId);
@@ -131,11 +132,16 @@ export async function searchCurriculumChunksByEmbedding({
     })
     .filter((result): result is CurriculumRetrievalResult => Boolean(result))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  const acceptedResults = scoredResults.filter(
+    (result) => result.score >= minimumScore,
+  );
 
   return {
+    minimumScore,
     query,
-    results: scoredResults.slice(0, limit),
+    rejectedMatches: scoredResults.length - acceptedResults.length,
+    results: acceptedResults.slice(0, limit),
     totalChunks: scopedChunks.length,
-    totalMatches: scoredResults.length,
+    totalMatches: acceptedResults.length,
   };
 }

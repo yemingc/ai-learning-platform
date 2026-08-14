@@ -5,6 +5,7 @@ import { searchCurriculumChunks } from "@/features/rag/curriculum-retriever";
 import type { CurriculumRetrievalMode } from "@/features/rag/embedding-types";
 import { searchCurriculumChunksByEmbedding } from "@/features/rag/embedding-retriever";
 import { searchCurriculumChunksHybrid } from "@/features/rag/hybrid-retriever";
+import { getMinimumRetrievalScore } from "@/features/rag/retrieval-policy";
 import type {
   CurriculumRetrievalPreview,
   CurriculumRetrievalQuery,
@@ -19,15 +20,23 @@ export async function searchCurriculumWithMode({
   mode: CurriculumRetrievalMode;
   query: CurriculumRetrievalQuery;
 }): Promise<CurriculumRetrievalPreview> {
+  const effectiveQuery = {
+    ...query,
+    minimumScore: query.minimumScore ?? getMinimumRetrievalScore(mode),
+  };
+
   if (mode === "embedding") {
-    return searchCurriculumChunksByEmbedding({ curricula, query });
+    return searchCurriculumChunksByEmbedding({
+      curricula,
+      query: effectiveQuery,
+    });
   }
 
   if (mode === "hybrid") {
-    return searchCurriculumChunksHybrid({ curricula, query });
+    return searchCurriculumChunksHybrid({ curricula, query: effectiveQuery });
   }
 
-  return searchCurriculumChunks({ curricula, query });
+  return searchCurriculumChunks({ curricula, query: effectiveQuery });
 }
 
 export function getRetrievalMode(value?: string): CurriculumRetrievalMode {
@@ -35,6 +44,5 @@ export function getRetrievalMode(value?: string): CurriculumRetrievalMode {
     return value;
   }
 
-  return "keyword";
+  return "hybrid";
 }
-

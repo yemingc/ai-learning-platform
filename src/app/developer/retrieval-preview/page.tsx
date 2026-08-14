@@ -153,9 +153,9 @@ export default async function RetrievalPreviewPage({
             Curriculum Retrieval Preview
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">
-            Preview how static lessons become retrieval-ready curriculum chunks
-            before adding embeddings or a vector database. This keeps the RAG
-            layer grounded in authored lesson content and future citation IDs.
+            Inspect the grounded curriculum chunks, embedding coverage, and
+            keyword/embedding score contributions used by the runtime RAG path.
+            Stable chunk IDs keep every result traceable to authored lessons.
           </p>
         </div>
 
@@ -191,8 +191,8 @@ export default async function RetrievalPreviewPage({
             Search curriculum chunks
           </CardTitle>
           <CardDescription>
-            Deterministic keyword, tag, and section-type search. This is the
-            replaceable retrieval contract that future embeddings can implement.
+            Compare deterministic keyword search, embedding similarity, and the
+            production hybrid fusion policy with the same filters and chunk IDs.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -282,6 +282,22 @@ export default async function RetrievalPreviewPage({
                 {result.previewText}
               </p>
               <div className="grid gap-3 text-xs text-muted-foreground lg:grid-cols-[1.2fr_1fr]">
+                {result.scoreBreakdown && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 lg:col-span-2">
+                    <p className="font-semibold text-foreground">
+                      Hybrid score breakdown
+                    </p>
+                    <p className="mt-1 leading-5">
+                      Keyword {result.scoreBreakdown.keywordNormalizedScore}
+                      /100 × {result.scoreBreakdown.keywordWeight}% ={" "}
+                      {result.scoreBreakdown.keywordContribution}; embedding{" "}
+                      {result.scoreBreakdown.embeddingSimilarityScore}/100 ×{" "}
+                      {result.scoreBreakdown.embeddingWeight}% ={" "}
+                      {result.scoreBreakdown.embeddingContribution}. Raw keyword
+                      score: {result.scoreBreakdown.keywordRawScore}.
+                    </p>
+                  </div>
+                )}
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="font-semibold text-foreground">Stable chunk id</p>
                   <p className="mt-1 break-all">{result.id}</p>

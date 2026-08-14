@@ -7,9 +7,17 @@ import type {
 } from "@/features/ai-teacher/types";
 import type { AssembledCurriculumContext } from "@/features/rag/curriculum-context";
 import type { LearnerMemorySnapshot } from "@/features/ai-teacher/workflow/types";
-import { getCurriculumVisualization } from "@/curricula";
+import {
+  getCurriculumPack,
+  getCurriculumVisualization,
+} from "@/curricula";
+import {
+  localizeConcept,
+  localizeLesson,
+} from "@/curricula/localization";
+import { buildCompactLessonContext } from "@/features/ai-teacher/teacher-prompt-context";
 
-export const TEACHER_PROMPT_VERSION = "teacher-v5-adversarial-safety";
+export const TEACHER_PROMPT_VERSION = "teacher-v6-compact-rag-context";
 
 type TeacherPromptInput = {
   concept: Concept;
@@ -31,7 +39,7 @@ export function buildTeacherSystemPrompt(locale: "en" | "zh") {
     locale === "zh"
       ? [
           "Respond in Chinese.",
-          "Adapt the explanation for a Chinese AP Calculus learner. Use natural Chinese teaching language, not literal translation.",
+          "Adapt the explanation for a Chinese learner in the active course. Use natural Chinese teaching language, not literal translation.",
           "Only append English in full-width parentheses for math/course terminology, such as 极限（limit）, 函数值（function value）, 单侧极限（one-sided limit）, 无穷极限（infinite limit）, 垂直渐近线（vertical asymptote）.",
           "Do not add English parentheses after product, UI, or engineering words such as AI 教师, 课程, 段落, 上下文, 工作流, 记忆, 提示.",
           "Use the same math-term bilingual style in assistantMessage, suggestedFollowUps, detectedMisconception, and memorySignals.evidenceNote.",
@@ -90,6 +98,18 @@ export function buildTeacherUserPrompt({
       sectionType: citation.sectionType,
       sourceLabel: citation.sourceLabel,
     })) ?? [];
+  const curriculum = getCurriculumPack(concept.courseId);
+  const localizedConcept = curriculum
+    ? localizeConcept(curriculum, concept, locale)
+    : concept;
+  const localizedLesson = curriculum
+    ? localizeLesson(curriculum, lesson, locale)
+    : lesson;
+  const activeLessonContext = buildCompactLessonContext({
+    currentSection,
+    lesson: localizedLesson,
+    locale,
+  });
 
   return JSON.stringify(
     {
@@ -132,7 +152,7 @@ export function buildTeacherUserPrompt({
         "Do not include citation objects, URLs, or source labels. Only return chunk ids.",
       ],
       rules: [
-        "Base the response on the static lesson content below.",
+        "Base the response on activeLessonContext and any relevant retrieved curriculum chunks below.",
         "Use visualRepresentationEvidence when the learner asks about the displayed graph, nearby-value table, approach direction, open point, jump, or asymptote.",
         "Use the current section as the main local context.",
         "If selectedText is provided, respond directly to that selected lesson text.",
@@ -155,13 +175,13 @@ export function buildTeacherUserPrompt({
         id: concept.courseId,
       },
       concept: {
-        id: concept.id,
-        title: concept.title,
-        description: concept.description,
-        learningObjectives: concept.learningObjectives,
-        commonMisconceptions: concept.commonMisconceptions,
+        id: localizedConcept.id,
+        title: localizedConcept.title,
+        description: localizedConcept.description,
+        learningObjectives: localizedConcept.learningObjectives,
+        commonMisconceptions: localizedConcept.commonMisconceptions,
       },
-      lesson,
+      activeLessonContext,
       visualRepresentationEvidence: getCurriculumVisualization(
         concept.courseId,
         concept.id,

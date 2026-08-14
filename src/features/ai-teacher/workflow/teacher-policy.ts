@@ -151,9 +151,14 @@ export function assessCurriculumRetrievalQuality({
     return "unavailable";
   }
 
-  return context.retrievedChunks.some(
-    (chunk) => chunk.conceptId === currentConceptId,
-  )
+  return context.retrievedChunks
+    .slice(0, 2)
+    .some(
+      (chunk) =>
+        chunk.conceptId === currentConceptId &&
+        chunk.score >= context.minimumScore &&
+        chunk.matchedReasons.length > 0,
+    )
     ? "sufficient"
     : "insufficient";
 }
@@ -172,6 +177,10 @@ export function buildBroadenedRetrievalQuery(
   ]
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n");
+}
+
+export function getTeacherRetrievalScope(retrievalAttempt: number) {
+  return retrievalAttempt === 0 ? ("concept" as const) : ("course" as const);
 }
 
 export function decideTeacherMemoryUpdate({

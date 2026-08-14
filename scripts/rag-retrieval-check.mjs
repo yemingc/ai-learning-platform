@@ -2,13 +2,16 @@
 
 async function main() {
   const secret = process.env.EMBEDDING_INDEX_SECRET?.trim();
-  const response = await fetch(`${baseUrl}/api/developer/retrieval-check`, {
-    headers: secret
-      ? {
-          authorization: `Bearer ${secret}`,
-        }
-      : undefined,
-  });
+  const response = await fetch(
+    `${baseUrl}/api/developer/retrieval-check?includeModeComparison=true`,
+    {
+      headers: secret
+        ? {
+            authorization: `Bearer ${secret}`,
+          }
+        : undefined,
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`RAG retrieval check failed with status ${response.status}.`);
@@ -32,8 +35,25 @@ async function main() {
     );
   }
 
+  const hybridEvaluation = result.modeComparison?.modes?.find(
+    (summary) => summary.mode === "hybrid",
+  );
+
+  if (
+    !hybridEvaluation ||
+    hybridEvaluation.error ||
+    hybridEvaluation.passedCases !== hybridEvaluation.totalCases ||
+    hybridEvaluation.topThreeHitRate !== 1 ||
+    hybridEvaluation.recallAtEightRate !== 1 ||
+    hybridEvaluation.noMatchAccuracy !== 1
+  ) {
+    throw new Error(
+      `Hybrid retrieval release gate failed: ${JSON.stringify(hybridEvaluation)}`,
+    );
+  }
+
   console.log(
-    `RAG retrieval check passed: ${result.chunkCount} chunks, ${result.smokeResultCount} English smoke results, ${result.chineseSmokeResultCount} Chinese smoke results, ${result.evaluation.passedCases}/${result.evaluation.totalCases} eval cases passed.`,
+    `RAG retrieval check passed: ${result.chunkCount} chunks, ${result.smokeResultCount} English smoke results, ${result.chineseSmokeResultCount} Chinese smoke results, keyword ${result.evaluation.passedCases}/${result.evaluation.totalCases}, hybrid ${hybridEvaluation.passedCases}/${hybridEvaluation.totalCases} with Top-3, Recall@8, and no-match accuracy at 100%.`,
   );
 }
 

@@ -7,6 +7,7 @@ import {
   createTeacherMemoryPatch,
   decideCurriculumRetrieval,
   decideTeacherMemoryUpdate,
+  getTeacherRetrievalScope,
 } from "@/features/ai-teacher/workflow/teacher-policy";
 import type {
   LearnerMemorySnapshot,
@@ -73,10 +74,12 @@ export function getCurriculumRetrievalDecision(state: TeacherWorkflowState) {
 export async function retrieveCurriculumForTeacher(
   state: TeacherWorkflowState,
 ) {
+  const retrievalScope = getTeacherRetrievalScope(state.retrievalAttempt);
+
   return retrieveAndAssembleCurriculumContext({
     ...state.input,
     queryText: state.retrievalQuery,
-    restrictToConcept: state.retrievalAttempt > 0,
+    restrictToConcept: retrievalScope === "concept",
   });
 }
 
@@ -87,7 +90,13 @@ export function getRetrievalTraceDetail(
   return [
     `Attempt ${state.retrievalAttempt + 1}: retrieved ${context.retrievedChunks.length} curriculum chunks.`,
     `mode: ${context.actualMode}`,
-    state.retrievalAttempt > 0 ? "scope: current concept" : "scope: course",
+    `minimum score: ${context.minimumScore}`,
+    context.rejectedMatches > 0
+      ? `rejected below threshold: ${context.rejectedMatches}`
+      : undefined,
+    getTeacherRetrievalScope(state.retrievalAttempt) === "concept"
+      ? "scope: current concept"
+      : "scope: course",
     context.actualMode !== context.requestedMode
       ? `requested: ${context.requestedMode}`
       : undefined,

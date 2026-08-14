@@ -1,14 +1,13 @@
 ﻿import type { Concept } from "@/features/knowledge/types";
 import type { LessonContent } from "@/features/lessons/types";
-import type { LessonRetrievalChunk } from "@/features/lessons/retrieval-chunks";
 import { getCurriculumPacks } from "@/curricula";
 import { getLessonPath } from "@/curricula/routing";
-import { searchCurriculumChunks } from "@/features/rag/curriculum-retriever";
 import type { CurriculumRetrievalMode } from "@/features/rag/embedding-types";
 import {
   getRetrievalMode,
   searchCurriculumWithMode,
 } from "@/features/rag/retrieval-service";
+import type { CurriculumRetrievalResult } from "@/features/rag/retrieval-types";
 
 export type CurriculumCitation = {
   chunkId: string;
@@ -26,9 +25,11 @@ export type AssembledCurriculumContext = {
   requestedMode: CurriculumRetrievalMode;
   actualMode: CurriculumRetrievalMode;
   retrievalFallbackReason?: string;
-  retrievedChunks: LessonRetrievalChunk[];
+  retrievedChunks: CurriculumRetrievalResult[];
   contextText: string;
   allowedCitations: CurriculumCitation[];
+  minimumScore: number;
+  rejectedMatches: number;
 };
 
 export type AssembleCurriculumContextInput = {
@@ -60,7 +61,7 @@ export function buildCurriculumRetrievalQuery({
     .join("\n");
 }
 
-function formatContextText(chunks: LessonRetrievalChunk[]) {
+function formatContextText(chunks: CurriculumRetrievalResult[]) {
   if (!chunks.length) {
     return "";
   }
@@ -107,7 +108,11 @@ async function retrieveCurriculumChunks({
   if (requestedMode === "keyword") {
     return {
       actualMode: "keyword" as const,
-      preview: searchCurriculumChunks({ curricula, query }),
+      preview: await searchCurriculumWithMode({
+        curricula,
+        mode: "keyword",
+        query,
+      }),
       requestedMode,
     };
   }
@@ -129,7 +134,11 @@ async function retrieveCurriculumChunks({
     return {
       actualMode: "keyword" as const,
       fallbackReason,
-      preview: searchCurriculumChunks({ curricula, query }),
+      preview: await searchCurriculumWithMode({
+        curricula,
+        mode: "keyword",
+        query,
+      }),
       requestedMode,
     };
   }
@@ -144,7 +153,9 @@ export function createLessonOnlyCurriculumContext(
     actualMode: requestedMode,
     allowedCitations: [],
     contextText: "",
+    minimumScore: 0,
     requestedMode,
+    rejectedMatches: 0,
     retrievalFallbackReason: fallbackReason,
     retrievedChunks: [],
     shouldRetrieve: false,
@@ -191,7 +202,9 @@ export async function retrieveAndAssembleCurriculumContext({
       sourceLabel: chunk.sourceLabel,
     })),
     contextText: formatContextText(retrievedChunks),
+    minimumScore: retrieval.preview.minimumScore,
     requestedMode: retrieval.requestedMode,
+    rejectedMatches: retrieval.preview.rejectedMatches,
     retrievalFallbackReason: retrieval.fallbackReason,
     retrievedChunks,
     shouldRetrieve: true,

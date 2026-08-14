@@ -148,7 +148,7 @@ function assessRetrievalQualityNode(state: GraphState): GraphUpdate {
         "assess_retrieval_quality",
         retrievalQuality === "sufficient"
           ? "Retrieved context contains the active lesson concept."
-          : `${retrievalQuality}; the workflow will ${state.retrievalAttempt < MAX_RETRIEVAL_RETRIES ? "retry once with current-concept scope" : "fall back to the reviewed lesson context"}.`,
+          : `${retrievalQuality}; the workflow will ${state.retrievalAttempt < MAX_RETRIEVAL_RETRIES ? "retry once with course scope" : "fall back to the reviewed lesson context"}.`,
       ),
     ],
   };
@@ -172,7 +172,7 @@ function broadenRetrievalQueryNode(state: GraphState): GraphUpdate {
     trace: [
       createTraceEvent(
         "broaden_retrieval_query",
-        "Expanded the query with the active concept and restricted the retry to that concept.",
+        "Expanded the query with the active concept and broadened the retry to course scope.",
       ),
     ],
   };
@@ -182,7 +182,7 @@ function useLessonContextNode(state: GraphState): GraphUpdate {
   const skippedRetrieval = state.retrievalDecision === "skip";
   const reason = skippedRetrieval
     ? "Retrieval skipped for a lightweight message."
-    : "No sufficiently relevant current-concept chunks were found after the bounded retry.";
+    : "No sufficiently relevant curriculum chunks were found after the bounded retry.";
 
   return {
     curriculumContext: getLessonOnlyContext(reason),

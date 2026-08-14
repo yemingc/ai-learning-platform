@@ -40,7 +40,7 @@ before they move into problem solving.
 
 ## Current MVP
 
-Repository verification snapshot as of 2026-08-13:
+Repository verification snapshot as of 2026-08-14:
 
 | Area | Repository-backed status |
 | --- | --- |
@@ -52,7 +52,7 @@ Repository verification snapshot as of 2026-08-13:
 | AP formative assessment | 27 concepts, each with 2 diagnostic and 2 exit-ticket items; 108 bilingual items total |
 | Concept visualizations | 10 selected Unit 1 concepts |
 | Course review state | Engineering-complete AI-authored preview; named subject-matter review still required |
-| Automated repository checks | 99 of 99 tests, ESLint, and TypeScript no-emit checks pass locally |
+| Automated repository checks | 107 of 107 tests, ESLint, and TypeScript no-emit checks pass locally |
 
 The counts above describe source-controlled runtime content. They do not claim
 that optional live-model results or embedding-index freshness are current;
@@ -177,7 +177,7 @@ Student Message
       -> Lightweight: Use Reviewed Lesson Context
       -> Substantive: Retrieve Curriculum Context
           -> Assess Retrieval Quality
-          -> Retry Once With Current-Concept Scope, Or Fall Back To Lesson
+          -> Retry Once With Course Scope, Or Fall Back To Lesson
   -> Generate And Validate Teaching Response
   -> Extract Learning Signals
   -> Decide Memory Update
@@ -383,6 +383,7 @@ tag, section-type, course, unit, concept, and locale filtering, and displays:
 - section types
 - retrieval tags
 - matched reasons
+- hybrid keyword/embedding weights and score contributions
 - preview text
 
 This keeps the current curriculum as the source of truth for the AI Teacher's
@@ -392,21 +393,38 @@ English text.
 
 ### Runtime Retrieval Modes
 
-The AI Teacher runtime supports keyword, embedding, and hybrid retrieval. The
-configured mode is used when its index is complete and current; embedding or
-hybrid failures degrade explicitly to the deterministic keyword baseline.
+The AI Teacher runtime supports keyword, embedding, and hybrid retrieval.
+Hybrid is the evaluated default when its index is complete and current;
+embedding-path failures degrade explicitly to the deterministic keyword
+baseline and are recorded in the workflow trace.
 
 - Keyword retrieval remains the deterministic baseline.
+- Calibrated per-mode relevance thresholds reject low-confidence matches before
+  they reach the model; English stopwords and lightweight Chinese n-grams reduce
+  obvious lexical false positives.
 - Embedding retrieval stores vectors in local SQLite at
   `data/rag-embeddings.sqlite`.
-- Hybrid retrieval combines keyword and embedding scores for developer
-  comparison.
+- Hybrid retrieval combines normalized keyword evidence (65%) with the
+  embedding model's absolute cosine score (35%) after both candidate channels
+  pass their own relevance gates. Both weights are environment-configurable but
+  must total 100.
+- Course-wide hybrid results retain at most three chunks per concept, preventing
+  one concept from filling the result set while preserving complementary lesson
+  sections from a strongly supported concept.
 - `/developer/retrieval-preview` can switch between `keyword`, `embedding`, and
   `hybrid` retrieval modes.
-- `/developer/retrieval-evaluation` compares the same cases across all three
-  modes before changing the live teacher workflow.
+- `/developer/retrieval-evaluation` compares the same checked-in 48 cases across
+  all three modes. The suite covers AP Calculus Units 1 and 2, JavaScript,
+  bilingual queries, ranking distractors, and explicit no-match questions. It
+  reports Recall@8, Top-1/Top-3, MRR, no-match accuracy, and latency.
+- Top-1 and Top-3 are retrieval hit rates over the 45 positive cases: they
+  measure whether the expected curriculum evidence appears at rank 1 or within
+  ranks 1–3. They are not claims about final generated-answer accuracy; the
+  three no-match cases are reported separately as no-match accuracy.
 - The AI Teacher retrieval node is configurable with `RAG_RETRIEVAL_MODE` and
   falls back to keyword retrieval if embedding or hybrid retrieval fails.
+- `npm run test:rag` gates the hybrid default on all 48 cases passing with
+  Top-3, Recall@8, and no-match accuracy at 100%.
 - Embedding retrieval rejects incomplete, stale-text, or wrong-model records
   instead of silently searching a partial index; the developer preview reports
   current/missing/stale coverage and prompts for a rebuild after curriculum changes.
@@ -627,6 +645,11 @@ vector database:
 - Retrieval is conditional, so lightweight greetings or acknowledgements do not
   force a curriculum search.
 - At most the top four curriculum chunks are assembled into the model context.
+- Substantive questions search the active concept first. If quality is
+  insufficient, one bounded retry broadens to the course before the workflow
+  falls back to the reviewed lesson context.
+- The prompt receives a compact active-section lesson context instead of the
+  complete lesson object, avoiding duplication with retrieved chunks.
 - Retrieval mode is controlled by `RAG_RETRIEVAL_MODE`:
   `keyword`, `embedding`, or `hybrid`.
 - If `embedding` or `hybrid` retrieval fails, the workflow falls back to
@@ -645,8 +668,7 @@ filtering, workflow trace, and UI display can stay the same.
 The AI Teacher receives:
 
 - current concept
-- current static lesson content
-- current lesson section
+- compact lesson objective, key takeaways, and active-section content
 - selected text, when available
 - user message
 - recent chat history
@@ -713,10 +735,10 @@ The fallback is designed for workflow orchestration failures. DeepSeek API
 errors, missing API keys, invalid JSON, schema validation failures, and timeouts
 are surfaced to the UI instead of being hidden behind a fake answer.
 
-Both engines skip retrieval for lightweight turns, require active-concept
-context for grounded turns, retry retrieval at most once with a narrowed
-concept scope, and fall back to the reviewed static lesson when retrieval is
-still insufficient. AI-inferred learning signals pass through a separate
+Both engines skip retrieval for lightweight turns, search the active concept
+first for grounded turns, retry retrieval at most once with broader course
+scope, and fall back to the reviewed static lesson when retrieval is still
+insufficient. AI-inferred learning signals pass through a separate
 memory-write gate so audit-only or lightweight turns cannot silently change
 readiness.
 
@@ -755,7 +777,12 @@ AI_TEACHER_BURST_LIMIT=12
 AI_TEACHER_BURST_WINDOW_SECONDS=600
 AI_TEACHER_DAILY_LIMIT=100
 AI_RUN_RETENTION_DAYS=90
-RAG_RETRIEVAL_MODE=keyword
+RAG_RETRIEVAL_MODE=hybrid
+RAG_KEYWORD_MIN_SCORE=4
+RAG_EMBEDDING_MIN_SCORE=48
+RAG_HYBRID_MIN_SCORE=20
+RAG_HYBRID_KEYWORD_WEIGHT=65
+RAG_HYBRID_EMBEDDING_WEIGHT=35
 NEXT_PUBLIC_SHOW_AI_TRACE=false
 ENABLE_DEVELOPER_TOOLS=true
 DEVELOPER_MODE_PASSWORD=
@@ -841,8 +868,8 @@ Run the RAG retrieval index check (also requires `npm run dev` already running o
 npm run test:rag
 ```
 
-Build the optional local embedding index (requires `npm run dev` already
-running and embedding environment variables configured):
+Build the local embedding index used by the default hybrid mode (requires
+`npm run dev` already running and embedding environment variables configured):
 
 ```bash
 npm run embeddings:build
@@ -1053,8 +1080,8 @@ immediately visible through an actual hosted demo and reviewed visuals.
 
 - Record named subject-matter review of Unit 1 and Unit 2 against the existing
   versioned whole-course brief before changing the course from `preview`
-- Rebuild the embedding index and preserve a keyword/embedding/hybrid retrieval
-  comparison after the current curriculum changes
+- Preserve the 48-case keyword/embedding/hybrid comparison whenever curriculum,
+  chunking, embedding model, thresholds, or fusion weights change
 - Deploy the verified standalone image to a single-instance container host
 - Collect at least three real human-reviewed live runs for the calibration sample
 - README screenshots or demo GIFs backed by a deployed portfolio instance

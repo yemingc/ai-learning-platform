@@ -71,21 +71,31 @@ function ModeSummaryCard({
         <CardDescription>
           {summary.error
             ? summary.error
-            : `${summary.passedCases}/${summary.totalCases} cases passed. MRR ${summary.meanReciprocalRank.toFixed(2)}.`}
+            : `${summary.passedCases}/${summary.totalCases} cases passed. Recall@8 ${formatPercent(summary.recallAtEightRate)} · MRR ${summary.meanReciprocalRank.toFixed(2)}.`}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-lg border border-border bg-background/70 p-3">
           <p className="text-xs uppercase text-muted-foreground">Top-1</p>
           <p className="mt-1 font-semibold">
-            {summary.topOneHits}/{summary.totalCases} · {formatPercent(summary.topOneHitRate)}
+            {summary.topOneHits}/{summary.positiveCases} · {formatPercent(summary.topOneHitRate)}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-background/70 p-3">
           <p className="text-xs uppercase text-muted-foreground">Top-3</p>
           <p className="mt-1 font-semibold">
-            {summary.topThreeHits}/{summary.totalCases} · {formatPercent(summary.topThreeHitRate)}
+            {summary.topThreeHits}/{summary.positiveCases} · {formatPercent(summary.topThreeHitRate)}
           </p>
+        </div>
+        <div className="rounded-lg border border-border bg-background/70 p-3">
+          <p className="text-xs uppercase text-muted-foreground">No-match</p>
+          <p className="mt-1 font-semibold">
+            {summary.noMatchCorrect}/{summary.negativeCases} · {formatPercent(summary.noMatchAccuracy)}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-background/70 p-3">
+          <p className="text-xs uppercase text-muted-foreground">p95 latency</p>
+          <p className="mt-1 font-semibold">{Math.round(summary.p95DurationMs)} ms</p>
         </div>
       </CardContent>
     </Card>
@@ -207,8 +217,8 @@ export default async function RetrievalEvaluationPage() {
                 : "No passing mode"}
             </CardTitle>
             <CardDescription>
-              Selected by pass rate first, then mean reciprocal rank. Use this
-              as evidence before changing live AI Teacher retrieval.
+              Selected by pass rate, no-match accuracy, Top-3 quality, MRR, and
+              then p95 latency. Use this evidence before changing live retrieval.
             </CardDescription>
           </CardHeader>
         </Card>

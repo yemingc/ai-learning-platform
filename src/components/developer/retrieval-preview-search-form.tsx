@@ -51,7 +51,7 @@ export function RetrievalPreviewSearchForm({
     const unitId = formData.get("unitId")?.toString() ?? "";
     const conceptId = formData.get("conceptId")?.toString() ?? "";
     const locale = formData.get("locale")?.toString() ?? "zh";
-    const mode = formData.get("mode")?.toString() ?? "keyword";
+    const mode = formData.get("mode")?.toString() ?? "hybrid";
     const sectionType = formData.get("sectionType")?.toString() ?? "";
 
     if (query) {
