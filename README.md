@@ -1,5 +1,7 @@
 # AI Learning Platform
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 A learning-centric AI education platform that combines reviewed curriculum,
 LangGraph orchestration, hybrid RAG, formative assessment, and evidence-based
 learner memory.
