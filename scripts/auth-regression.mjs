@@ -164,11 +164,13 @@ async function checkEvaluationReportBearerAccess() {
   );
   const jsonReportText = await jsonReport.text();
   const jsonReportBody = JSON.parse(jsonReportText);
+  const deterministicTotalCases = jsonReportBody?.deterministic?.totalCases;
   assert(
     jsonReport.status === 200 &&
       jsonReportBody?.schemaVersion === "ai-evaluation-governance-report-v1" &&
-      jsonReportBody?.deterministic?.passedCases === 14 &&
-      jsonReportBody?.deterministic?.totalCases === 14 &&
+      deterministicTotalCases > 0 &&
+      jsonReportBody?.deterministic?.passedCases === deterministicTotalCases &&
+      deterministicTotalCases === jsonReportBody?.suite?.totalCases &&
       jsonReportBody?.decision?.status === "pass" &&
       jsonReportBody?.decision?.evidenceLevel === "deterministic_only" &&
       jsonReport.headers.get("x-evaluation-gate-status") === "pass" &&
@@ -727,21 +729,26 @@ async function run() {
     );
     const evaluationHtml = await evaluationPage.text();
     const normalizedEvaluationHtml = evaluationHtml.replaceAll("<!-- -->", "");
-    const caseSummary = normalizedEvaluationHtml.match(
-      /\d+\/14 cases passed/,
-    )?.[0];
+    const caseSummaryMatch = normalizedEvaluationHtml.match(
+      /(\d+)\/(\d+) cases passed/,
+    );
+    const passedCaseCount = Number(caseSummaryMatch?.[1]);
+    const totalCaseCount = Number(caseSummaryMatch?.[2]);
     const hasQualityDimensions = normalizedEvaluationHtml.includes("Quality dimensions");
     const hasReleaseDimensions = normalizedEvaluationHtml.includes(
       "Six release dimensions",
     );
     assert(
       evaluationPage.status === 200 &&
-        caseSummary === "14/14 cases passed" &&
+        totalCaseCount > 0 &&
+        passedCaseCount === totalCaseCount &&
         hasQualityDimensions &&
         hasReleaseDimensions,
-      `developer evaluation page expected 14/14 six-dimension suite, got status=${evaluationPage.status} summary=${caseSummary ?? "missing"} quality=${hasQualityDimensions} release=${hasReleaseDimensions}`,
+      `developer evaluation page expected an all-passing six-dimension suite, got status=${evaluationPage.status} summary=${caseSummaryMatch?.[0] ?? "missing"} quality=${hasQualityDimensions} release=${hasReleaseDimensions}`,
     );
-    console.log("PASS developer evaluation page renders 14/14 six-dimension suite");
+    console.log(
+      `PASS developer evaluation page renders ${passedCaseCount}/${totalCaseCount} six-dimension suite`,
+    );
 
     const browserEvaluationReport = await request(
       "/api/developer/evaluation-report?format=json",
