@@ -8,6 +8,7 @@ import type {
   TeacherWorkflowResult,
   TeacherWorkflowRuntimeOptions,
 } from "@/features/ai-teacher/workflow/types";
+import { getLearningAgentActionMode } from "@/features/ai-teacher/tools/tool-policy";
 
 export type TeacherWorkflowEngine = "langgraph" | "typescript";
 
@@ -33,6 +34,13 @@ export async function runTeacherWorkflow(
   };
 
   if (getTeacherWorkflowEngine() === "typescript") {
+    if (getLearningAgentActionMode(input.userMessage) === "learning_agent") {
+      throw new TeacherChatServiceError(
+        "api_error",
+        "Learning-plan tool actions require the LangGraph workflow engine.",
+      );
+    }
+
     return runTypeScriptTeacherWorkflow(input, effectiveRuntimeOptions);
   }
 
@@ -48,6 +56,10 @@ export async function runTeacherWorkflow(
         "api_error",
         "AI Teacher workflow failed after response streaming began.",
       );
+    }
+
+    if (getLearningAgentActionMode(input.userMessage) === "learning_agent") {
+      throw error;
     }
 
     console.warn(

@@ -2,6 +2,9 @@ export const TEACHER_STREAM_MEDIA_TYPE = "application/x-ndjson";
 
 export type TeacherStreamStage =
   | "preparing_context"
+  | "planning_action"
+  | "executing_tools"
+  | "awaiting_confirmation"
   | "generating_response"
   | "finalizing_learning_state";
 

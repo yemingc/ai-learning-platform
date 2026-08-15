@@ -50,6 +50,9 @@ flowchart LR
     RAG --> Embeddings[("SQLite embedding index")]
     Graph --> Model["DeepSeek via OpenAI-compatible SDK"]
     Model --> Validation["Zod validation and citation allowlist"]
+    Graph --> AgentTools["Allowlisted learning tools"]
+    AgentTools --> ActionGate["User confirmation and idempotent activation"]
+    ActionGate --> Plan
 
     Assessment --> Memory[("Account-scoped learner memory")]
     Validation --> Memory
@@ -63,8 +66,11 @@ flowchart LR
 The default LangGraph path is a bounded state machine: it classifies intent,
 chooses a teaching strategy, decides whether retrieval is useful, validates the
 response, and separately decides whether inferred learning signals may update
-memory. A deterministic TypeScript runner shares the same policies as a
-fallback.
+memory. Explicit planning requests enter a bounded DeepSeek tool loop; the
+server injects learner and course identity, validates every call, and requires
+one-time user confirmation before activating a plan. A deterministic TypeScript
+runner shares the teaching policies as a fallback, while action requests fail
+closed unless LangGraph is available.
 
 See [Architecture](docs/ARCHITECTURE.md) for the request lifecycle, domain
 model, trust boundaries, routes, observability, and failure behavior.
@@ -101,6 +107,16 @@ by `courseId` rather than hard-coded to AP Calculus.
   interrupted streams are surfaced instead of being replaced with fake answers.
 - AI-inferred signals pass through a separate memory-write gate; audit-only and
   lightweight interactions cannot silently change readiness.
+- Explicit planning requests can use four allowlisted learning tools to inspect
+  state, retrieve course evidence, draft a plan, and request activation.
+- Tool execution is capped at three model steps and four calls. Model-provided
+  identity fields and unknown arguments are rejected by strict Zod schemas.
+- Plan activation is a two-phase write with a hashed, expiring, learner-bound
+  confirmation token and idempotent SQLite transaction; MCP and multi-agent
+  orchestration are intentionally outside the current scope.
+- The activated plan is currently a prerequisite-aware course roadmap with
+  prioritized focus concepts and an optional minutes-per-session preference. It
+  does not yet split a weekly goal into calendar days or scheduled sessions.
 
 ### 2. Evaluated hybrid RAG
 
@@ -152,11 +168,13 @@ Latest local repository verification:
 
 | Check | Result |
 | --- | --- |
-| Automated tests | 107 / 107 passed |
+| Automated tests | 127 / 127 passed |
+| Agent routing and safety | 20 / 20 bilingual routing cases; scope injection, call budgets, expiry, and idempotency covered |
+| Live Agent verification | A two-turn `deepseek-v4-pro` tool protocol passed with `reasoning_content` preserved; the authenticated manual draft, confirm, and activate flow was observed, but automated browser E2E is not claimed |
 | TypeScript | `npx tsc --noEmit` passed |
 | ESLint | `npm run lint` passed |
 | Production dependency audit | 0 high/critical vulnerabilities |
-| Production build | Passed; 88 routes/pages generated |
+| Production build | Passed; 89 static pages generated |
 
 Latest environment-backed retrieval snapshot:
 

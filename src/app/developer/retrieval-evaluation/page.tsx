@@ -1,4 +1,3 @@
-﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Trophy, XCircle } from "lucide-react";
 import { auth } from "@/auth";
@@ -184,13 +183,13 @@ export default async function RetrievalEvaluationPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-      <Link
+      <a
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-8")}
         href="/developer"
       >
         <ArrowLeft className="size-4" />
         Back to Developer Mode
-      </Link>
+      </a>
 
       <section className="grid gap-8 lg:grid-cols-[1fr_24rem] lg:items-end">
         <div>

@@ -49,23 +49,34 @@ export function SiteHeader() {
                     (pathname.startsWith("/developer") ||
                       pathname.startsWith("/dashboard/workflow-inspector") ||
                       pathname.startsWith("/dashboard/ai-evaluation")));
+                const className = buttonVariants({
+                  variant: isActive ? "secondary" : "ghost",
+                  size: "sm",
+                  className: cn(
+                    "text-muted-foreground",
+                    isActive && "text-foreground",
+                  ),
+                });
 
                 return (
                   <li key={item.href}>
-                    <Link
-                      aria-current={isActive ? "page" : undefined}
-                      className={buttonVariants({
-                        variant: isActive ? "secondary" : "ghost",
-                        size: "sm",
-                        className: cn(
-                          "text-muted-foreground",
-                          isActive && "text-foreground",
-                        ),
-                      })}
-                      href={item.href}
-                    >
-                      {item.label[language]}
-                    </Link>
+                    {item.href === "/developer" ? (
+                      <a
+                        aria-current={isActive ? "page" : undefined}
+                        className={className}
+                        href={item.href}
+                      >
+                        {item.label[language]}
+                      </a>
+                    ) : (
+                      <Link
+                        aria-current={isActive ? "page" : undefined}
+                        className={className}
+                        href={item.href}
+                      >
+                        {item.label[language]}
+                      </Link>
+                    )}
                   </li>
                 );
               })}

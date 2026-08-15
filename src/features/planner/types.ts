@@ -29,6 +29,8 @@ export type LearningPlan = {
   courseId: CourseId;
   unitId?: UnitId;
   title: string;
+  goal?: string;
+  minutesPerSession?: number;
   status: LearningPlanStatus;
   focusConceptIds: ConceptId[];
   steps: LearningPlanStep[];

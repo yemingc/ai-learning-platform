@@ -1,7 +1,6 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Code2, Loader2, Lock, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,6 @@ export function DeveloperModeClient({
   hasAccess,
   requiresPassword,
 }: DeveloperModeClientProps) {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
@@ -56,8 +54,7 @@ export function DeveloperModeClient({
         );
       }
 
-      router.push(callbackUrl);
-      router.refresh();
+      window.location.replace(callbackUrl);
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -77,7 +74,7 @@ export function DeveloperModeClient({
       await fetch("/api/developer-mode", {
         method: "DELETE",
       });
-      router.refresh();
+      window.location.reload();
     } finally {
       setIsLoading(false);
     }

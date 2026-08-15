@@ -1,8 +1,4 @@
-﻿"use client";
-
-import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
-import { useTransition } from "react";
+﻿import { Search } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import type { LessonSectionType } from "@/features/lessons/types";
 import type { CurriculumRetrievalMode } from "@/features/rag/embedding-types";
@@ -39,55 +35,11 @@ export function RetrievalPreviewSearchForm({
   sectionTypes,
   units,
 }: RetrievalPreviewSearchFormProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formData = new FormData(event.currentTarget);
-    const params = new URLSearchParams();
-    const query = formData.get("query")?.toString().trim() ?? "";
-    const unitId = formData.get("unitId")?.toString() ?? "";
-    const conceptId = formData.get("conceptId")?.toString() ?? "";
-    const locale = formData.get("locale")?.toString() ?? "zh";
-    const mode = formData.get("mode")?.toString() ?? "hybrid";
-    const sectionType = formData.get("sectionType")?.toString() ?? "";
-
-    if (query) {
-      params.set("query", query);
-    }
-
-    if (unitId) {
-      params.set("unitId", unitId);
-    }
-
-    if (conceptId) {
-      params.set("conceptId", conceptId);
-    }
-
-    if (locale) {
-      params.set("locale", locale);
-    }
-
-    if (mode) {
-      params.set("mode", mode);
-    }
-
-    if (sectionType) {
-      params.set("sectionType", sectionType);
-    }
-
-    startTransition(() => {
-      router.push(`/developer/retrieval-preview?${params.toString()}`);
-      router.refresh();
-    });
-  }
-
   return (
     <form
+      action="/developer/retrieval-preview"
       className="grid gap-3 lg:grid-cols-[1.25fr_0.75fr_0.75fr_0.9fr_0.9fr_0.9fr_auto]"
-      onSubmit={handleSubmit}
+      method="get"
     >
       <label className="grid gap-2 text-sm font-medium">
         Query
@@ -175,11 +127,10 @@ export function RetrievalPreviewSearchForm({
 
       <button
         className={cn(buttonVariants({ variant: "outline" }), "mt-auto")}
-        disabled={isPending}
         type="submit"
       >
         <Search className="size-4" />
-        {isPending ? "Searching..." : "Search"}
+        Search
       </button>
     </form>
   );

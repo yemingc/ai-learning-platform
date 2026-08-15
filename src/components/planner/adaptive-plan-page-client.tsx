@@ -34,10 +34,14 @@ import type { Concept } from "@/features/knowledge/types";
 import { getStudyRecommendation } from "@/features/memory/study-recommendations";
 import type { LearnerMemory } from "@/features/memory/types";
 import { createAdaptiveLearningPlan } from "@/features/planner/adaptive-learning-plan";
-import type { LearningPlanStepStatus } from "@/features/planner/types";
+import type {
+  LearningPlan,
+  LearningPlanStepStatus,
+} from "@/features/planner/types";
 import { cn } from "@/lib/utils";
 
 type AdaptivePlanPageClientProps = {
+  activePlan?: LearningPlan;
   curriculum: CurriculumPack;
   memory: Pick<LearnerMemory, "conceptMemories" | "updatedAt">;
 };
@@ -45,9 +49,12 @@ type AdaptivePlanPageClientProps = {
 const copy = {
   en: {
     badge: "Adaptive study plan",
+    activatedBadge: "Confirmed Agent plan",
     title: "Know exactly what to learn next.",
     intro:
       "This plan combines prerequisite dependencies, server-scored assessment evidence, readiness, misconceptions, and recent review signals. It changes as your learning evidence changes.",
+    planGoal: "Confirmed goal",
+    sessionBudget: "Session budget",
     evidence: "Evidence-aware",
     evidenceDescription:
       "An exit ticket can complete a concept. AI conversations personalize support but cannot certify mastery on their own.",
@@ -82,9 +89,12 @@ const copy = {
   },
   zh: {
     badge: "自适应学习计划",
+    activatedBadge: "已确认的 Agent 计划",
     title: "清楚知道下一步该学什么。",
     intro:
       "计划会综合先修依赖、服务器评分的测评证据、准备度、误区和近期复习信号。学习证据变化后，优先级也会随之变化。",
+    planGoal: "已确认目标",
+    sessionBudget: "单次学习时长",
     evidence: "证据驱动",
     evidenceDescription:
       "离堂检查可以完成概念认证；AI 对话用于个性化支持，但不能单独证明掌握。",
@@ -164,12 +174,20 @@ function formatEvidenceDate(value: string, language: "en" | "zh") {
 }
 
 export function AdaptivePlanPageClient({
+  activePlan,
   curriculum,
   memory,
 }: AdaptivePlanPageClientProps) {
   const { language } = useLanguage();
   const pageCopy = copy[language];
-  const plan = createAdaptiveLearningPlan({ curriculum, language, memory });
+  const generatedPlan = createAdaptiveLearningPlan({
+    curriculum,
+    language,
+    memory,
+  });
+  const plan = activePlan?.courseId === curriculum.course.id
+    ? activePlan
+    : generatedPlan;
   const course = localizeCourse(curriculum, language);
   const sourceUnit =
     curriculum.units.find((item) => item.id === curriculum.defaultUnitId) ??
@@ -212,6 +230,11 @@ export function AdaptivePlanPageClient({
       <section className="grid gap-8 lg:grid-cols-[1fr_24rem] lg:items-end">
         <div>
           <Badge variant="secondary">{pageCopy.badge}</Badge>
+          {activePlan && (
+            <Badge className="ml-2" variant="outline">
+              {pageCopy.activatedBadge}
+            </Badge>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge variant="outline">{course.title}</Badge>
             <Badge variant="outline">{unit.title}</Badge>
@@ -222,6 +245,20 @@ export function AdaptivePlanPageClient({
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">
             {pageCopy.intro}
           </p>
+          {activePlan && (activePlan.goal || activePlan.minutesPerSession) && (
+            <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted-foreground">
+              {activePlan.goal && (
+                <Badge variant="outline">
+                  {pageCopy.planGoal}: {activePlan.goal}
+                </Badge>
+              )}
+              {activePlan.minutesPerSession && (
+                <Badge variant="outline">
+                  {pageCopy.sessionBudget}: {activePlan.minutesPerSession} {pageCopy.minutes}
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
 
         <Card className="border-learning-mint/30 bg-learning-mint/10">

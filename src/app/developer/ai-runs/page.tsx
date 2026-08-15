@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Activity,
@@ -94,34 +93,34 @@ export default async function AiRunsPage() {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link
+        <a
           className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
           href="/developer"
         >
           <ArrowLeft />
           Developer tools
-        </Link>
-        <Link
+        </a>
+        <a
           className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           href="/developer/ai-runs"
         >
           <RefreshCw />
           Refresh
-        </Link>
-        <Link
+        </a>
+        <a
           className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           href="/api/developer/evaluation-report?format=json"
         >
           <Download />
           JSON report
-        </Link>
-        <Link
+        </a>
+        <a
           className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           href="/api/developer/evaluation-report?format=markdown"
         >
           <Download />
           Markdown report
-        </Link>
+        </a>
       </div>
 
       <section className="mt-8 max-w-4xl">

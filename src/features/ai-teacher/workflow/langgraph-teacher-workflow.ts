@@ -32,10 +32,19 @@ import type {
 } from "@/features/ai-teacher/workflow/types";
 import type { CurriculumCitation } from "@/features/rag/curriculum-context";
 import type { TeachingMove } from "@/features/ai-teacher/types";
+import { getLearningAgentActionMode } from "@/features/ai-teacher/tools/tool-policy";
+import { runLearningAgentForTeacher } from "@/features/ai-teacher/tools/learning-agent-service";
+import type {
+  LearningAgentToolTrace,
+  PendingLearningPlanAction,
+} from "@/features/ai-teacher/tools/types";
 
 const TeacherWorkflowAnnotation = Annotation.Root({
   context: Annotation<TeacherWorkflowContext | undefined>(),
   input: Annotation<TeacherWorkflowInput>(),
+  actionMode: Annotation<TeacherWorkflowState["actionMode"]>(),
+  pendingAgentAction: Annotation<PendingLearningPlanAction | undefined>(),
+  toolTrace: Annotation<LearningAgentToolTrace[]>(),
   intent: Annotation<TeacherWorkflowState["intent"]>(),
   teachingStrategy: Annotation<TeachingMove | undefined>(),
   retrievalDecision: Annotation<TeacherWorkflowState["retrievalDecision"]>(),
@@ -59,6 +68,10 @@ const TeacherWorkflowAnnotation = Annotation.Root({
 const TeacherWorkflowRuntimeAnnotation = Annotation.Root({
   onAssistantMessageDelta:
     Annotation<TeacherWorkflowRuntimeOptions["onAssistantMessageDelta"]>(),
+  onWorkflowStage:
+    Annotation<TeacherWorkflowRuntimeOptions["onWorkflowStage"]>(),
+  agentContext:
+    Annotation<TeacherWorkflowRuntimeOptions["agentContext"]>(),
 });
 
 type GraphState = typeof TeacherWorkflowAnnotation.State;
@@ -94,6 +107,127 @@ function selectTeachingStrategyNode(state: GraphState): GraphUpdate {
     trace: [
       createTraceEvent("select_teaching_strategy", teachingStrategy),
     ],
+  };
+}
+
+function decideAgentActionNode(state: GraphState): GraphUpdate {
+  const actionMode = getLearningAgentActionMode(state.input.userMessage);
+
+  return {
+    actionMode,
+    trace: [
+      createTraceEvent(
+        "decide_agent_action",
+        actionMode === "learning_agent"
+          ? "A progress or planning request will use the bounded learning-tool loop."
+          : "The request stays on the grounded teaching workflow.",
+      ),
+    ],
+  };
+}
+
+function routeAfterAgentActionDecision(state: GraphState) {
+  return state.actionMode === "learning_agent"
+    ? "run_learning_agent"
+    : "decide_curriculum_retrieval";
+}
+
+async function runLearningAgentNode(
+  state: GraphState,
+  runtime: {
+    context?: typeof TeacherWorkflowRuntimeAnnotation.State;
+    signal: AbortSignal;
+  },
+): Promise<GraphUpdate> {
+  const agentContext = runtime.context?.agentContext;
+
+  if (!agentContext) {
+    throw new Error("Learning Agent requires server-injected runtime context.");
+  }
+
+  const result = await runLearningAgentForTeacher({
+    input: state.input,
+    runtime: agentContext,
+    runtimeOptions: {
+      agentContext,
+      onWorkflowStage: runtime.context?.onWorkflowStage,
+      signal: runtime.signal,
+    },
+  });
+  const memorySignals = {
+    confusionLevel: "low" as const,
+    needsReview: false,
+    suggestedStudyAction: "continue_learning" as const,
+    confidenceDelta: 0,
+    evidenceNote:
+      state.input.locale === "zh"
+        ? "工具操作用于规划学习，不作为概念掌握证据。"
+        : "Tool actions plan learning and do not count as mastery evidence.",
+  };
+  const trace = [
+    createTraceEvent(
+      "plan_tool_calls",
+      `${result.modelCalls} model step(s), ${result.toolCalls} bounded tool call(s).`,
+    ),
+    ...result.toolTrace.map((toolEvent) => ({
+      createdAt: new Date().toISOString(),
+      node: "execute_learning_tool" as const,
+      status:
+        toolEvent.status === "succeeded"
+          ? ("success" as const)
+          : ("error" as const),
+      detail: `${toolEvent.toolName}: ${toolEvent.detail} (${toolEvent.durationMs}ms)`,
+    })),
+  ];
+
+  if (result.pendingAction) {
+    runtime.context?.onWorkflowStage?.("awaiting_confirmation");
+    trace.push(
+      createTraceEvent(
+        "request_action_confirmation",
+        "A server-bound write is pending explicit learner confirmation.",
+      ),
+    );
+  }
+
+  trace.push(
+    createTraceEvent(
+      "return_agent_action",
+      result.pendingAction
+        ? "Returned a plan preview without executing the write."
+        : "Returned the completed read-only tool result.",
+    ),
+  );
+
+  return {
+    citations: result.citations,
+    memorySignals,
+    memoryWriteDecision: "skip",
+    modelTelemetry: {
+      ...result.telemetry,
+      promptVersion: "learning-agent-tools-v1",
+      provider: "deepseek",
+    },
+    nextStudyAction: {
+      action: "continue_learning",
+      reason:
+        state.input.locale === "zh"
+          ? "按已读取的学习证据继续执行下一步。"
+          : "Continue with the next step grounded in the retrieved learning evidence.",
+    },
+    pendingAgentAction: result.pendingAction,
+    teacherResponse: {
+      assistantMessage: result.assistantMessage,
+      suggestedFollowUps:
+        state.input.locale === "zh"
+          ? ["为什么优先这些概念？", "把计划调整为每天20分钟"]
+          : ["Why prioritize these concepts?", "Adjust the plan to 20 minutes per day"],
+      teachingMove: "reflect",
+      memorySignals,
+      citationChunkIds: result.citations.map((citation) => citation.chunkId),
+    },
+    toolTrace: result.toolTrace,
+    trace,
   };
 }
 
@@ -300,6 +434,8 @@ function createTeacherGraph() {
     .addNode("build_context", buildContextNode)
     .addNode("classify_user_intent", classifyUserIntentNode)
     .addNode("select_teaching_strategy", selectTeachingStrategyNode)
+    .addNode("decide_agent_action", decideAgentActionNode)
+    .addNode("run_learning_agent", runLearningAgentNode)
     .addNode("decide_curriculum_retrieval", decideCurriculumRetrievalNode)
     .addNode("retrieve_curriculum_context", retrieveCurriculumContextNode)
     .addNode("assess_retrieval_quality", assessRetrievalQualityNode)
@@ -313,7 +449,13 @@ function createTeacherGraph() {
     .addEdge(START, "build_context")
     .addEdge("build_context", "classify_user_intent")
     .addEdge("classify_user_intent", "select_teaching_strategy")
-    .addEdge("select_teaching_strategy", "decide_curriculum_retrieval")
+    .addEdge("select_teaching_strategy", "decide_agent_action")
+    .addConditionalEdges(
+      "decide_agent_action",
+      routeAfterAgentActionDecision,
+      ["run_learning_agent", "decide_curriculum_retrieval"],
+    )
+    .addEdge("run_learning_agent", END)
     .addConditionalEdges(
       "decide_curriculum_retrieval",
       routeAfterRetrievalDecision,
@@ -350,6 +492,7 @@ export async function runLangGraphTeacherWorkflow(
   runtimeOptions: TeacherWorkflowRuntimeOptions = {},
 ): Promise<TeacherWorkflowResult> {
   const initialState: GraphState = {
+    actionMode: undefined,
     citations: [],
     context: undefined,
     curriculumContext: undefined,
@@ -360,19 +503,23 @@ export async function runLangGraphTeacherWorkflow(
     memoryWriteDecision: undefined,
     modelTelemetry: undefined,
     nextStudyAction: undefined,
+    pendingAgentAction: undefined,
     retrievalAttempt: 0,
     retrievalDecision: undefined,
     retrievalQuality: undefined,
     retrievalQuery: undefined,
     teacherResponse: undefined,
     teachingStrategy: undefined,
+    toolTrace: [],
     trace: [
       createTraceEvent("student_message", "Received student message."),
     ],
   };
   const state = await teacherGraph.invoke(initialState, {
     context: {
+      agentContext: runtimeOptions.agentContext,
       onAssistantMessageDelta: runtimeOptions.onAssistantMessageDelta,
+      onWorkflowStage: runtimeOptions.onWorkflowStage,
     },
     signal: runtimeOptions.signal,
   });
@@ -396,6 +543,8 @@ export async function runLangGraphTeacherWorkflow(
     nextStudyAction: state.nextStudyAction,
     citations: state.citations ?? [],
     trace: state.trace,
+    pendingAgentAction: state.pendingAgentAction,
+    toolTrace: state.toolTrace,
     state: state as TeacherWorkflowState,
   };
 }
