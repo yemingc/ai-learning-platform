@@ -80,7 +80,6 @@ export function RetrievalPreviewSearchForm({
 
     startTransition(() => {
       router.push(`/developer/retrieval-preview?${params.toString()}`);
-      router.refresh();
     });
   }
 
