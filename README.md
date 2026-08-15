@@ -114,6 +114,9 @@ by `courseId` rather than hard-coded to AP Calculus.
 - Plan activation is a two-phase write with a hashed, expiring, learner-bound
   confirmation token and idempotent SQLite transaction; MCP and multi-agent
   orchestration are intentionally outside the current scope.
+- The activated plan is currently a prerequisite-aware course roadmap with
+  prioritized focus concepts and an optional minutes-per-session preference. It
+  does not yet split a weekly goal into calendar days or scheduled sessions.
 
 ### 2. Evaluated hybrid RAG
 
@@ -165,9 +168,9 @@ Latest local repository verification:
 
 | Check | Result |
 | --- | --- |
-| Automated tests | 119 / 119 passed |
+| Automated tests | 127 / 127 passed |
 | Agent routing and safety | 20 / 20 bilingual routing cases; scope injection, call budgets, expiry, and idempotency covered |
-| Live Tool Calling smoke | `deepseek-v4-pro` returned one declared tool call; full authenticated UI E2E is not yet claimed |
+| Live Agent verification | A two-turn `deepseek-v4-pro` tool protocol passed with `reasoning_content` preserved; the authenticated manual draft, confirm, and activate flow was observed, but automated browser E2E is not claimed |
 | TypeScript | `npx tsc --noEmit` passed |
 | ESLint | `npm run lint` passed |
 | Production dependency audit | 0 high/critical vulnerabilities |
