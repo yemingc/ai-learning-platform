@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Activity,
@@ -124,17 +123,17 @@ export default async function DeveloperPage({
                 <CardDescription>{tool.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Link
+                <a
                   className={cn(
                     buttonVariants({ variant: "outline" }),
                     !hasAccess && "pointer-events-none",
                   )}
-                  href={hasAccess ? tool.href : "/developer"}
+                  href={hasAccess ? tool.href : undefined}
                   aria-disabled={!hasAccess}
                 >
                   Open tool
                   <ArrowRight className="size-4" />
-                </Link>
+                </a>
               </CardContent>
             </Card>
           );

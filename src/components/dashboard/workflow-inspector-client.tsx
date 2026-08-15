@@ -235,6 +235,11 @@ function TraceEventRow({
   index: number;
   language: "en" | "zh";
 }) {
+  const nodeLabel = nodeLabels[event.node] ?? {
+    en: event.node,
+    zh: `未知节点（${event.node}）`,
+  };
+
   return (
     <li className="relative grid gap-3 rounded-lg border border-border bg-background/70 p-4 sm:grid-cols-[2.5rem_1fr]">
       <div className="grid size-10 place-items-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
@@ -242,7 +247,7 @@ function TraceEventRow({
       </div>
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-semibold">{nodeLabels[event.node][language]}</p>
+          <p className="font-semibold">{nodeLabel[language]}</p>
           <Badge variant="outline">{event.status}</Badge>
         </div>
         {event.detail && (
