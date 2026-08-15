@@ -1,10 +1,12 @@
 import "server-only";
 
-import type OpenAI from "openai";
 import {
   runLearningAgentLoop,
-  type LearningAgentLoopMessage,
 } from "@/features/ai-teacher/tools/learning-agent-loop";
+import {
+  getDeepSeekReasoningContent,
+  toDeepSeekMessages,
+} from "@/features/ai-teacher/tools/deepseek-message-adapter";
 import { learningAgentToolDefinitions } from "@/features/ai-teacher/tools/tool-definitions";
 import {
   createLearningAgentToolExecutor,
@@ -45,40 +47,6 @@ Rules:
 8. Stop after the task is complete. Do not call tools merely to demonstrate tool use.`;
 }
 
-function toOpenAiMessages(
-  messages: LearningAgentLoopMessage[],
-): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
-  return messages.map((message) => {
-    if (message.role === "assistant") {
-      return {
-        role: "assistant" as const,
-        content: message.content,
-        tool_calls: message.toolCalls.map((toolCall) => ({
-          id: toolCall.id,
-          type: "function" as const,
-          function: {
-            name: toolCall.name,
-            arguments: toolCall.argumentsJson,
-          },
-        })),
-      };
-    }
-
-    if (message.role === "tool") {
-      return {
-        role: "tool" as const,
-        content: message.content,
-        tool_call_id: message.toolCallId,
-      };
-    }
-
-    return {
-      role: message.role,
-      content: message.content,
-    };
-  });
-}
-
 export async function runLearningAgentForTeacher({
   input,
   runtime,
@@ -105,14 +73,13 @@ export async function runLearningAgentForTeacher({
       userMessage: input.userMessage,
       async requestModelTurn({ messages }) {
         const startedAt = Date.now();
-        // DeepSeek thinking mode rejects `tool_choice: "required"`; the host
-        // loop independently rejects a tool-less or invalid first turn.
+        // DeepSeek V4 selects from the supplied tools without `tool_choice`.
+        // The host loop independently rejects a tool-less or invalid first turn.
         const completion = await client.chat.completions.create(
           {
             model: DEEPSEEK_MODEL,
-            messages: toOpenAiMessages(messages),
+            messages: toDeepSeekMessages(messages),
             temperature: 0.2,
-            tool_choice: "auto",
             tools: learningAgentToolDefinitions,
           },
           {
@@ -129,6 +96,7 @@ export async function runLearningAgentForTeacher({
 
         return {
           content: message.content,
+          reasoningContent: getDeepSeekReasoningContent(message),
           telemetry: {
             completionTokens: completion.usage?.completion_tokens,
             durationMs: Date.now() - startedAt,

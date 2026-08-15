@@ -18,6 +18,8 @@ export type LearningAgentLoopMessage =
   | {
       role: "assistant";
       content: string | null;
+      // Provider protocol state only; never expose it in the client response or telemetry.
+      reasoningContent?: string | null;
       toolCalls: LearningAgentToolCall[];
     }
   | { role: "tool"; content: string; toolCallId: string };
@@ -33,6 +35,7 @@ export type LearningAgentModelTelemetry = {
 
 export type LearningAgentModelTurn = {
   content: string | null;
+  reasoningContent?: string | null;
   toolCalls: Array<{
     id: string;
     name: string;
@@ -174,6 +177,7 @@ export async function runLearningAgentLoop({
     messages.push({
       role: "assistant",
       content: turn.content,
+      reasoningContent: turn.reasoningContent,
       toolCalls: parsedCalls,
     });
 

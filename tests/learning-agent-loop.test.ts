@@ -4,6 +4,10 @@ import {
   runLearningAgentLoop,
   type LearningAgentModelTurn,
 } from "../src/features/ai-teacher/tools/learning-agent-loop.ts";
+import {
+  getDeepSeekReasoningContent,
+  toDeepSeekMessages,
+} from "../src/features/ai-teacher/tools/deepseek-message-adapter.ts";
 import type {
   LearningAgentToolCall,
   PendingLearningPlanAction,
@@ -39,6 +43,7 @@ test("runs a bounded model-tool-observation loop and returns a pending write", a
   const turns: LearningAgentModelTurn[] = [
     {
       content: null,
+      reasoningContent: "Inspect the authenticated learning state first.",
       telemetry: telemetry(),
       toolCalls: [
         {
@@ -67,6 +72,9 @@ test("runs a bounded model-tool-observation loop and returns a pending write", a
   ];
   const executed: LearningAgentToolCall[] = [];
   const requiredModes: boolean[] = [];
+  const observedReasoningHistory: Array<
+    Array<string | null | undefined>
+  > = [];
 
   const result = await runLearningAgentLoop({
     locale: "en",
@@ -86,8 +94,13 @@ test("runs a bounded model-tool-observation loop and returns a pending write", a
             : undefined,
       };
     },
-    async requestModelTurn({ requireTool }) {
+    async requestModelTurn({ messages, requireTool }) {
       requiredModes.push(requireTool);
+      observedReasoningHistory.push(
+        messages
+          .filter((message) => message.role === "assistant")
+          .map((message) => message.reasoningContent),
+      );
       const turn = turns.shift();
       assert.ok(turn);
       return turn;
@@ -99,11 +112,58 @@ test("runs a bounded model-tool-observation loop and returns a pending write", a
     ["get_learning_state", "draft_learning_plan"],
   );
   assert.deepEqual(requiredModes, [true, false, false]);
+  assert.deepEqual(observedReasoningHistory, [
+    [],
+    ["Inspect the authenticated learning state first."],
+    ["Inspect the authenticated learning state first.", undefined],
+  ]);
   assert.equal(result.pendingAction?.preview.draftId, pendingAction.preview.draftId);
   assert.equal(result.modelCalls, 3);
   assert.equal(result.toolCalls, 2);
   assert.equal(result.telemetry.totalTokens, 45);
   assert.match(result.assistantMessage, /confirm/i);
+});
+
+test("serializes DeepSeek thinking tool turns with required compatibility fields", () => {
+  const messages = toDeepSeekMessages([
+    { role: "system", content: "system" },
+    { role: "user", content: "Create a plan" },
+    {
+      role: "assistant",
+      content: null,
+      reasoningContent: "I should inspect course-scoped evidence.",
+      toolCalls: [
+        {
+          id: "call-state",
+          name: "get_learning_state",
+          argumentsJson: "{}",
+        },
+      ],
+    },
+    {
+      role: "tool",
+      content: "{}",
+      toolCallId: "call-state",
+    },
+  ]);
+  const assistantMessage = messages[2] as typeof messages[2] & {
+    reasoning_content?: string | null;
+  };
+
+  assert.equal(assistantMessage.content, "");
+  assert.equal(
+    assistantMessage.reasoning_content,
+    "I should inspect course-scoped evidence.",
+  );
+  assert.equal(
+    getDeepSeekReasoningContent({
+      role: "assistant",
+      content: null,
+      refusal: null,
+      reasoning_content: "provider reasoning",
+    }),
+    "provider reasoning",
+  );
 });
 
 test("fails closed without executing a call that injects server-owned identity", async () => {

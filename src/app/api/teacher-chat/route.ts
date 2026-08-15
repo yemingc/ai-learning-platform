@@ -39,6 +39,24 @@ const errorStatus: Record<TeacherChatErrorCode, number> = {
   schema_validation_failed: 422,
 };
 
+function logUnexpectedTeacherError({
+  error,
+  runId,
+  transport,
+}: {
+  error: unknown;
+  runId: string;
+  transport: "json" | "stream";
+}) {
+  console.error("Unexpected AI Teacher request failure.", {
+    runId,
+    transport,
+    errorName: error instanceof Error ? error.name : "UnknownError",
+    errorMessage:
+      error instanceof Error ? error.message : "Non-Error value thrown",
+  });
+}
+
 export async function POST(request: Request) {
   const session = await auth();
 
@@ -328,6 +346,10 @@ export async function POST(request: Request) {
                 ? error.code
                 : "api_error";
 
+            if (!(error instanceof TeacherChatServiceError)) {
+              logUnexpectedTeacherError({ error, runId, transport: "stream" });
+            }
+
             failReservedRun(errorCode);
 
             if (!streamAbortController.signal.aborted) {
@@ -379,6 +401,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const errorCode =
       error instanceof TeacherChatServiceError ? error.code : "api_error";
+
+    if (!(error instanceof TeacherChatServiceError)) {
+      logUnexpectedTeacherError({ error, runId, transport: "json" });
+    }
 
     failReservedRun(errorCode);
 
