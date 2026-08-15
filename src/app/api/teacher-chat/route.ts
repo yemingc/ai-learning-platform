@@ -179,7 +179,14 @@ export async function POST(request: Request) {
         chatHistory,
         learnerMemorySnapshot,
       },
-      runtimeOptions,
+      {
+        ...runtimeOptions,
+        agentContext: {
+          learnerId,
+          courseId: resolvedConcept.courseId,
+          runId,
+        },
+      },
     );
     const teacherResponse = teacherChatResponseSchema.parse(
       teacherWorkflowResult.teacherResponse,
@@ -191,6 +198,7 @@ export async function POST(request: Request) {
       ...teacherResponse,
       citations: teacherWorkflowResult.citations,
       memoryWriteDecision: teacherWorkflowResult.memoryWriteDecision,
+      pendingAgentAction: teacherWorkflowResult.pendingAgentAction,
     };
     const conceptMemory =
       teacherWorkflowResult.memoryWriteDecision === "skip"
@@ -223,6 +231,7 @@ export async function POST(request: Request) {
           conceptMemory,
           nextStudyAction: teacherWorkflowResult.nextStudyAction,
           modelTelemetry: teacherWorkflowResult.modelTelemetry,
+          toolTrace: teacherWorkflowResult.toolTrace,
           workflowEngine,
           workflowTrace: teacherWorkflowResult.trace,
         }
@@ -297,6 +306,9 @@ export async function POST(request: Request) {
                   }
 
                   enqueue({ type: "assistant_delta", delta });
+                },
+                onWorkflowStage(stage) {
+                  enqueue({ type: "status", stage });
                 },
               },
               () =>

@@ -12,6 +12,7 @@ test("requires every branch-independent teaching workflow stage", () => {
     "build_context",
     "classify_user_intent",
     "select_teaching_strategy",
+    "decide_agent_action",
     "decide_curriculum_retrieval",
     "generate_validated_response",
     "extract_learning_signals",
@@ -28,8 +29,11 @@ test("reports missing or unsuccessful nodes from an actual trace", () => {
       node,
       status: "success",
     }));
-  partialTrace[4] = {
-    ...partialTrace[4],
+  const retrievalDecisionIndex = partialTrace.findIndex(
+    (event) => event.node === "decide_curriculum_retrieval",
+  );
+  partialTrace[retrievalDecisionIndex] = {
+    ...partialTrace[retrievalDecisionIndex],
     status: "error",
   };
 

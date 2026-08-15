@@ -12,7 +12,7 @@ The central entity is a `Concept`, not a question. The system combines:
 1. a course-owned knowledge graph;
 2. server-scored diagnostic evidence;
 3. structured, reviewable lesson content;
-4. a bounded AI Teacher workflow;
+4. a bounded AI Teacher workflow with an allowlisted learning-action branch;
 5. server-scored exit evidence;
 6. account-scoped learner memory; and
 7. an evidence-aware next-learning plan.
@@ -43,6 +43,9 @@ flowchart TD
     DeepSeek --> Contract["Zod response validation"]
     Contract --> CitationGate["Retrieved-chunk citation allowlist"]
     CitationGate --> LearnerDB
+    Workflow --> AgentTools["Server-scoped learning tools"]
+    AgentTools --> Confirmation["Expiring user confirmation"]
+    Confirmation --> PlanDB[("Versioned active learning plan")]
 
     Workflow --> RunDB[("Privacy-minimized run telemetry")]
     LearnerDB --> Dashboard["Dashboard and adaptive plan"]
@@ -57,6 +60,13 @@ Student message
   -> Build compact lesson and learner context
   -> Classify intent
   -> Select teaching strategy
+  -> Decide whether this is teaching or an explicit learning action
+      -> Learning action: run at most 3 model steps and 4 allowlisted tool calls
+          -> Inject authenticated learnerId and active courseId on the server
+          -> Validate strict tool arguments and execute read/draft operations
+          -> Require one-time user confirmation before an activation write
+          -> Return an idempotent, versioned plan result
+      -> Teaching: continue the grounded teaching workflow
   -> Decide whether curriculum retrieval is useful
       -> Lightweight turn: use reviewed lesson context
       -> Substantive turn: search active concept
@@ -84,7 +94,29 @@ TEACHER_WORKFLOW_ENGINE=typescript
 
 The fallback is not a fake-answer path. Missing API keys, provider failures,
 timeouts, invalid JSON, and schema-validation failures are still surfaced to
-the user.
+the user. Learning-action requests do not fall back to a runner without the
+tool contract; they fail closed instead of simulating execution.
+
+## Learning-action tool boundary
+
+The model can request only four application-owned tools:
+
+- `get_learning_state`
+- `retrieve_course_evidence`
+- `draft_learning_plan`
+- `activate_learning_plan`
+
+The first three read or create a pending draft. `activate_learning_plan` never
+activates directly: it returns a pending action card. The confirmation route
+hashes the presented token, binds the lookup to the authenticated learner,
+checks expiry, and performs the plan activation in an idempotent SQLite
+transaction. A repeated confirmation returns the existing version instead of
+creating another write. Course and learner identity are never accepted from
+model arguments.
+
+This is deliberately a bounded single-agent branch. It does not implement MCP,
+arbitrary external tools, multi-agent delegation, a sandbox, or durable
+LangGraph checkpointing.
 
 ## Context and prompt boundary
 
@@ -281,6 +313,7 @@ live-required, and human-calibration-required evidence gates.
 | `/api/health` | Public application and SQLite readiness probe |
 | `/api/formative-assessment` | Answer-safe reads and server-scored writes |
 | `/api/teacher-chat` | Server-side AI Teacher streaming route |
+| `/api/agent-actions/confirm` | Authenticated confirm/reject route for pending plan activation |
 | `/api/developer/evaluation-report` | Protected governance export |
 
 Legacy `/learn/[conceptId]` URLs redirect into the course-scoped route, and
@@ -294,12 +327,12 @@ src/
   components/                  Learning, dashboard, i18n, and UI components
   curricula/                   Course registry, validation, and course packs
   features/
-    ai-teacher/                Prompt, schema, service, workflows, evaluation
+    ai-teacher/                Prompt, schema, workflows, tools, evaluation
     assessment/                Item DTOs, server scoring, and learning gain
     knowledge/                 Course-agnostic graph types and getters
     lessons/                   Lesson assets and retrieval chunking
     memory/                    Learner memory, scoring, and recommendations
-    planner/                   Adaptive planning rules
+    planner/                   Adaptive planning rules and confirmed plan actions
     rag/                       Keyword, embedding, hybrid, and evaluation logic
 ```
 

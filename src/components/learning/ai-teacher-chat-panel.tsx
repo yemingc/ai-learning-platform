@@ -12,9 +12,13 @@ import {
 import {
   BookOpenCheck,
   Bot,
+  CheckCircle2,
   ChevronDown,
+  Clock3,
+  ListChecks,
   Loader2,
   Send,
+  ShieldCheck,
   Sparkles,
   Square,
   X,
@@ -32,6 +36,11 @@ import {
 import type { Concept } from "@/features/knowledge/types";
 import type { LessonContent } from "@/features/lessons/types";
 import { notifyLearnerMemoryUpdated } from "@/features/memory/memory-api-client";
+import type {
+  LearningAgentToolTrace,
+  LearningPlanActionResult,
+  PendingLearningPlanAction,
+} from "@/features/ai-teacher/tools/types";
 import type {
   TeacherChatMessage,
   TeacherChatResponse,
@@ -80,6 +89,8 @@ type TeacherChatDebugResponse = TeacherChatResponse & {
   workflowEngine?: string;
   workflowTrace?: TeacherWorkflowTraceEvent[];
   modelTelemetry?: TeacherModelTelemetry;
+  pendingAgentAction?: PendingLearningPlanAction;
+  toolTrace?: LearningAgentToolTrace[];
 };
 
 type CurriculumCitation = {
@@ -139,6 +150,9 @@ const panelCopy = {
     interrupted: "Interrupted draft",
     streamStages: {
       preparing_context: "Preparing lesson and learner context...",
+      planning_action: "Planning a bounded learning action...",
+      executing_tools: "Running approved learning tools...",
+      awaiting_confirmation: "Preparing a confirmation request...",
       generating_response: "Writing the response...",
       finalizing_learning_state: "Validating the response and updating learning memory...",
     } satisfies Record<TeacherStreamStage, string>,
@@ -148,6 +162,19 @@ const panelCopy = {
     citationJump: "Jump to section",
     workflowTrace: "AI workflow trace",
     nextStudyAction: "Next study action",
+    planPreview: "Learning-plan draft",
+    planSteps: "steps",
+    planGoal: "Goal",
+    perSession: "min/session",
+    estimatedFocus: "min estimated focus time",
+    confirmPlan: "Confirm and activate",
+    rejectPlan: "Not now",
+    confirmingPlan: "Activating plan...",
+    planConfirmed: "Plan activated. Repeating this confirmation will not create a duplicate.",
+    planRejected: "Plan draft dismissed without changing your active plan.",
+    planSecurity:
+      "This write is bound to your signed-in account and only runs after confirmation.",
+    openPlan: "Open active plan",
     followUps: "Suggested follow-ups",
     message: "Message",
     placeholder:
@@ -189,6 +216,9 @@ const panelCopy = {
     interrupted: "未完成草稿",
     streamStages: {
       preparing_context: "正在准备课程与学习进度上下文...",
+      planning_action: "正在规划受控学习操作...",
+      executing_tools: "正在执行已允许的学习工具...",
+      awaiting_confirmation: "正在准备需要你确认的操作...",
       generating_response: "正在逐步生成回答...",
       finalizing_learning_state: "正在校验回答并更新学习记忆...",
     } satisfies Record<TeacherStreamStage, string>,
@@ -198,6 +228,18 @@ const panelCopy = {
     citationJump: "跳到这一段",
     workflowTrace: "AI 工作流记录",
     nextStudyAction: "下一步建议",
+    planPreview: "学习计划草案",
+    planSteps: "个步骤",
+    planGoal: "目标",
+    perSession: "分钟/次",
+    estimatedFocus: "分钟预计重点学习时间",
+    confirmPlan: "确认并启用",
+    rejectPlan: "暂不启用",
+    confirmingPlan: "正在启用计划...",
+    planConfirmed: "计划已启用；重复确认不会产生重复写入。",
+    planRejected: "已放弃本次草案，当前计划没有被修改。",
+    planSecurity: "该写操作绑定当前登录账户，只有确认后才会执行。",
+    openPlan: "打开已启用计划",
     followUps: "可以继续这样问",
     message: "你的问题",
     placeholder: "可以请它讲简单点、换个例子，或问你一个引导问题。",
@@ -252,6 +294,15 @@ export function AiTeacherChatPanel({
     useState(false);
   const [nextStudyAction, setNextStudyAction] = useState<
     NextStudyActionHint | undefined
+  >();
+  const [pendingAgentAction, setPendingAgentAction] = useState<
+    PendingLearningPlanAction | undefined
+  >();
+  const [agentActionStatus, setAgentActionStatus] = useState<
+    "idle" | "confirming" | "confirmed" | "rejected"
+  >("idle");
+  const [agentActionError, setAgentActionError] = useState<
+    string | undefined
   >();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
@@ -397,6 +448,9 @@ export function AiTeacherChatPanel({
     setCitations([]);
     setIsWorkflowTraceExpanded(false);
     setNextStudyAction(undefined);
+    setPendingAgentAction(undefined);
+    setAgentActionStatus("idle");
+    setAgentActionError(undefined);
     setLoadingSeconds(0);
     setStreamStage("preparing_context");
 
@@ -538,6 +592,7 @@ export function AiTeacherChatPanel({
       setCitations(completedData.citations ?? []);
       setIsWorkflowTraceExpanded(false);
       setNextStudyAction(completedData.nextStudyAction);
+      setPendingAgentAction(completedData.pendingAgentAction);
 
       if (completedData.workflowTrace?.length) {
         saveWorkflowInspectorRun({
@@ -606,6 +661,46 @@ export function AiTeacherChatPanel({
 
       setIsLoading(false);
       setLoadingSeconds(0);
+    }
+  }
+
+  async function resolvePendingAgentAction(
+    decision: "confirm" | "reject",
+  ) {
+    if (!pendingAgentAction || agentActionStatus === "confirming") {
+      return;
+    }
+
+    setAgentActionStatus("confirming");
+    setAgentActionError(undefined);
+
+    try {
+      const response = await fetch("/api/agent-actions/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmationToken: pendingAgentAction.confirmationToken,
+          decision,
+        }),
+      });
+      const body = (await response.json().catch(() => undefined)) as
+        | { result?: LearningPlanActionResult; error?: { message?: string } }
+        | undefined;
+
+      if (!response.ok || !body?.result) {
+        throw new Error(
+          body?.error?.message ?? "Unable to resolve the learning-plan action.",
+        );
+      }
+
+      setAgentActionStatus(
+        body.result.status === "rejected" ? "rejected" : "confirmed",
+      );
+    } catch (actionError) {
+      setAgentActionStatus("idle");
+      setAgentActionError(
+        actionError instanceof Error ? actionError.message : copy.failed,
+      );
     }
   }
 
@@ -759,6 +854,106 @@ export function AiTeacherChatPanel({
               <div className="rounded-lg border border-learning-mint/30 bg-learning-mint/10 p-3 text-sm leading-6">
                 <span className="font-semibold">{copy.learningSignal}</span>{" "}
                 {memorySignals.evidenceNote}
+              </div>
+            )}
+
+            {pendingAgentAction && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm leading-6">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="flex items-center gap-2 font-semibold">
+                      <ListChecks className="size-4 text-primary" />
+                      {copy.planPreview}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {pendingAgentAction.preview.title}
+                    </p>
+                  </div>
+                  <Badge variant="outline">
+                    {pendingAgentAction.preview.stepCount} {copy.planSteps}
+                  </Badge>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {pendingAgentAction.preview.focusConceptTitles.map((title) => (
+                    <Badge key={title} variant="secondary">
+                      {title}
+                    </Badge>
+                  ))}
+                </div>
+
+                {pendingAgentAction.preview.goal && (
+                  <p className="mt-3 text-muted-foreground">
+                    {copy.planGoal}: {pendingAgentAction.preview.goal}
+                  </p>
+                )}
+
+                <p className="mt-3 flex items-center gap-2 text-muted-foreground">
+                  <Clock3 className="size-4" />
+                  {pendingAgentAction.preview.minutesPerSession
+                    ? `${pendingAgentAction.preview.minutesPerSession} ${copy.perSession} · `
+                    : ""}
+                  {pendingAgentAction.preview.estimatedMinutes} {copy.estimatedFocus}
+                </p>
+                <p className="mt-2 flex items-start gap-2 text-xs text-muted-foreground">
+                  <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+                  {copy.planSecurity}
+                </p>
+
+                {agentActionStatus === "confirmed" ? (
+                  <div className="mt-4 space-y-3">
+                    <p className="flex items-start gap-2 text-learning-mint-foreground">
+                      <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                      {copy.planConfirmed}
+                    </p>
+                    <a
+                      className={cn(
+                        buttonVariants({ size: "sm" }),
+                        "w-full",
+                      )}
+                      href={`/plan?courseId=${encodeURIComponent(concept.courseId)}`}
+                    >
+                      {copy.openPlan}
+                    </a>
+                  </div>
+                ) : agentActionStatus === "rejected" ? (
+                  <p className="mt-4 text-muted-foreground">
+                    {copy.planRejected}
+                  </p>
+                ) : (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <Button
+                      disabled={agentActionStatus === "confirming" || isLoading}
+                      onClick={() =>
+                        void resolvePendingAgentAction("confirm")
+                      }
+                      size="sm"
+                      type="button"
+                    >
+                      {agentActionStatus === "confirming" && (
+                        <Loader2 className="size-4 animate-spin" />
+                      )}
+                      {agentActionStatus === "confirming"
+                        ? copy.confirmingPlan
+                        : copy.confirmPlan}
+                    </Button>
+                    <Button
+                      disabled={agentActionStatus === "confirming" || isLoading}
+                      onClick={() => void resolvePendingAgentAction("reject")}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {copy.rejectPlan}
+                    </Button>
+                  </div>
+                )}
+
+                {agentActionError && (
+                  <p className="mt-3 text-sm text-destructive">
+                    {agentActionError}
+                  </p>
+                )}
               </div>
             )}
 

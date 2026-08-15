@@ -60,6 +60,26 @@ const nodeLabels: Record<
     en: "Classify intent",
     zh: "识别意图（classify intent）",
   },
+  decide_agent_action: {
+    en: "Decide Agent action",
+    zh: "决定是否执行工具（Agent action）",
+  },
+  plan_tool_calls: {
+    en: "Plan tool calls",
+    zh: "规划工具调用（tool planning）",
+  },
+  execute_learning_tool: {
+    en: "Execute learning tool",
+    zh: "执行学习工具（tool execution）",
+  },
+  request_action_confirmation: {
+    en: "Request action confirmation",
+    zh: "请求操作确认（human confirmation）",
+  },
+  return_agent_action: {
+    en: "Return Agent action",
+    zh: "返回 Agent 操作结果（action result）",
+  },
   decide_curriculum_retrieval: {
     en: "Decide curriculum retrieval",
     zh: "决定是否检索课程（retrieval decision）",

@@ -11,6 +11,11 @@ import type {
   CurriculumCitation,
 } from "@/features/rag/curriculum-context";
 import type { ConceptMemoryStatus } from "@/features/memory/types";
+import type {
+  LearningAgentToolTrace,
+  PendingLearningPlanAction,
+} from "@/features/ai-teacher/tools/types";
+import type { LearningAgentActionMode } from "@/features/ai-teacher/tools/tool-policy";
 
 export type TeacherIntent =
   | "confusion"
@@ -37,6 +42,11 @@ export type TeacherWorkflowNode =
   | "build_context"
   | "classify_user_intent"
   | "select_teaching_strategy"
+  | "decide_agent_action"
+  | "plan_tool_calls"
+  | "execute_learning_tool"
+  | "request_action_confirmation"
+  | "return_agent_action"
   | "decide_curriculum_retrieval"
   | "retrieve_curriculum_context"
   | "assess_retrieval_quality"
@@ -111,6 +121,14 @@ export type TeacherWorkflowInput = {
 export type TeacherWorkflowRuntimeOptions = {
   signal?: AbortSignal;
   onAssistantMessageDelta?: (delta: string) => void;
+  onWorkflowStage?: (
+    stage: "planning_action" | "executing_tools" | "awaiting_confirmation",
+  ) => void;
+  agentContext?: {
+    learnerId: string;
+    courseId: string;
+    runId: string;
+  };
 };
 
 export type TeacherWorkflowContext = {
@@ -123,6 +141,9 @@ export type TeacherWorkflowContext = {
 export type TeacherWorkflowState = {
   input: TeacherWorkflowInput;
   context?: TeacherWorkflowContext;
+  actionMode?: LearningAgentActionMode;
+  pendingAgentAction?: PendingLearningPlanAction;
+  toolTrace?: LearningAgentToolTrace[];
   intent?: TeacherIntent;
   teachingStrategy?: TeachingMove;
   retrievalDecision?: CurriculumRetrievalDecision;
@@ -150,4 +171,6 @@ export type TeacherWorkflowResult = {
   citations: CurriculumCitation[];
   trace: TeacherWorkflowTraceEvent[];
   state: TeacherWorkflowState;
+  pendingAgentAction?: PendingLearningPlanAction;
+  toolTrace?: LearningAgentToolTrace[];
 };
