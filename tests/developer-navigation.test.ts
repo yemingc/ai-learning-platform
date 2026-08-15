@@ -5,6 +5,10 @@ import test from "node:test";
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { scripts?: Record<string, string> };
+const nextConfigSource = readFileSync(
+  new URL("../next.config.ts", import.meta.url),
+  "utf8",
+);
 
 const siteHeaderSource = readFileSync(
   new URL("../src/components/site-header.tsx", import.meta.url),
@@ -48,9 +52,10 @@ test("developer entry uses a document navigation for its auth-sensitive route", 
   );
 });
 
-test("default development avoids the failing Turbopack RSC decoder", () => {
-  assert.equal(packageJson.scripts?.dev, "next dev --webpack");
-  assert.equal(packageJson.scripts?.["dev:turbopack"], "next dev");
+test("default development uses Turbopack without its persistent disk cache", () => {
+  assert.equal(packageJson.scripts?.dev, "next dev");
+  assert.equal(packageJson.scripts?.["dev:webpack"], "next dev --webpack");
+  assert.match(nextConfigSource, /turbopackFileSystemCacheForDev:\s*false/);
 });
 
 test("developer mode cookie changes trigger one document navigation", () => {
