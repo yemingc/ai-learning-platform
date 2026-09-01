@@ -375,10 +375,3 @@ Planned improvements can be added incrementally:
 4. If a hosted version becomes useful, deploy the standalone image to a
    single-instance container host, then rebuild and re-evaluate the embedding
    index in that environment.
-
-## License
-
-No open-source license is granted for this repository. The source is publicly
-visible for project review, but no permission is granted to reuse, modify,
-redistribute, or incorporate it into another project except as permitted by
-applicable law or GitHub's Terms of Service.
