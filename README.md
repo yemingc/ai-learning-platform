@@ -348,7 +348,7 @@ The evaluated hybrid retriever already meets the checked-in release gate; those
 components should be added only when a larger corpus or real failure analysis
 justifies their operational cost.
 
-## Portfolio presentation and next evidence
+## Project presentation and next steps
 
 A hosted interactive demo is not a prerequisite for publishing this source
 repository. The application persists account-scoped learning state in SQLite,
@@ -365,9 +365,9 @@ The current publication evidence package is:
 - architecture, retrieval-evaluation, operations, and curriculum-alignment
   documentation.
 
-Useful next evidence upgrades are optional and incremental:
+Planned improvements can be added incrementally:
 
-1. Add a 60–90 second walkthrough if a recruiter needs a faster guided view.
+1. Add a 60–90 second walkthrough when a shorter guided overview becomes useful.
 2. Collect at least three complete human-reviewed live evaluation runs before
    claiming calibrated automated teaching scores.
 3. Record named subject-matter review before changing AP Units 1–2 from
@@ -375,3 +375,10 @@ Useful next evidence upgrades are optional and incremental:
 4. If a hosted version becomes useful, deploy the standalone image to a
    single-instance container host, then rebuild and re-evaluate the embedding
    index in that environment.
+
+## License
+
+No open-source license is granted for this repository. The source is publicly
+visible for project review, but no permission is granted to reuse, modify,
+redistribute, or incorporate it into another project except as permitted by
+applicable law or GitHub's Terms of Service.
