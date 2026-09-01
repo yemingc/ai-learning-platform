@@ -6,10 +6,49 @@ A learning-centric AI education platform that combines reviewed curriculum,
 LangGraph orchestration, hybrid RAG, formative assessment, and evidence-based
 learner memory.
 
-> **Portfolio status:** the application and repository checks are verified
-> locally. AP Calculus AB currently covers Units 1–2 of 8 and remains a preview
-> pending named subject-matter review. A hosted demo and reviewed visual
-> walkthrough are the next publication artifacts.
+> **Portfolio status:** the application and repository checks were verified
+> locally on 2026-09-01. The evidence package uses real UI captures and a
+> reproducible local run path rather than claiming an always-on hosted demo.
+> AP Calculus AB currently covers Units 1–2 of 8 and remains a preview pending
+> named subject-matter review.
+
+## Visual walkthrough
+
+These screenshots were captured from the real local application on 2026-09-01;
+they are not design mockups. Authenticated learner views use the
+repository's demo seeding flow and synthetic formative evidence. Those product
+views made no live language-model calls. The AI Teacher example below is
+separately marked as a live language-model capture; it uses a synthetic
+misconception prompt and is not a human-reviewed quality claim.
+
+![Chinese product overview showing the learning loop](docs/images/homepage.png)
+
+### Grounded AI Teacher conversation
+
+![A synthetic learner asks whether a limit always equals the function value, and the AI Teacher corrects the misconception with a course example](docs/images/ai-teacher-conversation-focus.png)
+
+The captured `deepseek-v4-pro` turn completed through LangGraph, used the active
+lesson and learner context to distinguish a limit from a function value,
+returned one curriculum citation, and recorded a 13-node workflow trace. The
+crop prioritizes the actual question and answer; detailed trace inspection
+remains available through Developer Mode.
+
+This is evidence of one bounded run captured on 2026-09-01, not a general
+accuracy guarantee, benchmark result, or subject-matter approval.
+
+| Authenticated lesson and AI Teacher | Evidence-based learner dashboard |
+| --- | --- |
+| ![Lesson page with readiness evidence, formative assessment, and contextual AI Teacher](docs/images/lesson.png) | ![Course dashboard with readiness, next-step recommendation, and recent learning evidence](docs/images/learning-dashboard.png) |
+| A structured lesson keeps assessment, readiness, and grounded AI support in one course context. | Synthetic diagnostic and exit-ticket results drive the next recommendation instead of a model-only score. |
+
+| Adaptive next-step plan | RAG retrieval evaluation |
+| --- | --- |
+| ![Adaptive plan generated from prerequisite and assessment evidence](docs/images/adaptive-plan.png) | ![Retrieval evaluation comparing keyword, embedding, and hybrid policies](docs/images/retrieval-evaluation.png) |
+| The plan separates server-scored evidence from AI-assisted personalization. | The developer view exposes the checked-in 48-case retrieval comparison and its release gate. |
+
+The separate [Developer Mode view](docs/images/developer-tools.png) keeps
+workflow traces, model telemetry, prompt inspection, and evaluation tooling out
+of the student experience.
 
 ## Why this project exists
 
@@ -77,7 +116,7 @@ model, trust boundaries, routes, observability, and failure behavior.
 
 ## Current scope
 
-Repository-backed snapshot as of 2026-08-14:
+Repository-backed snapshot verified on 2026-09-01:
 
 | Area | Implemented scope |
 | --- | --- |
@@ -164,19 +203,19 @@ decision.
 
 ## Verified evidence
 
-Latest local repository verification:
+Latest local repository verification (2026-09-01):
 
 | Check | Result |
 | --- | --- |
 | Automated tests | 127 / 127 passed |
 | Agent routing and safety | 20 / 20 bilingual routing cases; scope injection, call budgets, expiry, and idempotency covered |
-| Live Agent verification | A two-turn `deepseek-v4-pro` tool protocol passed with `reasoning_content` preserved; the authenticated manual draft, confirm, and activate flow was observed, but automated browser E2E is not claimed |
+| Live Agent verification | Last manually observed on 2026-08-15: a two-turn `deepseek-v4-pro` tool protocol preserved `reasoning_content`, and the authenticated draft, confirm, and activate flow completed; automated browser E2E is not claimed |
 | TypeScript | `npx tsc --noEmit` passed |
 | ESLint | `npm run lint` passed |
 | Production dependency audit | 0 high/critical vulnerabilities |
 | Production build | Passed; 89 static pages generated |
 
-Latest environment-backed retrieval snapshot:
+Latest environment-backed retrieval snapshot (2026-08-14):
 
 | Retrieval evidence | Result |
 | --- | --- |
@@ -250,7 +289,7 @@ The deterministic curriculum and workflow tests do not call the model.
 ```powershell
 git clone https://github.com/yemingc/ai-learning-platform.git
 cd ai-learning-platform
-npm install
+npm ci
 Copy-Item .env.example .env.local
 # Add DEEPSEEK_API_KEY and replace AUTH_SECRET in .env.local
 npm run dev
@@ -309,17 +348,30 @@ The evaluated hybrid retriever already meets the checked-in release gate; those
 components should be added only when a larger corpus or real failure analysis
 justifies their operational cost.
 
-## Next publication increment
+## Portfolio presentation and next evidence
 
-The next useful increment is evidence packaging, not another AI feature:
+A hosted interactive demo is not a prerequisite for publishing this source
+repository. The application persists account-scoped learning state in SQLite,
+can call paid model and embedding providers, and exposes internal evaluation
+tools only through Developer Mode. A trustworthy hosted version would therefore
+need managed credentials, cost and rate limits, a synthetic-data reset policy,
+and explicit single-instance storage operations.
 
-1. Deploy the verified standalone image to a single-instance container host.
-2. Rebuild and evaluate the embedding index in that environment.
-3. Collect at least three complete human-reviewed live evaluation runs.
-4. Add reviewed screenshots or a 60–90 second walkthrough covering the learner
-   flow, Workflow Inspector, retrieval evaluation, and dashboard evidence.
-5. Record named subject-matter review before changing AP Units 1–2 from
+The current publication evidence package is:
+
+- real local screenshots with synthetic-data and live-provider boundaries;
+- a reproducible quick start and verification command set;
+- current automated-test, lint, dependency-audit, typecheck, and build results;
+- architecture, retrieval-evaluation, operations, and curriculum-alignment
+  documentation.
+
+Useful next evidence upgrades are optional and incremental:
+
+1. Add a 60–90 second walkthrough if a recruiter needs a faster guided view.
+2. Collect at least three complete human-reviewed live evaluation runs before
+   claiming calibrated automated teaching scores.
+3. Record named subject-matter review before changing AP Units 1–2 from
    `preview`.
-
-After those artifacts exist, the repository is ready to become public and be
-used as the primary implementation evidence in applications and interviews.
+4. If a hosted version becomes useful, deploy the standalone image to a
+   single-instance container host, then rebuild and re-evaluate the embedding
+   index in that environment.
